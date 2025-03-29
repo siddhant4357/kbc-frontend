@@ -1,39 +1,44 @@
-import { useState, useEffect } from 'react';
+import { useEffect, useState } from 'react';
+import { io } from 'socket.io-client';
 import { API_URL } from '../utils/config';
 
 export const useGameState = (gameId) => {
+  const [socket, setSocket] = useState(null);
   const [gameState, setGameState] = useState(null);
   const [error, setError] = useState(null);
 
-  const pollGameState = async () => {
-    try {
-      const response = await fetch(`${API_URL}/api/game/${gameId}/status`, {
-        credentials: 'include'
-      });
-      
-      if (!response.ok) {
-        throw new Error(`HTTP error! status: ${response.status}`);
-      }
-      
-      const data = await response.json();
-      setGameState(data);
-      setError(null);
-    } catch (err) {
-      console.error('Error fetching game state:', err);
-      setError(err.message);
-    }
-  };
-
   useEffect(() => {
-    // Initial poll
-    pollGameState();
+    const user = JSON.parse(localStorage.getItem('user'));
+    const newSocket = io(API_URL, {
+      path: '/socket.io',
+      transports: ['websocket', 'polling'],
+      reconnection: true,
+      reconnectionAttempts: 5
+    });
 
-    // Set up polling interval (every 3 seconds)
-    const interval = setInterval(pollGameState, 3000);
+    newSocket.on('connect', () => {
+      newSocket.emit('identify', {
+        username: user.username,
+        isAdmin: user.isAdmin,
+        questionBankId: gameId
+      });
+    });
 
-    // Cleanup
-    return () => clearInterval(interval);
+    newSocket.on('gameState', (state) => {
+      setGameState(state);
+    });
+
+    newSocket.on('connect_error', (error) => {
+      console.error('Socket connection error:', error);
+      setError('Connection error. Please try refreshing the page.');
+    });
+
+    setSocket(newSocket);
+
+    return () => {
+      newSocket.close();
+    };
   }, [gameId]);
 
-  return { gameState, error };
+  return { gameState, error, socket };
 };
