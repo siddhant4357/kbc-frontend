@@ -106,42 +106,29 @@ const ManagePlayAlong = () => {
     if (currentQuestionIndex < selectedBank.questions.length - 1) {
       const nextIndex = currentQuestionIndex + 1;
       setCurrentQuestionIndex(nextIndex);
-      socket.emit('questionUpdate', {
-        questionBankId: selectedBank._id,
-        question: selectedBank.questions[nextIndex],
-        questionIndex: nextIndex // Make sure this is included
-      });
-    }
-  };
-
-  const updateGameState = async (action, data) => {
-    try {
-      const response = await fetch(`${API_URL}/api/game/${selectedBank._id}/${action}`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
+      
+      socket.emit('adminAction', {
+        action: 'nextQuestion',
+        question: {
+          ...selectedBank.questions[nextIndex],
+          questionIndex: nextIndex
         },
-        credentials: 'include',
-        body: JSON.stringify(data)
+        questionIndex: nextIndex
       });
-
-      if (!response.ok) {
-        throw new Error('Failed to update game state');
-      }
-
-      // Poll immediately after state update
-      await pollGameState();
-    } catch (err) {
-      console.error('Error updating game:', err);
     }
   };
 
   const showOptions = () => {
-    updateGameState('showOptions', { timerDuration });
+    socket.emit('adminAction', {
+      action: 'showOptions',
+      timerDuration
+    });
   };
 
   const showAnswer = () => {
-    updateGameState('showAnswer');
+    socket.emit('adminAction', {
+      action: 'showAnswer'
+    });
   };
 
   const stopGame = () => {
@@ -149,7 +136,9 @@ const ManagePlayAlong = () => {
       clearInterval(pollInterval);
       setPollInterval(null);
     }
-    updateGameState('stop');
+    socket.emit('adminAction', {
+      action: 'stopGame'
+    });
   };
 
   const handleButtonPress = (buttonName) => {

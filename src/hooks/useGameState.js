@@ -9,36 +9,65 @@ export const useGameState = (gameId) => {
 
   useEffect(() => {
     const user = JSON.parse(localStorage.getItem('user'));
+    const gameToken = localStorage.getItem(`game_${gameId}_token`);
+
     const newSocket = io(API_URL, {
-      path: '/socket.io',
       transports: ['websocket', 'polling'],
       reconnection: true,
-      reconnectionAttempts: 5
+      reconnectionAttempts: 5,
+      query: { gameToken }
     });
 
     newSocket.on('connect', () => {
-      newSocket.emit('identify', {
+      // Re-join game room on connection/reconnection
+      newSocket.emit('joinGame', {
+        questionBankId: gameId,
         username: user.username,
-        isAdmin: user.isAdmin,
-        questionBankId: gameId
+        gameToken
       });
     });
 
-    newSocket.on('gameState', (state) => {
-      setGameState(state);
+    newSocket.on('gameStateUpdate', (newState) => {
+      setGameState(prevState => ({
+        ...prevState,
+        ...newState
+      }));
     });
 
     newSocket.on('connect_error', (error) => {
       console.error('Socket connection error:', error);
-      setError('Connection error. Please try refreshing the page.');
+      setError('Connection error. Please try refreshing.');
+    });
+
+    newSocket.on('disconnect', () => {
+      // Attempt to reconnect
+      newSocket.connect();
     });
 
     setSocket(newSocket);
+
+    // Initial game state fetch
+    fetchGameState();
 
     return () => {
       newSocket.close();
     };
   }, [gameId]);
+
+  const fetchGameState = async () => {
+    try {
+      const response = await fetch(`${API_URL}/api/game/${gameId}/state`, {
+        credentials: 'include'
+      });
+      
+      if (response.ok) {
+        const data = await response.json();
+        setGameState(data);
+      }
+    } catch (error) {
+      console.error('Error fetching game state:', error);
+    }
+  };
 
   return { gameState, error, socket };
 };
