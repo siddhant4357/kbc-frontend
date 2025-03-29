@@ -2,6 +2,8 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { API_URL } from '../utils/config';
 import defaultQuestionImage from '../assets/default_img.jpg';
+import { useGameState } from '../hooks/useGameState';
+import { useAudioManager } from '../hooks/useAudioManager';
 
 // Import audio assets
 import themeAudio from '../assets/kbc_theme.wav';
@@ -14,7 +16,7 @@ import wrongAnswerSound from '../assets/kbc_wrong_ans.wav';
 const PlayGame = () => {
   const { id } = useParams();
   const navigate = useNavigate();
-  const [gameState, setGameState] = useState(null);
+  const { gameState, error: connectionError } = useGameState(id);
   const [error, setError] = useState('');
   const [currentQuestion, setCurrentQuestion] = useState(null);
   const [showOptions, setShowOptions] = useState(false);
@@ -34,15 +36,17 @@ const PlayGame = () => {
 
   const [hasUserInteracted, setHasUserInteracted] = useState(false);
   const [isSoundPaused, setIsSoundPaused] = useState(false);
-  const [lastGameStateId, setLastGameStateId] = useState(null);
 
-  // Add audio elements
-  const [themeSound] = useState(() => new Audio(themeAudio));
-  const [questionSound] = useState(() => new Audio(questionTune));
-  const [timerAudio] = useState(() => new Audio(timerSound));
-  const [correctAudio] = useState(() => new Audio(correctAnswerSound));
-  const [wrongAudio] = useState(() => new Audio(wrongAnswerSound));
-  const [timerEndAudio] = useState(() => new Audio(timerEndSound));
+  const audioFiles = {
+    theme: themeAudio,
+    question: questionTune,
+    timer: timerSound,
+    correct: correctAnswerSound,
+    wrong: wrongAnswerSound,
+    timerEnd: timerEndSound
+  };
+
+  const { play, stop, stopAll } = useAudioManager(audioFiles);
 
   // Add at the top after imports
   const PRIZE_LEVELS = [
@@ -63,36 +67,6 @@ const PlayGame = () => {
     "₹1,00,00,000"
   ];
 
-  // Polling function
-  const pollGameState = async () => {
-    try {
-      const response = await fetch(`${API_URL}/api/game/${id}/status`, {
-        credentials: 'include'
-      });
-
-      if (response.ok) {
-        const data = await response.json();
-
-        if (!lastGameStateId || data.stateId !== lastGameStateId) {
-          setLastGameStateId(data.stateId);
-          setGameState(data);
-
-          processGameState(data);
-        }
-
-        if (error) {
-          setError('');
-        }
-      } else {
-        console.error('Failed to fetch game state:', response.status);
-        setError('Failed to fetch game state');
-      }
-    } catch (err) {
-      console.error('Connection error:', err);
-      setError('Connection error');
-    }
-  };
-
   const processGameState = async (state) => {
     if (!state) return;
 
@@ -102,7 +76,7 @@ const PlayGame = () => {
     }
 
     if (state.gameStopped) {
-      await stopAllSounds();
+      await stopAll();
       setGameStopped(true);
       setCurrentQuestion(null);
       setShowOptions(false);
@@ -117,9 +91,9 @@ const PlayGame = () => {
     }
 
     if (!state.isActive) {
-      await stopAllSounds();
+      await stopAll();
       if (hasUserInteracted) {
-        themeSound.play().catch(console.error);
+        play('theme').catch(console.error);
       }
       setCurrentQuestion(null);
       setShowOptions(false);
@@ -134,8 +108,8 @@ const PlayGame = () => {
     setIsWaiting(false);
 
     if (state.currentQuestion && (!currentQuestion || state.currentQuestion.id !== currentQuestion.id)) {
-      await stopAllSounds();
-      questionSound.play().catch(console.error);
+      await stopAll();
+      play('question').catch(console.error);
 
       const newQuestion = {
         ...state.currentQuestion,
@@ -156,9 +130,8 @@ const PlayGame = () => {
 
     if (state.showOptions !== showOptions) {
       if (state.showOptions) {
-        await stopAllSounds();
-        timerAudio.loop = true;
-        timerAudio.play().catch(console.error);
+        await stopAll();
+        play('timer', { loop: true }).catch(console.error);
         setTimerStartedAt(state.timerStartedAt);
         setTimerDuration(state.timerDuration || 15);
         setIsTimerExpired(false);
@@ -168,17 +141,15 @@ const PlayGame = () => {
 
     if (state.showAnswer && !showAnswer) {
       try {
-        await stopAllSounds();
+        await stopAll();
 
         await new Promise(resolve => setTimeout(resolve, 100));
 
         if (currentQuestion && selectedOption) {
           if (selectedOption === currentQuestion.correctAnswer) {
-            correctAudio.currentTime = 0;
-            await correctAudio.play();
+            play('correct').catch(console.error);
           } else {
-            wrongAudio.currentTime = 0;
-            await wrongAudio.play();
+            play('wrong').catch(console.error);
           }
         }
 
@@ -194,24 +165,9 @@ const PlayGame = () => {
     }
   };
 
-  const stopAllSounds = async () => {
-    const sounds = [themeSound, questionSound, timerAudio, correctAudio, wrongAudio, timerEndAudio];
-    for (const sound of sounds) {
-      try {
-        if (sound && !sound.paused) {
-          await sound.pause();
-          sound.currentTime = 0;
-        }
-      } catch (error) {
-        console.error("Error stopping sound:", error);
-      }
-    }
-  };
-
   const handleStartExperience = async () => {
     try {
-      await themeSound.play();
-      themeSound.loop = true;
+      await play('theme');
       setHasUserInteracted(true);
     } catch (error) {
       console.error("Error playing theme:", error);
@@ -220,12 +176,10 @@ const PlayGame = () => {
   };
 
   const handleRestartSound = async () => {
-    if (isWaiting && themeSound) {
-      themeSound.pause();
-      themeSound.currentTime = 0;
+    if (isWaiting) {
+      stop('theme');
       try {
-        await themeSound.play();
-        themeSound.loop = true;
+        await play('theme', { loop: true });
         setIsSoundPaused(false);
       } catch (error) {
         console.error("Error restarting sound:", error);
@@ -262,24 +216,15 @@ const PlayGame = () => {
   }, [timerStartedAt, timerDuration, showOptions, lockedAnswer]);
 
   useEffect(() => {
-    const pollInterval = setInterval(pollGameState, 2000);
-
-    pollGameState();
-
-    return () => {
-      clearInterval(pollInterval);
-      stopAllSounds();
-
-      if (!gameToken) {
-        localStorage.removeItem(`game_${id}_token`);
-      }
-    };
-  }, [id, navigate]);
+    if (gameState) {
+      processGameState(gameState);
+    }
+  }, [gameState]);
 
   useEffect(() => {
     const handleVisibilityChange = () => {
       if (document.hidden) {
-        stopAllSounds();
+        stopAll();
         setIsSoundPaused(true);
       }
     };
@@ -291,53 +236,8 @@ const PlayGame = () => {
   }, []);
 
   useEffect(() => {
-    const preloadSounds = async () => {
-      try {
-        await Promise.all([
-          correctAudio.load(),
-          wrongAudio.load()
-        ]);
-      } catch (error) {
-        console.error("Error preloading sounds:", error);
-      }
-    };
-
-    preloadSounds();
-  }, [correctAudio, wrongAudio]);
-
-  useEffect(() => {
-    const initializeAudio = async () => {
-      try {
-        await Promise.all([
-          themeSound.load(),
-          questionSound.load(),
-          timerAudio.load(),
-          correctAudio.load(),
-          wrongAudio.load(),
-          timerEndAudio.load()
-        ]);
-      } catch (error) {
-        console.error("Error initializing audio:", error);
-      }
-    };
-
-    initializeAudio();
-  }, [themeSound, questionSound, timerAudio, correctAudio, wrongAudio, timerEndAudio]);
-
-  useEffect(() => {
     return () => {
-      // Cleanup audio on component unmount
-      [themeSound, questionSound, timerAudio, correctAudio, wrongAudio, timerEndAudio]
-        .forEach(sound => {
-          try {
-            if (sound && !sound.paused) {
-              sound.pause();
-              sound.currentTime = 0;
-            }
-          } catch (error) {
-            console.error("Error cleaning up audio:", error);
-          }
-        });
+      stopAll();
     };
   }, []);
 
@@ -384,7 +284,7 @@ const PlayGame = () => {
   };
 
   const confirmExit = async () => {
-    await stopAllSounds();
+    await stopAll();
 
     try {
       await fetch(`${API_URL}/api/game/${id}/leave`, {
