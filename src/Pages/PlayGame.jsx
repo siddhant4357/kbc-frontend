@@ -1,6 +1,15 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { API_URL } from '../utils/config';
+import defaultQuestionImage from '../assets/default_img.jpg';
+
+// Import audio assets
+import themeAudio from '../assets/kbc_theme.wav';
+import questionTune from '../assets/question_tune.wav';
+import timerSound from '../assets/kbc_time.mp3';
+import timerEndSound from '../assets/kbc_timer_finish.mp4';
+import correctAnswerSound from '../assets/kbc_correct_ans.wav';
+import wrongAnswerSound from '../assets/kbc_wrong_ans.wav';
 
 const PlayGame = () => {
   const { id } = useParams();
@@ -28,31 +37,31 @@ const PlayGame = () => {
   const [lastGameStateId, setLastGameStateId] = useState(null);
 
   // Add audio elements
-const [themeSound] = useState(() => new Audio('/src/assets/kbc_theme.wav'));
-const [questionSound] = useState(() => new Audio('/src/assets/question_tune.wav'));
-const [timerAudio] = useState(() => new Audio('/src/assets/kbc_time.mp3'));
-const [correctAudio] = useState(() => new Audio('/src/assets/kbc_correct_ans.wav'));
-const [wrongAudio] = useState(() => new Audio('/src/assets/kbc_wrong_ans.wav'));
-const [timerEndAudio] = useState(() => new Audio('/src/assets/kbc_timer_finish.mp4'));
+  const [themeSound] = useState(() => new Audio(themeAudio));
+  const [questionSound] = useState(() => new Audio(questionTune));
+  const [timerAudio] = useState(() => new Audio(timerSound));
+  const [correctAudio] = useState(() => new Audio(correctAnswerSound));
+  const [wrongAudio] = useState(() => new Audio(wrongAnswerSound));
+  const [timerEndAudio] = useState(() => new Audio(timerEndSound));
 
   // Add at the top after imports
-const PRIZE_LEVELS = [
-  "₹1,000",
-  "₹2,000",
-  "₹3,000",
-  "₹5,000",
-  "₹10,000",
-  "₹20,000",
-  "₹40,000",
-  "₹80,000",
-  "₹1,60,000",
-  "₹3,20,000",
-  "₹6,40,000", 
-  "₹12,50,000",
-  "₹25,00,000",
-  "₹50,00,000",
-  "₹1,00,00,000"
-];
+  const PRIZE_LEVELS = [
+    "₹1,000",
+    "₹2,000",
+    "₹3,000",
+    "₹5,000",
+    "₹10,000",
+    "₹20,000",
+    "₹40,000",
+    "₹80,000",
+    "₹1,60,000",
+    "₹3,20,000",
+    "₹6,40,000",
+    "₹12,50,000",
+    "₹25,00,000",
+    "₹50,00,000",
+    "₹1,00,00,000"
+  ];
 
   // Polling function
   const pollGameState = async () => {
@@ -186,10 +195,17 @@ const PRIZE_LEVELS = [
   };
 
   const stopAllSounds = async () => {
-    [themeSound, questionSound, timerAudio, correctAudio, wrongAudio, timerEndAudio].forEach(audio => {
-      audio.pause();
-      audio.currentTime = 0;
-    });
+    const sounds = [themeSound, questionSound, timerAudio, correctAudio, wrongAudio, timerEndAudio];
+    for (const sound of sounds) {
+      try {
+        if (sound && !sound.paused) {
+          await sound.pause();
+          sound.currentTime = 0;
+        }
+      } catch (error) {
+        console.error("Error stopping sound:", error);
+      }
+    }
   };
 
   const handleStartExperience = async () => {
@@ -288,6 +304,42 @@ const PRIZE_LEVELS = [
 
     preloadSounds();
   }, [correctAudio, wrongAudio]);
+
+  useEffect(() => {
+    const initializeAudio = async () => {
+      try {
+        await Promise.all([
+          themeSound.load(),
+          questionSound.load(),
+          timerAudio.load(),
+          correctAudio.load(),
+          wrongAudio.load(),
+          timerEndAudio.load()
+        ]);
+      } catch (error) {
+        console.error("Error initializing audio:", error);
+      }
+    };
+
+    initializeAudio();
+  }, [themeSound, questionSound, timerAudio, correctAudio, wrongAudio, timerEndAudio]);
+
+  useEffect(() => {
+    return () => {
+      // Cleanup audio on component unmount
+      [themeSound, questionSound, timerAudio, correctAudio, wrongAudio, timerEndAudio]
+        .forEach(sound => {
+          try {
+            if (sound && !sound.paused) {
+              sound.pause();
+              sound.currentTime = 0;
+            }
+          } catch (error) {
+            console.error("Error cleaning up audio:", error);
+          }
+        });
+    };
+  }, []);
 
   const handleOptionSelect = (option) => {
     if (!showAnswer && !lockedAnswer) {
