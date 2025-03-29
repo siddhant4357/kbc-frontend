@@ -35,7 +35,7 @@ const PRIZE_LEVELS = [
 const PlayGame = () => {
   const { id } = useParams();
   const navigate = useNavigate();
-  const { gameState, error: connectionError } = useGameState(id);
+  const { gameState, error: connectionError, socket } = useGameState(id);
   const [error, setError] = useState('');
 
   // Initialize audio files
@@ -249,18 +249,17 @@ const PlayGame = () => {
 
   useEffect(() => {
     if (socket) {
+      socket.on('gameStateUpdate', (state) => {
+        processGameState(state);
+      });
+
       socket.on('gameEnd', ({ playerScores }) => {
-        // Show final score if needed
         navigate('/dashboard');
       });
 
-      socket.on('redirect', (path) => {
-        navigate(path);
-      });
-
       return () => {
+        socket.off('gameStateUpdate');
         socket.off('gameEnd');
-        socket.off('redirect');
       };
     }
   }, [socket, navigate]);

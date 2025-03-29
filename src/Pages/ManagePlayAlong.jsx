@@ -15,28 +15,41 @@ const ManagePlayAlong = () => {
   const [timerDuration, setTimerDuration] = useState(15);
   const [gameState, setGameState] = useState(null);
   const [pollInterval, setPollInterval] = useState(null);
+  const [error, setError] = useState(null);
   const navigate = useNavigate();
 
   useEffect(() => {
-    // Check if user is admin
     const user = JSON.parse(localStorage.getItem('user'));
     if (!user || !user.isAdmin) {
       navigate('/dashboard');
       return;
     }
 
-    // Use environment variable for socket connection
     const newSocket = io(SOCKET_URL, {
-      transports: ['websocket', 'polling'], // Fallback to polling if websocket fails
-      secure: process.env.NODE_ENV === 'production',
+      transports: ['websocket', 'polling'],
       reconnection: true,
-      reconnectionAttempts: 5
+      reconnectionAttempts: 5,
+      reconnectionDelay: 1000,
+      timeout: 20000
     });
-    
+
+    newSocket.on('connect', () => {
+      console.log('Admin socket connected');
+    });
+
+    newSocket.on('error', (error) => {
+      console.error('Socket error:', error);
+      setError(error);
+    });
+
     setSocket(newSocket);
     fetchQuestionBanks();
 
-    return () => newSocket.disconnect();
+    return () => {
+      if (newSocket) {
+        newSocket.disconnect();
+      }
+    };
   }, [navigate]);
 
   const fetchQuestionBanks = async () => {
@@ -96,7 +109,7 @@ const ManagePlayAlong = () => {
   };
 
   const showNextQuestion = () => {
-    if (currentQuestionIndex < selectedBank.questions.length - 1) {
+    if (socket && gameStarted && currentQuestionIndex < selectedBank.questions.length - 1) {
       const nextIndex = currentQuestionIndex + 1;
       setCurrentQuestionIndex(nextIndex);
       
@@ -105,23 +118,26 @@ const ManagePlayAlong = () => {
         question: {
           ...selectedBank.questions[nextIndex],
           questionIndex: nextIndex
-        },
-        questionIndex: nextIndex
+        }
       });
     }
   };
 
   const showOptions = () => {
-    socket.emit('adminAction', {
-      action: 'showOptions',
-      timerDuration
-    });
+    if (socket && gameStarted) {
+      socket.emit('adminAction', {
+        action: 'showOptions',
+        timerDuration: parseInt(timerDuration)
+      });
+    }
   };
 
   const showAnswer = () => {
-    socket.emit('adminAction', {
-      action: 'showAnswer'
-    });
+    if (socket && gameStarted) {
+      socket.emit('adminAction', {
+        action: 'showAnswer'
+      });
+    }
   };
 
   const stopGame = () => {
