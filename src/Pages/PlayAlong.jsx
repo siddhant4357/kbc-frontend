@@ -1,46 +1,30 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import BackButton from '../components/BackButton';
-import { API_URL, SOCKET_URL } from '../utils/config';
-import { createSocketConnection } from '../utils/socketUtils';
-import { io } from 'socket.io-client';
+import { API_URL } from '../utils/config';
 
 const PlayAlong = () => {
-  const [socket, setSocket] = useState(null);
   const [questionBanks, setQuestionBanks] = useState([]);
   const [selectedBank, setSelectedBank] = useState(null);
   const [passcode, setPasscode] = useState('');
   const [error, setError] = useState('');
   const navigate = useNavigate();
 
-  useEffect(() => {
+  // Polling for game state
+  const pollGameState = async (bankId) => {
     try {
-      const newSocket = createSocketConnection();
-      if (newSocket) {
-        setSocket(newSocket);
-        
-        newSocket.on('connect', () => {
-          setError(''); // Clear any previous errors
-        });
-
-        newSocket.on('connect_error', (err) => {
-          setError('Unable to connect to game server');
-          console.error('Socket connection error:', err);
-        });
-
-        return () => {
-          newSocket.disconnect();
-        };
+      const response = await fetch(`${API_URL}/api/game/${bankId}/status`, {
+        credentials: 'include'
+      });
+      if (response.ok) {
+        const data = await response.json();
+        return data;
       }
-    } catch (err) {
-      setError('Failed to initialize game connection');
-      console.error('Socket initialization error:', err);
+    } catch (error) {
+      console.error('Error polling game state:', error);
     }
-  }, []);
-
-  useEffect(() => {
-    fetchQuestionBanks();
-  }, []);
+    return null;
+  };
 
   const fetchQuestionBanks = async () => {
     try {
@@ -75,11 +59,11 @@ const PlayAlong = () => {
       });
 
       if (response.ok) {
-        // Join the socket room before navigating
-        if (socket) {
-          socket.emit('joinGame', { id: selectedBank._id });
+        // Start polling and navigate when game is ready
+        const gameState = await pollGameState(selectedBank._id);
+        if (gameState) {
+          navigate(`/play-game/${selectedBank._id}`);
         }
-        navigate(`/play-game/${selectedBank._id}`);
       } else {
         const data = await response.json();
         setError(data.message);
@@ -89,6 +73,10 @@ const PlayAlong = () => {
       setError('Failed to join game');
     }
   };
+
+  useEffect(() => {
+    fetchQuestionBanks();
+  }, []);
 
   return (
     <div className="min-h-screen p-4 sm:p-8">

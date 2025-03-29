@@ -13,6 +13,7 @@ const ManagePlayAlong = () => {
   const [isButtonPressed, setIsButtonPressed] = useState('');
   const [success, setSuccess] = useState('');
   const [timerDuration, setTimerDuration] = useState(15);
+  const [gameState, setGameState] = useState(null);
   const navigate = useNavigate();
 
   useEffect(() => {
@@ -87,41 +88,39 @@ const ManagePlayAlong = () => {
     }
   };
 
+  const updateGameState = async (action, data) => {
+    try {
+      const response = await fetch(`${API_URL}/api/game/${selectedBank._id}/${action}`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        credentials: 'include',
+        body: JSON.stringify(data)
+      });
+      if (response.ok) {
+        await pollGameState();
+      }
+    } catch (err) {
+      console.error('Error updating game:', err);
+    }
+  };
+
   const showOptions = () => {
-    socket.emit('showOptions', { 
-      questionBankId: selectedBank._id,
-      timerDuration: parseInt(timerDuration)
-    });
+    updateGameState('showOptions', { timerDuration });
   };
 
   const showAnswer = () => {
-    socket.emit('showAnswer', { questionBankId: selectedBank._id });
+    updateGameState('showAnswer');
+  };
+
+  const stopGame = () => {
+    updateGameState('stop');
   };
 
   const handleButtonPress = (buttonName) => {
     setIsButtonPressed(buttonName);
     setTimeout(() => setIsButtonPressed(''), 200);
-  };
-
-  // Update stopGame to use API_URL
-  const stopGame = async () => {
-    try {
-      handleButtonPress('stop');
-      const response = await fetch(`${API_URL}/api/game/${selectedBank._id}/stop`, {
-        method: 'POST',
-        credentials: 'include'
-      });
-
-      if (response.ok) {
-        setSuccess('Game stopped successfully');
-        setGameStarted(false);
-        // Add this line to reset question index when stopping
-        setCurrentQuestionIndex(0);
-        setTimeout(() => setSuccess(''), 3000);
-      }
-    } catch (error) {
-      console.error('Error stopping game:', error);
-    }
   };
 
   return (
