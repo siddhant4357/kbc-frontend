@@ -1,73 +1,47 @@
-import { useEffect, useState } from 'react';
-import { io } from 'socket.io-client';
-import { API_URL } from '../utils/config';
+import { useState, useEffect, useCallback } from 'react';
+import io from 'socket.io-client';
+import { SOCKET_URL } from '../utils/config';
 
 export const useGameState = (gameId) => {
-  const [socket, setSocket] = useState(null);
   const [gameState, setGameState] = useState(null);
+  const [socket, setSocket] = useState(null);
   const [error, setError] = useState(null);
+
+  const processGameState = useCallback((state) => {
+    setGameState(prevState => ({
+      ...prevState,
+      ...state
+    }));
+  }, []);
 
   useEffect(() => {
     const user = JSON.parse(localStorage.getItem('user'));
-    const gameToken = localStorage.getItem(`game_${gameId}_token`);
-
-    const newSocket = io(API_URL, {
+    const newSocket = io(SOCKET_URL, {
       transports: ['websocket', 'polling'],
-      reconnection: true,
-      reconnectionAttempts: 5,
-      query: { gameToken }
+      reconnection: true
     });
 
     newSocket.on('connect', () => {
-      // Re-join game room on connection/reconnection
       newSocket.emit('joinGame', {
         questionBankId: gameId,
         username: user.username,
-        gameToken
+        isAdmin: user.isAdmin
       });
     });
 
-    newSocket.on('gameStateUpdate', (newState) => {
-      setGameState(prevState => ({
-        ...prevState,
-        ...newState
-      }));
-    });
+    newSocket.on('gameStateUpdate', processGameState);
 
     newSocket.on('connect_error', (error) => {
       console.error('Socket connection error:', error);
-      setError('Connection error. Please try refreshing.');
-    });
-
-    newSocket.on('disconnect', () => {
-      // Attempt to reconnect
-      newSocket.connect();
+      setError('Connection error. Please refresh the page.');
     });
 
     setSocket(newSocket);
 
-    // Initial game state fetch
-    fetchGameState();
-
     return () => {
-      newSocket.close();
+      newSocket.disconnect();
     };
-  }, [gameId]);
-
-  const fetchGameState = async () => {
-    try {
-      const response = await fetch(`${API_URL}/api/game/${gameId}/state`, {
-        credentials: 'include'
-      });
-      
-      if (response.ok) {
-        const data = await response.json();
-        setGameState(data);
-      }
-    } catch (error) {
-      console.error('Error fetching game state:', error);
-    }
-  };
+  }, [gameId, processGameState]);
 
   return { gameState, error, socket };
 };
