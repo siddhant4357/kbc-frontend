@@ -1,6 +1,69 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { API_URL } from '../utils/config';
+import defaultQuestionImage from '../assets/default_img.jpg'; // Add this import
+
+// Add PRIZE_LEVELS constant
+const PRIZE_LEVELS = [
+  "₹1,000",
+  "₹2,000",
+  "₹3,000",
+  "₹5,000",
+  "₹10,000",
+  "₹20,000",
+  "₹40,000",
+  "₹80,000",
+  "₹1,60,000",
+  "₹3,20,000",
+  "₹6,40,000",
+  "₹12,50,000",
+  "₹25,00,000",
+  "₹50,00,000",
+  "₹1,00,00,000"
+];
+
+// Add audio imports and initialization
+import themeAudio from '../assets/kbc_theme.wav';
+import questionTune from '../assets/question_tune.wav';
+import timerSound from '../assets/kbc_time.mp3';
+import timerEndSound from '../assets/kbc_timer_finish.mp4';
+import correctAnswerSound from '../assets/kbc_correct_ans.wav';
+import wrongAnswerSound from '../assets/kbc_wrong_ans.wav';
+
+// Initialize audio objects
+const themeSound = new Audio(themeAudio);
+const questionSound = new Audio(questionTune);
+const timerAudio = new Audio(timerSound);
+const timerEndAudio = new Audio(timerEndSound);
+const correctAudio = new Audio(correctAnswerSound);
+const wrongAudio = new Audio(wrongAnswerSound);
+
+// Set initial volumes
+[themeSound, questionSound, timerAudio, timerEndAudio, correctAudio, wrongAudio].forEach(audio => {
+  audio.volume = 0.5;
+});
+
+// Add this after the imports
+const setupAudio = () => {
+  const audios = [themeSound, questionSound, timerAudio, timerEndAudio, correctAudio, wrongAudio];
+  audios.forEach(audio => {
+    audio.playbackRate = 1.0;
+    audio.preload = 'auto';
+  });
+};
+
+const playAudioWithChecks = async (audio) => {
+  try {
+    if (!audio) return;
+    if (!audio.paused) {
+      await audio.pause();
+      audio.currentTime = 0;
+    }
+    await audio.play();
+  } catch (error) {
+    console.error('Audio playback error:', error);
+  }
+};
 
 const PlayGame = () => {
   const { id } = useParams();
@@ -167,7 +230,7 @@ const PlayGame = () => {
 
   const handleStartExperience = async () => {
     try {
-      await themeSound.play();
+      await playAudioWithChecks(themeSound);
       themeSound.loop = true;
       setHasUserInteracted(true);
     } catch (error) {
@@ -261,6 +324,11 @@ const PlayGame = () => {
 
     preloadSounds();
   }, [correctAudio, wrongAudio]);
+
+  // Add this inside the component before the return statement
+  useEffect(() => {
+    setupAudio();
+  }, []);
 
   const handleOptionSelect = (option) => {
     if (!showAnswer && !lockedAnswer) {
