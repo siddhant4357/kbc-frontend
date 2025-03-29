@@ -2,8 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import BackButton from '../components/BackButton';
 import { API_URL } from '../utils/config';
-import { createSocketConnection } from '../utils/socket';
-
+import { createSocketConnection } from '../utils/socketUtils';
 const PlayAlong = () => {
   const [socket, setSocket] = useState(null);
   const [questionBanks, setQuestionBanks] = useState([]);
