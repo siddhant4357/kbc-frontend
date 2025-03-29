@@ -2,13 +2,41 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import BackButton from '../components/BackButton';
 import { API_URL } from '../utils/config';
+import { createSocketConnection } from '../utils/socket';
 
 const PlayAlong = () => {
+  const [socket, setSocket] = useState(null);
   const [questionBanks, setQuestionBanks] = useState([]);
   const [selectedBank, setSelectedBank] = useState(null);
   const [passcode, setPasscode] = useState('');
   const [error, setError] = useState('');
   const navigate = useNavigate();
+
+  useEffect(() => {
+    // Initialize socket connection
+    const newSocket = createSocketConnection();
+    setSocket(newSocket);
+
+    // Cleanup on unmount
+    return () => {
+      if (newSocket) {
+        newSocket.disconnect();
+      }
+    };
+  }, []);
+
+  useEffect(() => {
+    if (socket) {
+      socket.on('connect', () => {
+        console.log('Socket connected');
+      });
+
+      socket.on('connect_error', (error) => {
+        console.error('Socket connection error:', error);
+        setError('Connection error. Please try again.');
+      });
+    }
+  }, [socket]);
 
   useEffect(() => {
     fetchQuestionBanks();
@@ -47,12 +75,17 @@ const PlayAlong = () => {
       });
 
       if (response.ok) {
+        // Join the socket room before navigating
+        if (socket) {
+          socket.emit('joinGame', { id: selectedBank._id });
+        }
         navigate(`/play-game/${selectedBank._id}`);
       } else {
         const data = await response.json();
         setError(data.message);
       }
     } catch (error) {
+      console.error('Join game error:', error);
       setError('Failed to join game');
     }
   };

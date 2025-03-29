@@ -3,34 +3,29 @@ import { SOCKET_URL } from './config';
 
 // Create reusable socket connection
 export const createSocketConnection = (options = {}) => {
-  const socket = io(SOCKET_URL, {
-    transports: ['websocket', 'polling'],
-    reconnection: true,
-    reconnectionAttempts: 5,
-    reconnectionDelay: 1000,
-    reconnectionDelayMax: 5000,
-    timeout: 20000,
-    ...options
-  });
+  try {
+    const socket = io(SOCKET_URL, {
+      transports: ['websocket', 'polling'],
+      reconnection: true,
+      reconnectionAttempts: 5,
+      reconnectionDelay: 1000,
+      timeout: 20000,
+      ...options
+    });
 
-  // Add reconnection handlers
-  socket.on('reconnect_attempt', (attempt) => {
-    console.log('Attempting to reconnect:', attempt);
-  });
+    socket.on('connect_error', (error) => {
+      console.error('Socket connection error:', error);
+    });
 
-  socket.on('reconnect_error', (error) => {
-    console.error('Reconnection error:', error);
-  });
+    socket.on('connect', () => {
+      console.log('Socket connected successfully');
+    });
 
-  socket.on('reconnect_failed', () => {
-    console.error('Failed to reconnect');
-  });
-
-  socket.on('connect_error', (error) => {
-    console.error('Connection error:', error);
-  });
-
-  return socket;
+    return socket;
+  } catch (error) {
+    console.error('Error creating socket connection:', error);
+    return null;
+  }
 };
 
 // Socket event handler with error handling
