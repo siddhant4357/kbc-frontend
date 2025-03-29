@@ -15,7 +15,7 @@ import ManageUsers from './Pages/ManageUsers';
 import PlayGame from './Pages/PlayGame';
 import ManagePlayAlong from './Pages/ManagePlayAlong';
 import Leaderboard from './Pages/LeaderBoard';
-import PlayAlong from './Pages/Playalong';
+import PlayAlong from './Pages/PlayAlong'; // Fix the casing here
 import JoinGame from './Pages/JoinGame';
 import JoinQuestions from './Pages/JoinQuestions';
 import GameRules from './Pages/GameRules';
