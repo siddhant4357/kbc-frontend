@@ -14,6 +14,7 @@ const ManagePlayAlong = () => {
   const [success, setSuccess] = useState('');
   const [timerDuration, setTimerDuration] = useState(15);
   const [gameState, setGameState] = useState(null);
+  const [pollInterval, setPollInterval] = useState(null);
   const navigate = useNavigate();
 
   useEffect(() => {
@@ -60,6 +61,27 @@ const ManagePlayAlong = () => {
     setGameStarted(false);
   };
 
+  const pollGameState = async () => {
+    try {
+      const response = await fetch(`${API_URL}/api/game/${selectedBank._id}/state`, {
+        method: 'GET',
+        credentials: 'include',
+        headers: {
+          'Accept': 'application/json'
+        }
+      });
+
+      if (!response.ok) {
+        throw new Error('Failed to fetch game state');
+      }
+
+      const data = await response.json();
+      setGameState(data);
+    } catch (err) {
+      console.error('Error polling game state:', err);
+    }
+  };
+
   const startGame = () => {
     if (selectedBank) {
       setGameStarted(true);
@@ -70,9 +92,13 @@ const ManagePlayAlong = () => {
           question: selectedBank.questions[0].question,
           options: selectedBank.questions[0].options,
           correctAnswer: selectedBank.questions[0].correctAnswer,
-          questionIndex: 0  // Make sure this is included
+          questionIndex: 0
         }
       });
+
+      // Start polling
+      const interval = setInterval(pollGameState, 3000); // Poll every 3 seconds
+      setPollInterval(interval);
     }
   };
 
@@ -98,9 +124,13 @@ const ManagePlayAlong = () => {
         credentials: 'include',
         body: JSON.stringify(data)
       });
-      if (response.ok) {
-        await pollGameState();
+
+      if (!response.ok) {
+        throw new Error('Failed to update game state');
       }
+
+      // Poll immediately after state update
+      await pollGameState();
     } catch (err) {
       console.error('Error updating game:', err);
     }
@@ -115,6 +145,10 @@ const ManagePlayAlong = () => {
   };
 
   const stopGame = () => {
+    if (pollInterval) {
+      clearInterval(pollInterval);
+      setPollInterval(null);
+    }
     updateGameState('stop');
   };
 
@@ -122,6 +156,14 @@ const ManagePlayAlong = () => {
     setIsButtonPressed(buttonName);
     setTimeout(() => setIsButtonPressed(''), 200);
   };
+
+  useEffect(() => {
+    return () => {
+      if (pollInterval) {
+        clearInterval(pollInterval);
+      }
+    };
+  }, [pollInterval]);
 
   return (
     <div className="min-h-screen p-4 sm:p-8">
