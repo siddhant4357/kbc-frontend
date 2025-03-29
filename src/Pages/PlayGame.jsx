@@ -1,78 +1,17 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
-import { io } from 'socket.io-client';
-import { API_URL, SOCKET_URL } from '../utils/config';
-import defaultQuestionImage from '../assets/default_img.jpg';
-
-// Import audio files
-import themeAudio from '../assets/kbc_theme.wav';
-import questionTune from '../assets/kbc_option_lock_tune.wav';
-import timerSound from '../assets/kbc_time.mp3';
-import timerEndSound from '../assets/kbc_timer_finish.mp4';
-import correctAnswerSound from '../assets/kbc_correct_ans.wav';
-import wrongAnswerSound from '../assets/kbc_wrong_ans.wav';
-
-const PRIZE_LEVELS = [
-  "₹1,000",
-  "₹2,000",
-  "₹3,000",
-  "₹5,000",
-  "₹10,000",
-  "₹20,000",
-  "₹40,000",
-  "₹80,000",
-  "₹1,60,000",
-  "₹3,20,000",
-  "₹6,40,000",
-  "₹12,50,000",
-  "₹25,00,000",
-  "₹50,00,000",
-  "₹1,00,00,000"
-];
-
-// Update audio initialization code
-const createAudio = (src, volume = 0.5) => {
-  const audio = new Audio(src);
-  audio.volume = volume;
-  audio.playbackRate = 1.0;
-  audio.preload = 'auto';
-  return audio;
-};
-
-// Initialize audio objects safely
-const themeSound = createAudio(themeAudio);
-const questionSound = createAudio(questionTune);
-const timerAudio = createAudio(timerSound);
-const timerEndAudio = createAudio(timerEndSound);
-const correctAudio = createAudio(correctAnswerSound);
-const wrongAudio = createAudio(wrongAnswerSound);
-
-// Remove the old setupAudio function and replace with this
-const playAudioWithChecks = async (audio) => {
-  if (!audio) return;
-  try {
-    if (!audio.paused) {
-      audio.pause();
-      await new Promise(resolve => setTimeout(resolve, 50));
-    }
-    audio.currentTime = 0;
-    await audio.play();
-  } catch (error) {
-    if (error.name !== 'AbortError') {
-      console.error('Audio playback error:', error);
-    }
-  }
-};
+import { API_URL } from '../utils/config';
 
 const PlayGame = () => {
   const { id } = useParams();
   const navigate = useNavigate();
+  const [gameState, setGameState] = useState(null);
+  const [error, setError] = useState('');
   const [currentQuestion, setCurrentQuestion] = useState(null);
   const [showOptions, setShowOptions] = useState(false);
   const [showAnswer, setShowAnswer] = useState(false);
   const [selectedOption, setSelectedOption] = useState(null);
   const [lockedAnswer, setLockedAnswer] = useState(null);
-  const [socket, setSocket] = useState(null);
   const [gameStopped, setGameStopped] = useState(false);
   const [showExitConfirm, setShowExitConfirm] = useState(false);
   const [gameToken, setGameToken] = useState(localStorage.getItem(`game_${id}_token`));
@@ -86,19 +25,171 @@ const PlayGame = () => {
 
   const [hasUserInteracted, setHasUserInteracted] = useState(false);
   const [isSoundPaused, setIsSoundPaused] = useState(false);
+  const [lastGameStateId, setLastGameStateId] = useState(null);
 
-  const stopAllSounds = async () => {
-    const sounds = [themeSound, questionSound, timerAudio, correctAudio, wrongAudio, timerEndAudio];
-    for (const audio of sounds) {
-      try {
-        if (audio && !audio.paused) {
-          await audio.pause();
-          audio.currentTime = 0;
+  // Add audio elements
+const [themeSound] = useState(() => new Audio('/src/assets/kbc_theme.wav'));
+const [questionSound] = useState(() => new Audio('/src/assets/question_tune.wav'));
+const [timerAudio] = useState(() => new Audio('/src/assets/kbc_time.mp3'));
+const [correctAudio] = useState(() => new Audio('/src/assets/kbc_correct_ans.wav'));
+const [wrongAudio] = useState(() => new Audio('/src/assets/kbc_wrong_ans.wav'));
+const [timerEndAudio] = useState(() => new Audio('/src/assets/kbc_timer_finish.mp4'));
+
+  // Add at the top after imports
+const PRIZE_LEVELS = [
+  "₹1,000",
+  "₹2,000",
+  "₹3,000",
+  "₹5,000",
+  "₹10,000",
+  "₹20,000",
+  "₹40,000",
+  "₹80,000",
+  "₹1,60,000",
+  "₹3,20,000",
+  "₹6,40,000", 
+  "₹12,50,000",
+  "₹25,00,000",
+  "₹50,00,000",
+  "₹1,00,00,000"
+];
+
+  // Polling function
+  const pollGameState = async () => {
+    try {
+      const response = await fetch(`${API_URL}/api/game/${id}/status`, {
+        credentials: 'include'
+      });
+
+      if (response.ok) {
+        const data = await response.json();
+
+        if (!lastGameStateId || data.stateId !== lastGameStateId) {
+          setLastGameStateId(data.stateId);
+          setGameState(data);
+
+          processGameState(data);
         }
+
+        if (error) {
+          setError('');
+        }
+      } else {
+        console.error('Failed to fetch game state:', response.status);
+        setError('Failed to fetch game state');
+      }
+    } catch (err) {
+      console.error('Connection error:', err);
+      setError('Connection error');
+    }
+  };
+
+  const processGameState = async (state) => {
+    if (!state) return;
+
+    if (state.gameToken) {
+      setGameToken(state.gameToken);
+      localStorage.setItem(`game_${id}_token`, state.gameToken);
+    }
+
+    if (state.gameStopped) {
+      await stopAllSounds();
+      setGameStopped(true);
+      setCurrentQuestion(null);
+      setShowOptions(false);
+      setShowAnswer(false);
+      setSelectedOption(null);
+      setLockedAnswer(null);
+
+      setTimeout(() => {
+        navigate('/dashboard');
+      }, 2000);
+      return;
+    }
+
+    if (!state.isActive) {
+      await stopAllSounds();
+      if (hasUserInteracted) {
+        themeSound.play().catch(console.error);
+      }
+      setCurrentQuestion(null);
+      setShowOptions(false);
+      setShowAnswer(false);
+      setSelectedOption(null);
+      setLockedAnswer(null);
+      setGameStopped(false);
+      setIsWaiting(true);
+      return;
+    }
+
+    setIsWaiting(false);
+
+    if (state.currentQuestion && (!currentQuestion || state.currentQuestion.id !== currentQuestion.id)) {
+      await stopAllSounds();
+      questionSound.play().catch(console.error);
+
+      const newQuestion = {
+        ...state.currentQuestion,
+        questionIndex: parseInt(state.currentQuestion.questionIndex ?? 0)
+      };
+
+      setCurrentQuestion(newQuestion);
+      setShowOptions(false);
+      setShowAnswer(false);
+      setSelectedOption(null);
+      setLockedAnswer(null);
+      setGameStopped(false);
+
+      const questionIndex = parseInt(state.currentQuestion.questionIndex ?? 0);
+      const newPrizeIndex = PRIZE_LEVELS.length - 1 - questionIndex;
+      setCurrentPrizeIndex(newPrizeIndex);
+    }
+
+    if (state.showOptions !== showOptions) {
+      if (state.showOptions) {
+        await stopAllSounds();
+        timerAudio.loop = true;
+        timerAudio.play().catch(console.error);
+        setTimerStartedAt(state.timerStartedAt);
+        setTimerDuration(state.timerDuration || 15);
+        setIsTimerExpired(false);
+      }
+      setShowOptions(state.showOptions);
+    }
+
+    if (state.showAnswer && !showAnswer) {
+      try {
+        await stopAllSounds();
+
+        await new Promise(resolve => setTimeout(resolve, 100));
+
+        if (currentQuestion && selectedOption) {
+          if (selectedOption === currentQuestion.correctAnswer) {
+            correctAudio.currentTime = 0;
+            await correctAudio.play();
+          } else {
+            wrongAudio.currentTime = 0;
+            await wrongAudio.play();
+          }
+        }
+
+        setShowAnswer(true);
       } catch (error) {
-        console.error('Error stopping audio:', error);
+        console.error("Error playing answer sound:", error);
+        setShowAnswer(true);
       }
     }
+
+    if (state.lockedAnswer && !lockedAnswer) {
+      setLockedAnswer(state.lockedAnswer);
+    }
+  };
+
+  const stopAllSounds = async () => {
+    [themeSound, questionSound, timerAudio, correctAudio, wrongAudio, timerEndAudio].forEach(audio => {
+      audio.pause();
+      audio.currentTime = 0;
+    });
   };
 
   const handleStartExperience = async () => {
@@ -138,9 +229,9 @@ const PlayGame = () => {
         const startTime = new Date(timerStartedAt);
         const elapsedSeconds = Math.floor((now - startTime) / 1000);
         const remainingSeconds = timerDuration - elapsedSeconds;
-        
+
         setTimeLeft(Math.max(0, remainingSeconds));
-        
+
         if (remainingSeconds <= 0) {
           setIsTimerExpired(true);
           if (!lockedAnswer) {
@@ -155,110 +246,14 @@ const PlayGame = () => {
   }, [timerStartedAt, timerDuration, showOptions, lockedAnswer]);
 
   useEffect(() => {
-    const newSocket = io(SOCKET_URL);
-    
-    newSocket.emit('joinGame', { id });
+    const pollInterval = setInterval(pollGameState, 2000);
 
-    newSocket.on('gameState', async (state) => {
-      if (state && state.isActive) {
-        await stopAllSounds();
-        setCurrentQuestion(state.currentQuestion);
-        setShowOptions(state.showOptions);
-        setShowAnswer(state.showAnswer);
-        setGameStopped(false);
-        setIsWaiting(false);
-      } else {
-        await stopAllSounds();
-        if (hasUserInteracted) {
-          themeSound.play().catch(console.error);
-        }
-        setCurrentQuestion(null);
-        setShowOptions(false);
-        setShowAnswer(false);
-        setSelectedOption(null);
-        setLockedAnswer(null);
-        setGameStopped(false);
-        setIsWaiting(true);
-      }
-    });
-
-    newSocket.on('questionUpdate', async (data) => {
-      await stopAllSounds();
-      questionSound.play().catch(console.error);
-      setCurrentQuestion({
-        ...data,
-        questionIndex: parseInt(data.questionIndex ?? 0)
-      });
-      setShowOptions(false);
-      setShowAnswer(false);
-      setSelectedOption(null);
-      setLockedAnswer(null);
-      setGameStopped(false);
-      
-      const questionIndex = parseInt(data.questionIndex ?? 0);
-      const newPrizeIndex = PRIZE_LEVELS.length - 1 - questionIndex;
-      setCurrentPrizeIndex(newPrizeIndex);
-    });
-
-    newSocket.on('showOptions', async (data) => {
-      await stopAllSounds();
-      timerAudio.loop = true;
-      timerAudio.play().catch(console.error);
-      setShowOptions(true);
-      setTimerStartedAt(data.timerStartedAt);
-      setTimerDuration(data.timerDuration);
-      setIsTimerExpired(false);
-    });
-
-    newSocket.on('showAnswer', async () => {
-      try {
-        await stopAllSounds();
-        await new Promise(resolve => setTimeout(resolve, 100));
-        if (currentQuestion && selectedOption) {
-          if (selectedOption === currentQuestion.correctAnswer) {
-            correctAudio.currentTime = 0;
-            await correctAudio.play();
-          } else {
-            wrongAudio.currentTime = 0;
-            await wrongAudio.play();
-          }
-        }
-        setShowAnswer(true);
-      } catch (error) {
-        console.error("Error playing answer sound:", error);
-        setShowAnswer(true);
-      }
-    });
-
-    newSocket.on('gameToken', (token) => {
-      setGameToken(token);
-      localStorage.setItem(`game_${id}_token`, token);
-    });
-
-    newSocket.on('gameStop', async () => {
-      await stopAllSounds();
-      setGameStopped(true);
-      setCurrentQuestion(null);
-      setShowOptions(false);
-      setShowAnswer(false);
-      setSelectedOption(null);
-      setLockedAnswer(null);
-      setTimeout(() => {
-        navigate('/dashboard');
-      }, 2000);
-    });
-
-    newSocket.on('pointsUpdate', ({ isCorrect }) => {});
-
-    if (gameToken) {
-      newSocket.emit('requestGameState', { id, gameToken });
-    }
-
-    setSocket(newSocket);
+    pollGameState();
 
     return () => {
+      clearInterval(pollInterval);
       stopAllSounds();
-      newSocket.disconnect();
+
       if (!gameToken) {
         localStorage.removeItem(`game_${id}_token`);
       }
@@ -294,44 +289,6 @@ const PlayGame = () => {
     preloadSounds();
   }, [correctAudio, wrongAudio]);
 
-  useEffect(() => {
-    const socket = createSocketConnection();
-    
-    let reconnectInterval;
-    
-    socket.on('disconnect', () => {
-      console.log('Disconnected from server');
-      setError('Lost connection to server. Attempting to reconnect...');
-      
-      reconnectInterval = setInterval(() => {
-        socket.connect();
-      }, 5000);
-    });
-    
-    socket.on('connect', () => {
-      clearInterval(reconnectInterval);
-      setError('');
-      socket.emit('joinGame', { id });
-    });
-  
-    return () => {
-      socket.disconnect();
-      clearInterval(reconnectInterval);
-    };
-  }, [id]);
-
-  useEffect(() => {
-    return () => {
-      stopAllSounds();
-      [themeSound, questionSound, timerAudio, correctAudio, wrongAudio, timerEndAudio].forEach(audio => {
-        if (audio) {
-          audio.src = '';
-          audio.load();
-        }
-      });
-    };
-  }, []);
-
   const handleOptionSelect = (option) => {
     if (!showAnswer && !lockedAnswer) {
       setSelectedOption(option);
@@ -351,21 +308,16 @@ const PlayGame = () => {
           },
           body: JSON.stringify({
             answer: selectedOption,
-            username: user?.username || 'Anonymous',
-            gameToken,
-            questionIndex: currentQuestion?.questionIndex || 0
+            username: user.username,
+            gameToken: gameToken
           }),
           credentials: 'include'
         });
 
-        if (response.status === 404) {
-          setError('Game session expired. Please rejoin.');
-          setTimeout(() => navigate('/dashboard'), 2000);
-          return;
-        }
-
         if (!response.ok) {
-          throw new Error(`HTTP error! status: ${response.status}`);
+          console.error('Error submitting answer:', response.status);
+          setLockedAnswer(null);
+          setError('Failed to submit answer. Please try again.');
         }
       } catch (err) {
         console.error('Error submitting answer:', err);
@@ -381,7 +333,20 @@ const PlayGame = () => {
 
   const confirmExit = async () => {
     await stopAllSounds();
-    socket.disconnect();
+
+    try {
+      await fetch(`${API_URL}/api/game/${id}/leave`, {
+        method: 'POST',
+        credentials: 'include',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({ gameToken })
+      });
+    } catch (err) {
+      console.error('Error notifying server about exit:', err);
+    }
+
     localStorage.removeItem(`game_${id}_token`);
     navigate('/dashboard');
   };
@@ -394,7 +359,7 @@ const PlayGame = () => {
             <div className="kbc-card p-8 text-center max-w-md mx-4">
               <h2 className="text-2xl text-kbc-gold mb-4">Welcome to KBC</h2>
               <p className="text-white mb-6">Click the button below to start your experience</p>
-              <button 
+              <button
                 onClick={handleStartExperience}
                 className="kbc-button1 animate-pulse"
               >
@@ -405,23 +370,23 @@ const PlayGame = () => {
         ) : (
           <>
             <header className="fixed top-0 left-0 right-0 flex justify-between items-center p-3 bg-kbc-dark-blue/80 backdrop-blur-[4px] z-10">
-              <button 
+              <button
                 onClick={handleExitGame}
                 className="kbc-button bg-red-600 hover:bg-red-700 w-10 h-8 text-xs"
               >
                 QUIT
               </button>
-              <img 
-                src="/src/assets/kbc-logo.png" 
-                alt="KBC Logo" 
+              <img
+                src="/src/assets/kbc-logo.png"
+                alt="KBC Logo"
                 className="h-8"
               />
             </header>
 
             <div className="kbc-card p-8 text-center animate-pulse">
-              <img 
-                src="/src/assets/kbc-logo.png" 
-                alt="KBC Logo" 
+              <img
+                src="/src/assets/kbc-logo.png"
+                alt="KBC Logo"
                 className="w-24 h-24 mx-auto mb-6"
               />
               <h2 className="text-2xl text-kbc-gold font-bold mb-4">
@@ -490,7 +455,7 @@ const PlayGame = () => {
               </p>
             </div>
           </div>
-          
+
           <div className="flex items-center justify-center absolute left-1/2 transform -translate-x-1/2">
             <div className="relative w-12 h-12 sm:w-16 right-15 sm:h-16">
               <svg className="w-full h-full transform -rotate-90">
@@ -510,7 +475,7 @@ const PlayGame = () => {
               </span>
             </div>
           </div>
-          
+
           <div className="block sm:hidden text-right">
             <p className="text-white font-bold text-sm">
               {JSON.parse(localStorage.getItem('user'))?.username}
@@ -533,14 +498,14 @@ const PlayGame = () => {
           </div>
 
           <div className="flex-grow" />
-          
+
           {currentQuestion && (
             <>
               <div className="mb-4 flex justify-center transition-all duration-300">
                 <div className={`relative w-full max-w-xl ${
                   showOptions || (selectedOption && !lockedAnswer) 
                     ? 'h-32 sm:h-40 lg:h-66' 
-                    : 'h-48 sm:h-64 lg:h-88' 
+                    : 'h-48 sm:h-64 lg:h-88'
                 }`}>
                   <img
                     src={currentQuestion.imageUrl 
@@ -591,7 +556,6 @@ const PlayGame = () => {
                       {String.fromCharCode(65 + index)}
                     </span>
                     <span className="option-text">{option}</span>
-                    
                     <div className={`absolute ${index % 2 === 0 ? 'left-0' : 'right-0'} top-1/2 
                       ${index % 2 === 0 ? 'w-[50vw] right-full bg-gradient-to-l' : 'w-[50vw] left-full bg-gradient-to-r'} 
                       h-0.5 from-kbc-gold to-transparent transform 
@@ -618,9 +582,7 @@ const PlayGame = () => {
         <div className="hidden lg:block w-80 ml-6 fixed right-8 top-24 order-1 lg:order-2">
           <div className="kbc-question-box p-3 shadow-glow relative">
             <div className="absolute left-0 top-1/2 w-8 h-0.5 bg-gradient-to-l from-kbc-gold to-transparent transform -translate-x-8"></div>
-            
             <hr className="my-2 border-kbc-gold/30" />
-            
             <h3 className="text-kbc-gold text-base font-bold text-center mb-2">Prize Ladder</h3>
             <div className="space-y-0.5 text-sm overflow-y-auto max-h-[calc(100vh-14rem)]">
               {PRIZE_LEVELS.map((prize, index) => (
@@ -664,6 +626,12 @@ const PlayGame = () => {
               </button>
             </div>
           </div>
+        </div>
+      )}
+
+      {error && (
+        <div className="fixed bottom-4 left-1/2 transform -translate-x-1/2 bg-red-600 text-white px-4 py-2 rounded shadow-lg z-50 animate-pulse">
+          {error}
         </div>
       )}
     </div>
