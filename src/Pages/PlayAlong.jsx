@@ -1,8 +1,10 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import BackButton from '../components/BackButton';
-import { API_URL } from '../utils/config';
+import { API_URL, SOCKET_URL } from '../utils/config';
 import { createSocketConnection } from '../utils/socketUtils';
+import { io } from 'socket.io-client';
+
 const PlayAlong = () => {
   const [socket, setSocket] = useState(null);
   const [questionBanks, setQuestionBanks] = useState([]);
@@ -12,30 +14,29 @@ const PlayAlong = () => {
   const navigate = useNavigate();
 
   useEffect(() => {
-    // Initialize socket connection
-    const newSocket = createSocketConnection();
-    setSocket(newSocket);
-
-    // Cleanup on unmount
-    return () => {
+    try {
+      const newSocket = createSocketConnection();
       if (newSocket) {
-        newSocket.disconnect();
+        setSocket(newSocket);
+        
+        newSocket.on('connect', () => {
+          setError(''); // Clear any previous errors
+        });
+
+        newSocket.on('connect_error', (err) => {
+          setError('Unable to connect to game server');
+          console.error('Socket connection error:', err);
+        });
+
+        return () => {
+          newSocket.disconnect();
+        };
       }
-    };
-  }, []);
-
-  useEffect(() => {
-    if (socket) {
-      socket.on('connect', () => {
-        console.log('Socket connected');
-      });
-
-      socket.on('connect_error', (error) => {
-        console.error('Socket connection error:', error);
-        setError('Connection error. Please try again.');
-      });
+    } catch (err) {
+      setError('Failed to initialize game connection');
+      console.error('Socket initialization error:', err);
     }
-  }, [socket]);
+  }, []);
 
   useEffect(() => {
     fetchQuestionBanks();
