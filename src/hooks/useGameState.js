@@ -3,34 +3,37 @@ import { API_URL } from '../utils/config';
 
 export const useGameState = (gameId) => {
   const [gameState, setGameState] = useState(null);
-  const [error, setError] = useState('');
-  const [lastStateId, setLastStateId] = useState(null);
+  const [error, setError] = useState(null);
 
   const pollGameState = async () => {
     try {
       const response = await fetch(`${API_URL}/api/game/${gameId}/status`, {
         credentials: 'include'
       });
-
-      if (response.ok) {
-        const data = await response.json();
-        if (!lastStateId || data.stateId !== lastStateId) {
-          setLastStateId(data.stateId);
-          setGameState(data);
-          return data;
-        }
+      
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
       }
+      
+      const data = await response.json();
+      setGameState(data);
+      setError(null);
     } catch (err) {
-      setError('Connection error');
-      console.error('Polling error:', err);
+      console.error('Error fetching game state:', err);
+      setError(err.message);
     }
-    return null;
   };
 
   useEffect(() => {
-    const interval = setInterval(pollGameState, 2000);
+    // Initial poll
+    pollGameState();
+
+    // Set up polling interval (every 3 seconds)
+    const interval = setInterval(pollGameState, 3000);
+
+    // Cleanup
     return () => clearInterval(interval);
   }, [gameId]);
 
-  return { gameState, error, pollGameState };
+  return { gameState, error };
 };

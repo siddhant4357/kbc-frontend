@@ -272,11 +272,24 @@ const PlayGame = () => {
           credentials: 'include'
         });
 
-        if (!response.ok) {
-          console.error('Error submitting answer:', response.status);
+        if (response.status === 404) {
+          setError('Game session not found. Please try rejoining the game.');
           setLockedAnswer(null);
-          setError('Failed to submit answer. Please try again.');
+          return;
         }
+
+        if (response.status === 429) {
+          setError('Too many requests. Please wait a moment before trying again.');
+          setLockedAnswer(null);
+          return;
+        }
+
+        if (!response.ok) {
+          throw new Error(`HTTP error! status: ${response.status}`);
+        }
+
+        const data = await response.json();
+        // Handle successful response
       } catch (err) {
         console.error('Error submitting answer:', err);
         setLockedAnswer(null);
