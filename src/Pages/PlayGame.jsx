@@ -247,6 +247,24 @@ const PlayGame = () => {
     };
   }, []);
 
+  useEffect(() => {
+    if (socket) {
+      socket.on('gameEnd', ({ playerScores }) => {
+        // Show final score if needed
+        navigate('/dashboard');
+      });
+
+      socket.on('redirect', (path) => {
+        navigate(path);
+      });
+
+      return () => {
+        socket.off('gameEnd');
+        socket.off('redirect');
+      };
+    }
+  }, [socket, navigate]);
+
   const handleOptionSelect = (option) => {
     if (!showAnswer && !lockedAnswer) {
       setSelectedOption(option);

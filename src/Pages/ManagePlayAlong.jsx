@@ -85,20 +85,13 @@ const ManagePlayAlong = () => {
   const startGame = () => {
     if (selectedBank) {
       setGameStarted(true);
-      socket.emit('startGame', {
-        questionBankId: selectedBank._id,
+      socket.emit('adminAction', {
+        action: 'startGame',
         question: {
           ...selectedBank.questions[0],
-          question: selectedBank.questions[0].question,
-          options: selectedBank.questions[0].options,
-          correctAnswer: selectedBank.questions[0].correctAnswer,
           questionIndex: 0
         }
       });
-
-      // Start polling
-      const interval = setInterval(pollGameState, 3000); // Poll every 3 seconds
-      setPollInterval(interval);
     }
   };
 
@@ -132,13 +125,11 @@ const ManagePlayAlong = () => {
   };
 
   const stopGame = () => {
-    if (pollInterval) {
-      clearInterval(pollInterval);
-      setPollInterval(null);
-    }
     socket.emit('adminAction', {
       action: 'stopGame'
     });
+    setGameStarted(false);
+    navigate('/dashboard');
   };
 
   const handleButtonPress = (buttonName) => {
