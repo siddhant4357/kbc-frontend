@@ -1,47 +1,65 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect } from 'react';
 import io from 'socket.io-client';
 import { SOCKET_URL } from '../utils/config';
 
 export const useGameState = (gameId) => {
-  const [gameState, setGameState] = useState(null);
   const [socket, setSocket] = useState(null);
+  const [gameState, setGameState] = useState(null);
   const [error, setError] = useState(null);
-
-  const processGameState = useCallback((state) => {
-    setGameState(prevState => ({
-      ...prevState,
-      ...state
-    }));
-  }, []);
+  const [isConnected, setIsConnected] = useState(false);
 
   useEffect(() => {
     const user = JSON.parse(localStorage.getItem('user'));
+    const gameToken = localStorage.getItem(`game_${gameId}_token`);
+
     const newSocket = io(SOCKET_URL, {
+      path: '/socket.io',
       transports: ['websocket', 'polling'],
-      reconnection: true
+      reconnection: true,
+      reconnectionAttempts: 5,
+      reconnectionDelay: 1000,
+      timeout: 20000,
+      auth: {
+        gameToken,
+        username: user?.username
+      }
     });
 
     newSocket.on('connect', () => {
+      console.log('Socket connected');
+      setIsConnected(true);
+      
       newSocket.emit('joinGame', {
         questionBankId: gameId,
-        username: user.username,
-        isAdmin: user.isAdmin
+        username: user?.username,
+        isAdmin: user?.isAdmin || false
       });
     });
 
-    newSocket.on('gameStateUpdate', processGameState);
+    newSocket.on('disconnect', () => {
+      console.log('Socket disconnected');
+      setIsConnected(false);
+    });
 
     newSocket.on('connect_error', (error) => {
-      console.error('Socket connection error:', error);
-      setError('Connection error. Please refresh the page.');
+      console.error('Connection error:', error);
+      setError('Connection error. Retrying...');
+    });
+
+    newSocket.on('gameStateUpdate', (updatedState) => {
+      console.log('Game state updated:', updatedState);
+      setGameState(updatedState);
     });
 
     setSocket(newSocket);
 
     return () => {
-      newSocket.disconnect();
+      newSocket.off('connect');
+      newSocket.off('disconnect');
+      newSocket.off('gameStateUpdate');
+      newSocket.close();
     };
-  }, [gameId, processGameState]);
+  }, [gameId]);
 
-  return { gameState, error, socket };
+  return { gameState, error, socket, isConnected };
 };
