@@ -13,30 +13,32 @@ import timerEndSound from '../assets/kbc_timer_finish.mp4';
 import correctAnswerSound from '../assets/kbc_correct_ans.wav';
 import wrongAnswerSound from '../assets/kbc_wrong_ans.wav';
 
+// Define constants outside component
+const PRIZE_LEVELS = [
+  "₹1,000",
+  "₹2,000",
+  "₹3,000",
+  "₹5,000",
+  "₹10,000",
+  "₹20,000",
+  "₹40,000",
+  "₹80,000",
+  "₹1,60,000",
+  "₹3,20,000",
+  "₹6,40,000",
+  "₹12,50,000",
+  "₹25,00,000",
+  "₹50,00,000",
+  "₹1,00,00,000"
+];
+
 const PlayGame = () => {
   const { id } = useParams();
   const navigate = useNavigate();
   const { gameState, error: connectionError } = useGameState(id);
   const [error, setError] = useState('');
-  const [currentQuestion, setCurrentQuestion] = useState(null);
-  const [showOptions, setShowOptions] = useState(false);
-  const [showAnswer, setShowAnswer] = useState(false);
-  const [selectedOption, setSelectedOption] = useState(null);
-  const [lockedAnswer, setLockedAnswer] = useState(null);
-  const [gameStopped, setGameStopped] = useState(false);
-  const [showExitConfirm, setShowExitConfirm] = useState(false);
-  const [gameToken, setGameToken] = useState(localStorage.getItem(`game_${id}_token`));
-  const [timeLeft, setTimeLeft] = useState(30);
-  const [currentPrizeIndex, setCurrentPrizeIndex] = useState(PRIZE_LEVELS.length - 1);
-  const [showPrizeLadder, setShowPrizeLadder] = useState(false);
-  const [timerStartedAt, setTimerStartedAt] = useState(null);
-  const [timerDuration, setTimerDuration] = useState(15);
-  const [isTimerExpired, setIsTimerExpired] = useState(false);
-  const [isWaiting, setIsWaiting] = useState(true);
 
-  const [hasUserInteracted, setHasUserInteracted] = useState(false);
-  const [isSoundPaused, setIsSoundPaused] = useState(false);
-
+  // Initialize audio files
   const audioFiles = {
     theme: themeAudio,
     question: questionTune,
@@ -48,24 +50,28 @@ const PlayGame = () => {
 
   const { play, stop, stopAll } = useAudioManager(audioFiles);
 
-  // Add at the top after imports
-  const PRIZE_LEVELS = [
-    "₹1,000",
-    "₹2,000",
-    "₹3,000",
-    "₹5,000",
-    "₹10,000",
-    "₹20,000",
-    "₹40,000",
-    "₹80,000",
-    "₹1,60,000",
-    "₹3,20,000",
-    "₹6,40,000",
-    "₹12,50,000",
-    "₹25,00,000",
-    "₹50,00,000",
-    "₹1,00,00,000"
-  ];
+  // Game state
+  const [currentQuestion, setCurrentQuestion] = useState(null);
+  const [showOptions, setShowOptions] = useState(false);
+  const [showAnswer, setShowAnswer] = useState(false);
+  const [selectedOption, setSelectedOption] = useState(null);
+  const [lockedAnswer, setLockedAnswer] = useState(null);
+  const [gameStopped, setGameStopped] = useState(false);
+  const [showExitConfirm, setShowExitConfirm] = useState(false);
+  const [gameToken, setGameToken] = useState(localStorage.getItem(`game_${id}_token`));
+  
+  // Timer and prize state
+  const [timeLeft, setTimeLeft] = useState(30);
+  const [currentPrizeIndex, setCurrentPrizeIndex] = useState(PRIZE_LEVELS.length - 1);
+  const [showPrizeLadder, setShowPrizeLadder] = useState(false);
+  const [timerStartedAt, setTimerStartedAt] = useState(null);
+  const [timerDuration, setTimerDuration] = useState(15);
+  const [isTimerExpired, setIsTimerExpired] = useState(false);
+  const [isWaiting, setIsWaiting] = useState(true);
+
+  // User interaction state
+  const [hasUserInteracted, setHasUserInteracted] = useState(false);
+  const [isSoundPaused, setIsSoundPaused] = useState(false);
 
   const processGameState = async (state) => {
     if (!state) return;
