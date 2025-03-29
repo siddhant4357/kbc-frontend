@@ -1,6 +1,34 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
-import { API_URL } from '../utils/config';
+import { io } from 'socket.io-client';
+import { API_URL, SOCKET_URL } from '../utils/config';
+import defaultQuestionImage from '../assets/default_img.jpg';
+
+// Import audio files
+import themeAudio from '../assets/kbc_theme.wav';
+import questionTune from '../assets/kbc_option_lock_tune.wav';
+import timerSound from '../assets/kbc_time.mp3';
+import timerEndSound from '../assets/kbc_timer_finish.mp4';
+import correctAnswerSound from '../assets/kbc_correct_ans.wav';
+import wrongAnswerSound from '../assets/kbc_wrong_ans.wav';
+
+const PRIZE_LEVELS = [
+  "₹1,000",
+  "₹2,000",
+  "₹3,000",
+  "₹5,000",
+  "₹10,000",
+  "₹20,000",
+  "₹40,000",
+  "₹80,000",
+  "₹1,60,000",
+  "₹3,20,000",
+  "₹6,40,000",
+  "₹12,50,000",
+  "₹25,00,000",
+  "₹50,00,000",
+  "₹1,00,00,000"
+];
 
 // Update audio initialization code
 const createAudio = (src, volume = 0.5) => {
