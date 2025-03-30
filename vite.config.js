@@ -9,12 +9,19 @@ export default defineConfig({
     rollupOptions: {
       output: {
         manualChunks: {
-          vendor: ['react', 'react-dom', 'react-router-dom']
+          vendor: ['react', 'react-dom', 'react-router-dom'],
+          firebase: ['@firebase/app', '@firebase/database']
         }
       }
     }
   },
   optimizeDeps: {
-    include: ['react', 'react-dom', 'react-router-dom']
+    include: ['react', 'react-dom', 'react-router-dom', '@firebase/app', '@firebase/database']
+  },
+  resolve: {
+    alias: {
+      'firebase/app': '@firebase/app',
+      'firebase/database': '@firebase/database'
+    }
   }
 });
