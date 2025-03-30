@@ -10,13 +10,21 @@ export default defineConfig({
       output: {
         manualChunks: {
           vendor: ['react', 'react-dom', 'react-router-dom'],
-          firebase: ['@firebase/app', '@firebase/database']
+          firebase: ['@firebase/app', '@firebase/database'],
+          socket: ['socket.io-client']
         }
       }
     }
   },
   optimizeDeps: {
-    include: ['react', 'react-dom', 'react-router-dom', '@firebase/app', '@firebase/database']
+    include: [
+      'react', 
+      'react-dom', 
+      'react-router-dom', 
+      '@firebase/app', 
+      '@firebase/database',
+      'socket.io-client'
+    ]
   },
   resolve: {
     alias: {
