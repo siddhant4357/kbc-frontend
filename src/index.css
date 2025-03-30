@@ -1,559 +1,16 @@
 @import url('https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700&display=swap');
-@import "tailwindcss";
 
-:root {
-  --kbc-dark-blue: #000B3E;
-  --kbc-blue: #0B1D78;
-  --kbc-light-blue: #1C3FAA;
-  --kbc-gold: #FFB800;
-  --kbc-light: #E5E9FF;
-  --kbc-purple: #4C1D95;
-  --font-primary: 'Poppins', sans-serif;
-}
+@import "tailwindcss/base";
+@import "tailwindcss/components";
+@import "tailwindcss/utilities";
 
-body {
-  font-family: var(--font-primary);
-  background: #000B3E; /* Fallback */
-  background: var(--kbc-dark-blue);
-  background-image: radial-gradient(circle at center, var(--kbc-purple) 0%, var(--kbc-dark-blue) 100%);
-  color: var(--kbc-light);
-  margin: 0;
-  padding: 0;
-  min-height: 100vh;
-}
+@import './styles/base.css';
+@import './styles/animations.css';
+@import './styles/components.css';
+@import './styles/game.css';
+@import './styles/responsive.css';
 
-/* Custom background gradient animation */
-@keyframes gradientBG {
-  0% { background-position: 0% 50%; }
-  50% { background-position: 100% 50%; }
-  100% { background-position: 0% 50%; }
-}
-
-.animated-gradient {
-  background: -webkit-linear-gradient(-45deg, #ee7752, #e73c7e, #23a6d5, #23d5ab);
-  background: linear-gradient(-45deg, #ee7752, #e73c7e, #23a6d5, #23d5ab);
-  background-size: 400% 400%;
-  animation: gradientBG 15s ease infinite;
-}
-
-.glass-effect {
-  background: rgba(255, 255, 255, 0.1);
-  -webkit-backdrop-filter: blur(10px);
-  backdrop-filter: blur(10px);
-  border: 1px solid rgba(255, 255, 255, 0.2);
-  border-radius: 1rem;
-}
-
-.no-backdrop-filter .glass-effect {
-  background: rgba(0, 11, 62, 0.95); /* Fallback for no backdrop-filter support */
-}
-
-/* Existing animations */
-@keyframes fadeIn {
-  from { opacity: 0; }
-  to { opacity: 1; }
-}
-
-@keyframes slideIn {
-  from {
-    opacity: 0;
-    transform: translateY(20px);
-  }
-  to {
-    opacity: 1;
-    transform: translateY(0);
-  }
-}
-
-@keyframes slideUp {
-  from {
-    opacity: 0;
-    transform: translateY(20px);
-  }
-  to {
-    opacity: 1;
-    transform: translateY(0);
-  }
-}
-
-@keyframes slideInRight {
-  from {
-    transform: translateX(100%);
-  }
-  to {
-    transform: translateX(0);
-  }
-}
-
-@keyframes float {
-   0%, 100% {
-    transform: translateY(0) rotate(0deg);
-  }
-  50% {
-    transform: translateY(-10px) rotate(5deg);
-  }
-}
-
-@keyframes glow {
-  0% {
-    box-shadow: 0 0 5px var(--kbc-gold),
-                inset 0 0 5px var(--kbc-gold);
-    opacity: 0.3;
-  }
-  100% {
-    box-shadow: 0 0 20px var(--kbc-gold),
-                inset 0 0 10px var(--kbc-gold);
-    opacity: 0.8;
-  }
-}
-
-@keyframes pulse {
-  0% {
-    transform: scale(0.95);
-    opacity: 0.5;
-  }
-  50% {
-    transform: scale(1.05);
-    opacity: 0.8;
-  }
-  100% {
-    transform: scale(0.95);
-    opacity: 0.5;
-  }
-}
-
-.animate-float {
-  animation: float 3s ease-in-out infinite;
-}
-
-.animate-fadeIn {
-  animation: fadeIn 0.5s ease-out forwards;
-}
-
-.animate-slideIn {
-  animation: slideIn 0.5s ease-out forwards;
-}
-
-.animate-slideUp {
-  animation: slideUp 0.5s ease-out forwards;
-}
-
-.animate-slideInRight {
-  animation: slideInRight 0.3s ease-out;
-}
-
-/* Responsive utilities */
-@media (max-width: 640px) {
-  .sm-hidden {
-    display: none;
-  }
-  
-  .sm-full {
-    width: 100%;
-  }
-}
-
-/* Card hover effects */
-.hover-card {
-  transition: all 0.3s ease;
-}
-
-.hover-card:hover {
-  transform: translateY(-5px);
-  box-shadow: 0 10px 20px rgba(0, 0, 0, 0.2);
-}
-
-/* Button effects */
-.btn-primary {
-  padding-left: 1.5rem;
-  padding-right: 1.5rem;
-  padding-top: 0.5rem;
-  padding-bottom: 0.5rem;
-  background: linear-gradient(to right, #3b82f6, #2563eb);
-  color: white;
-  border-radius: 0.5rem;
-  transition: all 0.3s ease;
-}
-.btn-primary:hover {
-  background: linear-gradient(to right, #2563eb, #1d4ed8);
-  transform: translateY(-0.125rem);
-}
-.btn-primary:focus {
-  outline: none;
-  box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.5); /* blue-500 with 0.5 opacity */
-}
-
-.btn-secondary {
-  padding-left: 1.5rem;
-  padding-right: 1.5rem;
-  padding-top: 0.5rem;
-  padding-bottom: 0.5rem;
-  background: linear-gradient(to right, #6b7280, #4b5563);
-  color: white;
-  border-radius: 0.5rem;
-  transition: all 0.3s ease;
-}
-.btn-secondary:hover {
-  background: linear-gradient(to right, #4b5563, #374151);
-  transform: translateY(-0.125rem);
-}
-.btn-secondary:focus {
-  outline: none;
-  box-shadow: 0 0 0 2px rgba(107, 114, 128, 0.5); /* gray-500 with 0.5 opacity */
-}
-
-.btn-danger {
-  padding-left: 1.5rem;
-  padding-right: 1.5rem;
-  padding-top: 0.5rem;
-  padding-bottom: 0.5rem;
-  background: linear-gradient(to right, #ef4444, #dc2626);
-  color: white;
-  border-radius: 0.5rem;
-  transition: all 0.3s ease;
-}
-.btn-danger:hover {
-  background: linear-gradient(to right, #dc2626, #b91c1c);
-  transform: translateY(-0.125rem);
-}
-.btn-danger:focus {
-  outline: none;
-  box-shadow: 0 0 0 2px rgba(239, 68, 68, 0.5); /* red-500 with 0.5 opacity */
-}
-
-/* Input fields */
-.input-primary {
-  width: 100%;
-  padding: 0.5rem;
-  border: 1px solid #d1d5db;
-  border-radius: 0.5rem;
-  background: rgba(255, 255, 255, 0.1);
-  backdrop-filter: blur(10px);
-  transition: all 0.3s ease;
-}
-.input-primary:focus {
-  box-shadow: 0 0 0 2px rgba(96, 165, 250, 0.5); /* blue-400 with 0.5 opacity */
-  border-color: #3b82f6;
-}
-
-.kbc-card {
-  background: linear-gradient(135deg, var(--kbc-dark-blue), var(--kbc-purple));
-  -webkit-clip-path: polygon(
-    5% 0,
-    95% 0,
-    100% 5%,
-    100% 95%,
-    95% 100%,
-    5% 100%,
-    0 95%,
-    0 5%
-  );
-  clip-path: polygon(
-    5% 0,
-    95% 0,
-    100% 5%,
-    100% 95%,
-    95% 100%,
-    5% 100%,
-    0 95%,
-    0 5%
-  );
-  border: 2px solid var(--kbc-light-blue);
-  box-shadow: 0 0 20px rgba(28, 63, 170, 0.3),
-              inset 0 0 15px rgba(28, 63, 170, 0.3);
-  padding: 2.5rem;
-  transition: all 0.3s ease;
-}
-
-.kbc-card:hover {
-  transform: translateY(-5px);
-}
-
-.shadow-kbc {
-  box-shadow: 0 0 20px rgba(255, 184, 0, 0.1);
-}
-
-.kbc-button {
-  background: #1C3FAA; /* Fallback */
-  background: linear-gradient(135deg, var(--kbc-light-blue), var(--kbc-blue));
-  color: var(--kbc-light);
-  border: 1px solid var(--kbc-gold);
-  padding: 0.75rem 1.5rem;
-  border-radius: 0.5rem;
-  font-weight: 600;
-  cursor: pointer;
-  transition: all 0.3s ease;
-  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.5);
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  min-width: 90px;
-}
-.kbc-button1 {
-  background: linear-gradient(135deg, var(--kbc-light-blue), var(--kbc-blue));
-  color: var(--kbc-light);
-  border: 1px solid var(--kbc-gold);
-  padding: 0.75rem 1.5rem;
-  border-radius: 0.5rem;
-  font-weight: 600;
-  cursor: pointer;
-  transition: all 0.3s ease;
-  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.5);
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  min-width: 120px;
-}
-
-.kbc-button:hover {
-  background: linear-gradient(135deg, var(--kbc-blue), var(--kbc-dark-blue));
-  transform: translateY(-2px);
-  box-shadow: 0 4px 12px rgba(28, 63, 170, 0.3);
-}
-
-.kbc-button:active {
-  transform: translateY(0);
-}
-
-.kbc-input {
-  width: 100%;
-  padding: 0.75rem 1rem;
-  background: rgba(255, 255, 255, 0.1);
-  border: 1px solid rgba(255, 184, 0, 0.3);
-  border-radius: 0.5rem;
-  color: var(--kbc-light);
-  transition: all 0.3s ease;
-}
-
-.kbc-input:focus {
-  outline: none;
-  border-color: var(--kbc-gold);
-  box-shadow: 0 0 0 2px rgba(255, 184, 0, 0.2);
-}
-
-.kbc-title {
-  color: var(--kbc-gold);
-  text-shadow: 0 2px 4px rgba(0, 0, 0, 0.5);
-  font-weight: bold;
-  font-size: 2rem;
-  margin-bottom: 1.5rem;
-  text-align: center;
-}
-
-.kbc-option {
-  position: relative;
-  background: linear-gradient(135deg, var(--kbc-dark-blue), var(--kbc-blue));
-  -webkit-clip-path: polygon(
-    10% 0,
-    90% 0,
-    100% 50%,
-    90% 100%,
-    10% 100%,
-    0 50%
-  );
-  clip-path: polygon(
-    10% 0,
-    90% 0,
-    100% 50%,
-    90% 100%,
-    10% 100%,
-    0 50%
-  );
-  border: 1px solid var(--kbc-light-blue);
-  box-shadow: 0 0 15px rgba(28, 63, 170, 0.2),
-              inset 0 0 10px rgba(28, 63, 170, 0.2);
-  padding: 1rem 1rem 1rem 4rem;
-  color: var(--kbc-light);
-  transition: all 0.3s ease;
-  min-height: 3.5rem;
-  display: flex;
-  align-items: center;
-}
-
-.kbc-option:hover:not(:disabled) {
-  transform: translateY(-2px);
-  box-shadow: 0 0 20px rgba(255, 184, 0, 0.3);
-}
-
-/* Add this new style with higher specificity */
-/* Update the selected state with dark yellow/gold colors */
-.kbc-option.selected {
-  background: linear-gradient(135deg, var(--kbc-gold), #D4A017);
-  box-shadow: 0 0 20px rgba(255, 184, 0, 0.5),
-              inset 0 0 15px rgba(255, 184, 0, 0.5);
-  transform: scale(1.02);
-  color: var(--kbc-dark-blue);
-  font-weight: bold;
-}
-
-/* Update hover state to not override selected state */
-.kbc-option:hover:not(.selected):not(:disabled) {
-  background: linear-gradient(135deg, rgba(38, 81, 219, 0.9), rgba(28, 63, 170, 1));
-  transform: translateY(-2px);
-  box-shadow: 0 0 15px rgba(255, 184, 0, 0.3);
-  color: var(--kbc-light);
-}
-
-.kbc-option.correct {
-  background: linear-gradient(135deg, #00C853, #009624);
-  box-shadow: 0 0 20px rgba(0, 200, 83, 0.4),
-              inset 0 0 15px rgba(0, 200, 83, 0.4);
-  border-color: #00E676;
-  color: white;
-  transform: translateY(-2px);
-  box-shadow: 0 0 15px rgba(0, 200, 83, 0.3);
-}
-
-.kbc-option.incorrect {
-  background: linear-gradient(135deg, #D32F2F, #B71C1C);
-  box-shadow: 0 0 20px rgba(211, 47, 47, 0.4),
-              inset 0 0 15px rgba(211, 47, 47, 0.4);
-  border-color: #FF1744;
-  color: white;
-  transform: translateY(-2px);
-  box-shadow: 0 0 15px rgba(255, 61, 0, 0.3);
-}
-
-.kbc-option:before {
-  content: '';
-  position: absolute;
-  top: 0;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  background: linear-gradient(45deg, transparent, rgba(255, 255, 255, 0.1), transparent);
-  transform: translateX(-100%);
-  transition: transform 0.6s;
-}
-
-.kbc-option:hover:not(:disabled):before {
-  transform: translateX(100%);
-}
-
-/* Animation for options */
-@keyframes optionPulse {
-  0% { transform: scale(1); }
-  50% { transform: scale(1.02); }
-  100% { transform: scale(1); }
-}
-
-.kbc-option {
-  animation: optionPulse 2s infinite;
-}
-
-/* KBC Option styling */
-.kbc-option {
-  display: flex;
-  align-items: center;
-  justify-content: start;
-  position: relative;
-  padding-left: 3rem;
-  text-align: left;
-}
-
-.option-letter {
-  position: absolute;
-  left: 1rem;
-  color: var(--kbc-gold);
-  font-weight: bold;
-  font-size: 1.2rem;
-  background: rgba(0, 11, 62, 0.5);
-  width: 2rem;
-  height: 2rem;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  border-radius: 50%;
-  border: 1px solid var(--kbc-gold);
-}
-
-/* Pulse animation for lock answer button */
-.pulse-animation {
-  animation: pulse 2s infinite;
-}
-
-@keyframes pulse {
-  0% {
-    transform: scale(1);
-    box-shadow: 0 0 0 0 rgba(255, 184, 0, 0.7);
-  }
-  70% {
-    transform: scale(1.05);
-    box-shadow: 0 0 0 10px rgba(255, 184, 0, 0);
-  }
-  100% {
-    transform: scale(1);
-    box-shadow: 0 0 0 0 rgba(255, 184, 0, 0);
-  }
-}
-
-/* KBC Logo animation */
-.kbc-logo {
-  width: 120px;
-  height: 120px;
-  margin: 0 auto;
-  animation: logoSpin 20s linear infinite;
-}
-
-@keyframes logoSpin {
-  from { transform: rotate(0deg); }
-  to { transform: rotate(360deg); }
-}
-
-/* Layout Utilities */
-.flex {
-  display: flex;
-}
-
-.items-center {
-  align-items: center;
-}
-
-.justify-center {
-  justify-content: center;
-}
-
-.space-x-4 > * + * {
-  margin-left: 1rem;
-}
-
-.grid {
-  display: grid;
-}
-
-.grid-cols-2 {
-  grid-template-columns: repeat(2, 1fr);
-}
-
-.gap-4 {
-  gap: 1rem;
-}
-
-/* Responsive Design */
-@media (max-width: 640px) {
-  .grid-cols-2 {
-    grid-template-columns: 1fr;
-  }
-  
-  .kbc-card {
-    padding: 1rem;
-  }
-  
-  .kbc-button {
-    width: 10%;
-  }
-  
-  .space-x-4 > * {
-    margin-left: 0;
-    margin-top: 0.5rem;
-  }
-  
-  .space-x-4 {
-    flex-direction: column;
-  }
-}
-
-/* KBC specific styling */
+/* Custom background patterns and layouts not in other files */
 .kbc-container {
   min-height: 100vh;
   background: radial-gradient(circle at center, 
@@ -574,24 +31,6 @@ body {
   box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
 }
 
-@media (max-width: 640px) {
-  .kbc-content {
-    padding: 1rem;
-  }
-  
-  .kbc-title {
-    font-size: 1.5rem;
-  }
-}
-
-/* Add to index.css */
-.kbc-pattern {
-  background-image: 
-    radial-gradient(circle at 100% 100%, var(--kbc-purple) 0%, transparent 50%),
-    radial-gradient(circle at 0% 0%, var(--kbc-blue) 0%, transparent 50%);
-  background-attachment: fixed;
-}
-
 .kbc-glow {
   position: relative;
 }
@@ -610,10 +49,10 @@ body {
   filter: blur(8px);
 }
 
-/* Style select dropdowns */
+/* Select dropdown styles - unique to index.css */
 .kbc-select {
   width: 100%;
-  max-width: 100%; /* Ensure it doesn't overflow container */
+  max-width: 100%;
   padding: 0.75rem 1rem;
   background: linear-gradient(135deg, rgba(11, 29, 120, 0.9), rgba(0, 11, 62, 0.95));
   border: 1px solid var(--kbc-gold);
@@ -629,7 +68,7 @@ body {
   background-position: right 1rem center;
   background-size: 1.5em;
   padding-right: 2.5rem;
-  font-size: 1rem; /* Increased font size */
+  font-size: 1rem;
 }
 
 .kbc-select::-ms-expand {
@@ -656,26 +95,7 @@ body {
   border-bottom: 1px solid rgba(255, 184, 0, 0.1);
 }
 
-/* Add hover state for options */
-.kbc-select option:hover {
-  background-color: var(--kbc-blue);
-}
-
-/* Add these new styles for mobile optimization */
-@media (max-width: 640px) {
-  .kbc-select {
-    font-size: 16px; /* Prevent iOS zoom on focus */
-    padding: 1.2rem 1rem; /* Even larger touch target on mobile */
-    background-size: 1.8em; /* Larger dropdown arrow */
-  }
-
-  .kbc-select option {
-    font-size: 16px;
-    padding: 1rem 0.5rem;
-  }
-}
-
-/* Update PlayAlong page styles */
+/* Play Along page styles */
 .play-along-container {
   min-height: 100vh;
   padding: 1rem;
@@ -696,7 +116,7 @@ body {
   box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
 }
 
-/* Update form inputs for consistency */
+/* Form groups */
 .kbc-form-group {
   margin-bottom: 1.5rem;
 }
@@ -709,63 +129,6 @@ body {
   margin-bottom: 0.5rem;
 }
 
-/* Table styles for KBC theme */
-.kbc-table {
-  width: 100%;
-  border-collapse: separate;
-  border-spacing: 0;
-}
-
-.kbc-table th {
-  color: var(--kbc-gold);
-  font-size: 0.875rem;
-  text-transform: uppercase;
-  letter-spacing: 0.05em;
-  padding: 1rem;
-  border-bottom: 1px solid rgba(255, 184, 0, 0.2);
-}
-
-.kbc-table td {
-  padding: 1rem;
-  color: var(--kbc-light);
-  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
-}
-
-.kbc-table tbody tr {
-  transition: all 0.3s ease;
-}
-
-.kbc-table tbody tr:hover {
-  background: linear-gradient(135deg, 
-    rgba(28, 63, 170, 0.5), 
-    rgba(11, 29, 120, 0.5)
-  );
-  transform: translateY(-2px);
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
-}
-
-.kbc-table .gold-text {
-  color: var(--kbc-gold);
-  font-weight: 600;
-}
-
-.kbc-table .success-text {
-  color: #4ade80;
-  font-weight: 600;
-}
-
-.kbc-table tbody tr:hover td {
-  color: var(--kbc-light);
-}
-
-.kbc-table tbody tr:hover .gold-text {
-  text-shadow: 0 0 8px rgba(255, 184, 0, 0.3);
-}
-
-.kbc-table tbody tr:hover .success-text {
-  text-shadow: 0 0 8px rgba(74, 222, 128, 0.3);
-}
-
 /* Prize ladder transitions */
 .prize-ladder-item {
   transition: all 0.3s ease;
@@ -776,180 +139,28 @@ body {
   font-weight: bold;
 }
 
-/* Mobile optimizations */
-@media (max-width: 1024px) {
-  .prize-ladder {
-    max-height: 200px;
-    overflow-y: auto;
-  }
-  
-  .prize-ladder::-webkit-scrollbar {
-    width: 6px;
-  }
-  
-  .prize-ladder::-webkit-scrollbar-track {
-    background: rgba(255, 255, 255, 0.1);
-  }
-  
-  .prize-ladder::-webkit-scrollbar-thumb {
-    background: var(--kbc-gold);
-    border-radius: 3px;
-  }
-}
-
-/* Improve backdrop blur performance */
-.backdrop-blur-md {
-  -webkit-backdrop-filter: blur(12px);
-  backdrop-filter: blur(12px);
-}
-
-/* Smooth transitions */
-.transition-all {
-  transition-property: all;
-  transition-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
-  transition-duration: 300ms;
-}
-
-/* Improved mobile scrolling */
-.overflow-y-auto {
-  -webkit-overflow-scrolling: touch;
-  scrollbar-width: thin;
-  scrollbar-color: var(--kbc-gold) transparent;
-}
-
-.overflow-y-auto::-webkit-scrollbar {
-  width: 4px;
-}
-
-.overflow-y-auto::-webkit-scrollbar-track {
-  background: transparent;
-}
-
-.overflow-y-auto::-webkit-scrollbar-thumb {
-  background-color: var(--kbc-gold);
-  border-radius: 2px;
-}
-
-/* Custom scrollbar for prize ladder */
-.scrollbar-thin::-webkit-scrollbar {
-  width: 6px;
-}
-
-.scrollbar-thin::-webkit-scrollbar-track {
-  background: transparent;
-}
-
-.scrollbar-thin::-webkit-scrollbar-thumb {
-  background-color: var(--kbc-gold);
-  border-radius: 3px;
-}
-
-.scrollbar-thin {
-  scrollbar-width: thin;
-  -ms-overflow-style: none; /* IE and Edge */
-  scrollbar-color: var(--kbc-gold) transparent;
-}
-
-.shadow-glow {
-  box-shadow: 0 0 15px rgba(255, 184, 0, 0.2);
-}
-
-/* Add these utility classes to replace @apply */
-.flex-center {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-}
-
-.relative {
+/* Question image styles */
+.aspect-video {
   position: relative;
+  padding-bottom: 56.25%; /* 16:9 Aspect Ratio */
+  height: 0;
+  overflow: hidden;
+  background: rgba(0, 0, 0, 0.2);
+  border: 1px solid var(--kbc-gold);
+  border-radius: 0.5rem;
 }
 
-.absolute {
-  position: absolute;
+.aspect-video img {
+  transition: all 0.3s ease;
+  box-shadow: 0 0 20px rgba(255, 184, 0, 0.2);
 }
 
-.font-bold {
-  font-weight: bold;
+.aspect-video img:hover {
+  transform: scale(1.02);
+  box-shadow: 0 0 30px rgba(255, 184, 0, 0.3);
 }
 
-.text-gold {
-  color: var(--kbc-gold);
-}
-
-/* Add responsive styles */
-@media (max-width: 640px) {
-  .kbc-option {
-    padding: 0.75rem 0.75rem 0.75rem 3rem;
-    font-size: 0.875rem;
-  }
-
-  .option-letter {
-    left: 0.75rem;
-    font-size: 0.875rem;
-  }
-
-  .kbc-button1 {
-    padding: 0.5rem 1rem;
-    font-size: 0.875rem;
-    min-width: auto;
-  }
-
-  .kbc-card {
-    padding: 1rem;
-  }
-}
-
-/* Horizontal scrollbar for prize ladder on mobile */
-.scrollbar-thin::-webkit-scrollbar {
-  height: 4px;
-  width: 4px;
-}
-
-.scrollbar-thin::-webkit-scrollbar-track {
-  background: transparent;
-}
-
-.scrollbar-thin::-webkit-scrollbar-thumb {
-  background-color: var(--kbc-gold);
-  border-radius: 2px;
-}
-
-/* Question Box Styles */
-.question-container {
-  position: relative;
-  margin-bottom: 3rem;
-}
-
-.question-box {
-  background: linear-gradient(135deg, var(--kbc-dark-blue), var(--kbc-purple));
-  -webkit-clip-path: polygon(
-    5% 0,
-    95% 0,
-    100% 5%,
-    100% 95%,
-    95% 100%,
-    5% 100%,
-    0 95%,
-    0 5%
-  );
-  clip-path: polygon(
-    5% 0,
-    95% 0,
-    100% 5%,
-    100% 95%,
-    95% 100%,
-    5% 100%,
-    0 95%,
-    0 5%
-  );
-  border: 2px solid var(--kbc-light-blue);
-  box-shadow: 0 0 20px rgba(28, 63, 170, 0.3),
-              inset 0 0 15px rgba(28, 63, 170, 0.3);
-  padding: 2rem;
-}
-
-/* Golden Divider */
+/* Golden divider */
 .golden-divider {
   position: relative;
   height: 2px;
@@ -976,83 +187,20 @@ body {
   box-shadow: 0 0 15px var(--kbc-gold);
 }
 
-/* Options Container */
-.options-container {
-  display: grid;
-  grid-template-columns: 1fr;
-  gap: 1rem;
-  margin-top: 2rem;
+/* Extra utility classes not in other files */
+.backdrop-blur-md {
+  -webkit-backdrop-filter: blur(12px);
+  backdrop-filter: blur(12px);
 }
 
-@media (min-width: 640px) {
-  .options-container {
-    grid-template-columns: repeat(2, 1fr);
-  }
+.shadow-glow {
+  box-shadow: 0 0 15px rgba(255, 184, 0, 0.2);
 }
 
-/* Option Button Styles */
-.option-button {
-  position: relative;
-  background: linear-gradient(135deg, var(--kbc-dark-blue), var(--kbc-blue));
-  clip-path: polygon(
-    10% 0,
-    90% 0,
-    100% 50%,
-    90% 100%,
-    10% 100%,
-    0 50%
-  );
-  border: 1px solid var(--kbc-light-blue);
-  box-shadow: 0 0 15px rgba(28, 63, 170, 0.2),
-              inset 0 0 10px rgba(28, 63, 170, 0.2);
-  padding: 1rem 1rem 1rem 4rem;
-  color: var(--kbc-light);
-  transition: all 0.3s ease;
-  min-height: 3.5rem;
-  display: flex;
-  align-items: center;
-  cursor: pointer;
+.shadow-kbc {
+  box-shadow: 0 0 20px rgba(255, 184, 0, 0.1);
 }
 
-.option-letter {
-  position: absolute;
-  left: 1rem;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  width: 2rem;
-  height: 2rem;
-  background: rgba(0, 11, 62, 0.5);
-  border: 2px solid var(--kbc-gold);
-  border-radius: 50%;
-  color: var(--kbc-gold);
-  font-weight: bold;
-  font-size: 1.2rem;
-  box-shadow: 0 0 10px rgba(255, 184, 0, 0.3);
-}
-
-.kbc-question-box {
-  background: linear-gradient(to right, rgba(6, 7, 89, 0.8), rgba(10, 57, 114, 0.8));
-  border-radius: 0.5rem;
-  border: 2px solid rgba(255, 184, 0, 0.3);
-  box-shadow: 0 0 15px rgba(255, 184, 0, 0.3);
-  color: white;
-  transition: all 0.2s ease;
-  overflow: hidden;
-}
-
-.kbc-question-box:hover {
-  border-color: rgba(255, 184, 0, 0.6);
-  box-shadow: 0 0 20px rgba(255, 184, 0, 0.5);
-}
-
-/* Add to your existing CSS */
-.mix-blend-luminosity {
-  mix-blend-mode: luminosity;
-  filter: brightness(1.2) contrast(1.2) grayscale(0.2);
-}
-
-/* Add these utility classes if not already present */
 .blur-xl {
   filter: blur(24px);
 }
@@ -1061,134 +209,19 @@ body {
   background-color: var(--kbc-gold);
 }
 
-/* Audio playing indicator */
-.audio-playing {
-  position: relative;
+.mix-blend-luminosity {
+  mix-blend-mode: luminosity;
+  filter: brightness(1.2) contrast(1.2) grayscale(0.2);
 }
 
-.audio-playing::after {
-  content: '🔊';
-  position: absolute;
-  top: -1rem;
-  right: -1rem;
-  animation: pulse 1s infinite;
-}
-
-@keyframes pulse {
-  0% { opacity: 1; }
-  50% { opacity: 0.5; }
-  100% { opacity: 1; }
-}
-
-/* Volume slider styling */
-input[type="range"] {
-  -webkit-appearance: none;
-  appearance: none;
-  background: transparent;
-  cursor: pointer;
-}
-
-input[type="range"]::-webkit-slider-runnable-track {
-  background: var(--kbc-gold);
-  opacity: 0.3;
-  height: 4px;
-  border-radius: 2px;
-}
-
-input[type="range"]::-webkit-slider-thumb {
-  -webkit-appearance: none;
-  appearance: none;
-  margin-top: -6px;
-  background-color: var(--kbc-gold);
-  height: 16px;
-  width: 16px;
-  border-radius: 50%;
-}
-
-input[type="range"]:focus {
-  outline: none;
-}
-
-input[type="range"]:hover::-webkit-slider-thumb {
-  box-shadow: 0 0 10px var(--kbc-gold);
-}
-
-/* Add these styles for question images */
-.aspect-video {
-  position: relative;
-  padding-bottom: 56.25%; /* 16:9 Aspect Ratio */
-  height: 0;
-  overflow: hidden;
-  background: rgba(0, 0, 0, 0.2);
-  border: 1px solid var(--kbc-gold);
-  border-radius: 0.5rem;
-}
-
-.aspect-video img {
-  transition: all 0.3s ease;
-  box-shadow: 0 0 20px rgba(255, 184, 0, 0.2);
-}
-
-.aspect-video img:hover {
-  transform: scale(1.02);
-  box-shadow: 0 0 30px rgba(255, 184, 0, 0.3);
-}
-
-@media (max-width: 640px) {
-  .aspect-video {
-    padding-bottom: 75%; /* 4:3 Aspect Ratio for mobile */
-  }
-}
-
-/* Add these styles for better layout control */
-@media (min-width: 1024px) { /* laptop and larger screens */
-  .container {
-    max-height: 100vh;
-    overflow: hidden;
-  }
-
-  .kbc-question-box {
-    max-height: calc(30vh - 2rem);
-    overflow-y: auto;
-  }
-
-  /* Hide scrollbar but keep functionality */
-  .kbc-question-box::-webkit-scrollbar {
-    width: 0;
-    height: 0;
-  }
-
-  /* Compact options grid */
-  .options-container {
-    margin-top: 1rem;
-  }
-
-  .kbc-option {
-    padding: 0.75rem 1rem 0.75rem 3rem;
-    min-height: 3rem;
-  }
-}
-
-/* Add these styles for smoother image transitions */
-.transition-all {
-  transition-property: all;
-  transition-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
-  transition-duration: 300ms;
-}
-
-/* Ensure question box stays above options but below modals */
-.kbc-question-box {
-  position: relative;
-  z-index: 10;
-}
-
-/* Adjust options container z-index */
-.options-container {
-  position: relative;
-  z-index: 5;
-}
-
-/* Ensure modals stay on top */
+/* Fixed positioning utility not in other files */
 .fixed {
   z-index: 50;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  * {
+    animation-duration: 0.01ms !important;
+    transition-duration: 0.01ms !important;
+  }
 }

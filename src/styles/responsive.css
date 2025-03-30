@@ -1,0 +1,234 @@
+/* Mobile First Approach */
+@media (min-width: 640px) {
+  .options-container {
+    grid-template-columns: repeat(2, 1fr);
+  }
+  
+  .kbc-content {
+    padding: 2rem;
+  }
+}
+
+@media (min-width: 1024px) {
+  .container {
+    max-height: 100vh;
+    overflow: hidden;
+  }
+
+  .kbc-question-box {
+    max-height: calc(30vh - 2rem);
+    overflow-y: auto;
+  }
+}
+
+/* Cross-browser scrollbar styles */
+@supports (-webkit-overflow-scrolling: touch) {
+  .overflow-y-auto {
+    -webkit-overflow-scrolling: touch;
+  }
+}
+
+@supports (scrollbar-width: thin) {
+  * {
+    scrollbar-width: thin;
+    scrollbar-color: var(--kbc-gold) transparent;
+  }
+}
+
+/* Additional responsive styles extracted from index.css */
+/* Responsive utilities */
+@media (max-width: 640px) {
+  .sm-hidden {
+    display: none;
+  }
+  
+  .sm-full {
+    width: 100%;
+  }
+  
+  .grid-cols-2 {
+    grid-template-columns: 1fr;
+  }
+  
+  .kbc-card {
+    padding: 1rem;
+  }
+  
+  .kbc-button {
+    width: 10%;
+  }
+  
+  .space-x-4 > * {
+    margin-left: 0;
+    margin-top: 0.5rem;
+  }
+  
+  .space-x-4 {
+    flex-direction: column;
+  }
+  
+  .kbc-content {
+    padding: 1rem;
+  }
+  
+  .kbc-title {
+    font-size: 1.5rem;
+  }
+  
+  .kbc-option {
+    padding: 0.75rem 0.75rem 0.75rem 3rem;
+    font-size: 0.875rem;
+  }
+
+  .option-letter {
+    left: 0.75rem;
+    font-size: 0.875rem;
+  }
+
+  .kbc-button1 {
+    padding: 0.5rem 1rem;
+    font-size: 0.875rem;
+    min-width: auto;
+  }
+  
+  .aspect-video {
+    padding-bottom: 75%; /* 4:3 Aspect Ratio for mobile */
+  }
+  
+  .kbc-select {
+    font-size: 16px; /* Prevent iOS zoom on focus */
+    padding: 1.2rem 1rem; /* Even larger touch target on mobile */
+    background-size: 1.8em; /* Larger dropdown arrow */
+  }
+
+  .kbc-select option {
+    font-size: 16px;
+    padding: 1rem 0.5rem;
+  }
+}
+
+/* Medium screens */
+@media (max-width: 1024px) {
+  .prize-ladder {
+    max-height: 200px;
+    overflow-y: auto;
+  }
+  
+  .prize-ladder::-webkit-scrollbar {
+    width: 6px;
+  }
+  
+  .prize-ladder::-webkit-scrollbar-track {
+    background: rgba(255, 255, 255, 0.1);
+  }
+  
+  .prize-ladder::-webkit-scrollbar-thumb {
+    background: var(--kbc-gold);
+    border-radius: 3px;
+  }
+}
+
+/* Large screens */
+@media (min-width: 1024px) {
+  /* Compact layout optimizations */
+  .kbc-question-box {
+    max-height: calc(30vh - 2rem);
+    overflow-y: auto;
+  }
+
+  /* Hide scrollbar but keep functionality */
+  .kbc-question-box::-webkit-scrollbar {
+    width: 0;
+    height: 0;
+  }
+
+  /* Compact options grid */
+  .options-container {
+    margin-top: 1rem;
+  }
+
+  .kbc-option {
+    padding: 0.75rem 1rem 0.75rem 3rem;
+    min-height: 3rem;
+  }
+}
+
+/* Print styles */
+@media print {
+  .no-print {
+    display: none;
+  }
+  
+  body {
+    background: white;
+    color: black;
+  }
+  
+  .kbc-card, .kbc-content {
+    box-shadow: none;
+    border: 1px solid #ccc;
+  }
+}
+
+/* High contrast mode */
+@media (prefers-contrast: high) {
+  :root {
+    --kbc-gold: #FFD700;
+    --kbc-light: #FFFFFF;
+  }
+  
+  .glass-effect {
+    background: var(--kbc-dark-blue);
+    backdrop-filter: none;
+  }
+}
+
+/* Reduced motion preferences */
+@media (prefers-reduced-motion: reduce) {
+  * {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}
+
+/* Device-specific optimizations */
+/* iOS devices */
+@supports (-webkit-touch-callout: none) {
+  input, button, select {
+    font-size: 16px; /* Prevent zoom on input focus */
+  }
+  
+  .kbc-input, .kbc-select, .kbc-button {
+    padding-top: 0.75rem;
+    padding-bottom: 0.75rem;
+  }
+}
+
+/* Tablet-specific adjustments */
+@media (min-width: 641px) and (max-width: 1024px) {
+  .kbc-option {
+    padding: 0.875rem 1rem 0.875rem 3.5rem;
+  }
+  
+  .options-container {
+    gap: 1.25rem;
+  }
+}
+
+/* Landscape orientation */
+@media (orientation: landscape) and (max-height: 500px) {
+  .kbc-card {
+    padding: 1rem;
+  }
+  
+  .kbc-question-box {
+    max-height: 120px;
+  }
+  
+  .options-container {
+    grid-template-columns: repeat(2, 1fr);
+    gap: 0.75rem;
+  }
+}

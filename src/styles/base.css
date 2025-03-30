@@ -1,0 +1,89 @@
+@import url('https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700&display=swap');
+
+/* Only import what you need from Tailwind */
+@import "tailwindcss/base";
+@import "tailwindcss/components";
+@import "tailwindcss/utilities";
+
+:root {
+  --kbc-dark-blue: #000B3E;
+  --kbc-blue: #0B1D78;
+  --kbc-light-blue: #1C3FAA;
+  --kbc-gold: #FFB800;
+  --kbc-light: #E5E9FF;
+  --kbc-purple: #4C1D95;
+  --font-primary: 'Poppins', sans-serif;
+}
+
+body {
+  font-family: var(--font-primary);
+  background: var(--kbc-dark-blue);
+  background-image: radial-gradient(circle at center, var(--kbc-purple) 0%, var(--kbc-dark-blue) 100%);
+  color: var(--kbc-light);
+  margin: 0;
+  padding: 0;
+  min-height: 100vh;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+/* Basic layout utilities */
+.flex {
+  display: flex;
+}
+
+.items-center {
+  align-items: center;
+}
+
+.justify-center {
+  justify-content: center;
+}
+
+.space-x-4 > * + * {
+  margin-left: 1rem;
+}
+
+.grid {
+  display: grid;
+}
+
+.gap-4 {
+  gap: 1rem;
+}
+
+.relative {
+  position: relative;
+}
+
+.absolute {
+  position: absolute;
+}
+
+.font-bold {
+  font-weight: bold;
+}
+
+.text-gold {
+  color: var(--kbc-gold);
+}
+
+/* Background patterns */
+.kbc-pattern {
+  background-image: 
+    radial-gradient(circle at 100% 100%, var(--kbc-purple) 0%, transparent 50%),
+    radial-gradient(circle at 0% 0%, var(--kbc-blue) 0%, transparent 50%);
+  background-attachment: fixed;
+}
+
+.glass-effect {
+  background: rgba(255, 255, 255, 0.1);
+  -webkit-backdrop-filter: blur(10px);
+  backdrop-filter: blur(10px);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  border-radius: 1rem;
+}
+
+.no-backdrop-filter .glass-effect {
+  background: rgba(0, 11, 62, 0.95); /* Fallback for no backdrop-filter support */
+}

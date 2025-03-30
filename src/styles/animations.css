@@ -1,0 +1,125 @@
+@keyframes gradientBG {
+  0% { background-position: 0% 50%; }
+  50% { background-position: 100% 50%; }
+  100% { background-position: 0% 50%; }
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+@keyframes slideIn {
+  from { opacity: 0; transform: translateY(20px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes slideUp {
+  from { opacity: 0; transform: translateY(20px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes slideInRight {
+  from { transform: translateX(100%); }
+  to { transform: translateX(0); }
+}
+
+@keyframes float {
+  0%, 100% { transform: translateY(0) rotate(0deg); }
+  50% { transform: translateY(-10px) rotate(5deg); }
+}
+
+@keyframes glow {
+  0% {
+    box-shadow: 0 0 5px var(--kbc-gold),
+                inset 0 0 5px var(--kbc-gold);
+    opacity: 0.3;
+  }
+  100% {
+    box-shadow: 0 0 20px var(--kbc-gold),
+                inset 0 0 10px var(--kbc-gold);
+    opacity: 0.8;
+  }
+}
+
+@keyframes pulse {
+  0% { transform: scale(0.95); opacity: 0.5; }
+  50% { transform: scale(1.05); opacity: 0.8; }
+  100% { transform: scale(0.95); opacity: 0.5; }
+}
+
+@keyframes logoSpin {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}
+
+@keyframes optionPulse {
+  0% { transform: scale(1); }
+  50% { transform: scale(1.02); }
+  100% { transform: scale(1); }
+}
+
+/* Animation Classes */
+.animate-float { animation: float 3s ease-in-out infinite; }
+.animate-fadeIn { animation: fadeIn 0.5s ease-out forwards; }
+.animate-slideIn { animation: slideIn 0.5s ease-out forwards; }
+.animate-slideUp { animation: slideUp 0.5s ease-out forwards; }
+.animate-slideInRight { animation: slideInRight 0.3s ease-out; }
+
+.transition-all {
+  transition-property: all;
+  transition-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
+  transition-duration: 300ms;
+}
+
+/* Background animation classes */
+.animated-gradient {
+  background: linear-gradient(-45deg, #ee7752, #e73c7e, #23a6d5, #23d5ab);
+  background-size: 400% 400%;
+  animation: gradientBG 15s ease infinite;
+}
+
+/* Audio animation */
+.audio-playing {
+  position: relative;
+}
+
+.audio-playing::after {
+  content: '🔊';
+  position: absolute;
+  top: -1rem;
+  right: -1rem;
+  animation: pulse 1s infinite;
+}
+
+.pulse-animation {
+  animation: pulse 2s infinite;
+}
+
+.kbc-logo {
+  width: 120px;
+  height: 120px;
+  margin: 0 auto;
+  animation: logoSpin 20s linear infinite;
+}
+
+/* Option animations */
+.kbc-option {
+  animation: optionPulse 2s infinite;
+}
+
+.kbc-option:before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: linear-gradient(45deg, transparent, rgba(255, 255, 255, 0.1), transparent);
+  transform: translateX(-100%);
+  transition: transform 0.6s;
+}
+
+.kbc-option:hover:not(:disabled):before {
+  transform: translateX(100%);
+}
