@@ -4,7 +4,7 @@ import BackButton from '../components/BackButton';
 import { API_URL } from '../utils/config';
 import { useFirebaseGameState } from '../hooks/useFirebaseGameState';
 import { ref, set } from 'firebase/database';
-import { db } from '../utils/firebaseConfig';
+import { db } from '../utils/firebase'; // Changed from '../utils/firebaseConfig
 
 const ManagePlayAlong = () => {
   const [questionBanks, setQuestionBanks] = useState([]);
