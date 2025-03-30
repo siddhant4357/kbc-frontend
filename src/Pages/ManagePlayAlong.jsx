@@ -1,22 +1,23 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import BackButton from '../components/BackButton';
-import io from 'socket.io-client';
-import { API_URL, SOCKET_URL } from '../utils/config';
+import { API_URL } from '../utils/config';
+import { useFirebaseGameState } from '../hooks/useFirebaseGameState';
+import { ref, set } from 'firebase/database';
+import { db } from '../utils/firebaseConfig';
 
 const ManagePlayAlong = () => {
   const [questionBanks, setQuestionBanks] = useState([]);
   const [selectedBank, setSelectedBank] = useState(null);
   const [currentQuestionIndex, setCurrentQuestionIndex] = useState(0);
   const [gameStarted, setGameStarted] = useState(false);
-  const [socket, setSocket] = useState(null);
   const [isButtonPressed, setIsButtonPressed] = useState('');
   const [success, setSuccess] = useState('');
   const [timerDuration, setTimerDuration] = useState(15);
-  const [gameState, setGameState] = useState(null);
   const [pollInterval, setPollInterval] = useState(null);
   const [error, setError] = useState(null);
   const navigate = useNavigate();
+  const { gameState, updateGameState } = useFirebaseGameState(selectedBank?._id);
 
   useEffect(() => {
     const user = JSON.parse(localStorage.getItem('user'));
@@ -25,32 +26,22 @@ const ManagePlayAlong = () => {
       return;
     }
 
-    const newSocket = io(SOCKET_URL, {
-      transports: ['websocket', 'polling'],
-      reconnection: true,
-      reconnectionAttempts: 5,
-      reconnectionDelay: 1000,
-      timeout: 20000
-    });
-
-    newSocket.on('connect', () => {
-      console.log('Admin socket connected');
-    });
-
-    newSocket.on('error', (error) => {
-      console.error('Socket error:', error);
-      setError(error);
-    });
-
-    setSocket(newSocket);
     fetchQuestionBanks();
-
-    return () => {
-      if (newSocket) {
-        newSocket.disconnect();
-      }
-    };
   }, [navigate]);
+
+  useEffect(() => {
+    // Test Firebase connection
+    const testRef = ref(db, 'test');
+    set(testRef, {
+      timestamp: Date.now(),
+      message: 'Connection test'
+    }).then(() => {
+      console.log('Firebase connection successful');
+    }).catch(error => {
+      console.error('Firebase connection failed:', error);
+      setError('Failed to connect to Firebase');
+    });
+  }, []);
 
   const fetchQuestionBanks = async () => {
     try {
@@ -74,75 +65,67 @@ const ManagePlayAlong = () => {
     setGameStarted(false);
   };
 
-  const pollGameState = async () => {
-    try {
-      const response = await fetch(`${API_URL}/api/game/${selectedBank._id}/state`, {
-        method: 'GET',
-        credentials: 'include',
-        headers: {
-          'Accept': 'application/json'
-        }
-      });
-
-      if (!response.ok) {
-        throw new Error('Failed to fetch game state');
-      }
-
-      const data = await response.json();
-      setGameState(data);
-    } catch (err) {
-      console.error('Error polling game state:', err);
-    }
-  };
-
-  const startGame = () => {
+  const startGame = async () => {
     if (selectedBank) {
-      setGameStarted(true);
-      socket.emit('adminAction', {
-        action: 'startGame',
-        question: {
+      await updateGameState({
+        isActive: true,
+        currentQuestion: {
           ...selectedBank.questions[0],
           questionIndex: 0
-        }
+        },
+        showOptions: false,
+        showAnswer: false,
+        timerStartedAt: null,
+        timerDuration: parseInt(timerDuration),
+        players: {},
+        startedAt: Date.now()
       });
+      setGameStarted(true);
     }
   };
 
-  const showNextQuestion = () => {
-    if (socket && gameStarted && currentQuestionIndex < selectedBank.questions.length - 1) {
+  const showNextQuestion = async () => {
+    if (gameStarted && currentQuestionIndex < selectedBank.questions.length - 1) {
       const nextIndex = currentQuestionIndex + 1;
-      setCurrentQuestionIndex(nextIndex);
-      
-      socket.emit('adminAction', {
-        action: 'nextQuestion',
-        question: {
+      await updateGameState({
+        currentQuestion: {
           ...selectedBank.questions[nextIndex],
           questionIndex: nextIndex
-        }
+        },
+        showOptions: false,
+        showAnswer: false,
+        timerStartedAt: null
       });
+      setCurrentQuestionIndex(nextIndex);
     }
   };
 
-  const showOptions = () => {
-    if (socket && gameStarted) {
-      socket.emit('adminAction', {
-        action: 'showOptions',
+  const showOptions = async () => {
+    if (gameStarted) {
+      await updateGameState({
+        showOptions: true,
+        timerStartedAt: Date.now(),
         timerDuration: parseInt(timerDuration)
       });
     }
   };
 
-  const showAnswer = () => {
-    if (socket && gameStarted) {
-      socket.emit('adminAction', {
-        action: 'showAnswer'
+  const showAnswer = async () => {
+    if (gameStarted) {
+      await updateGameState({
+        showAnswer: true
       });
     }
   };
 
-  const stopGame = () => {
-    socket.emit('adminAction', {
-      action: 'stopGame'
+  const stopGame = async () => {
+    await updateGameState({
+      isActive: false,
+      currentQuestion: null,
+      showOptions: false,
+      showAnswer: false,
+      timerStartedAt: null,
+      timerDuration: 0
     });
     setGameStarted(false);
     navigate('/dashboard');

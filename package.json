@@ -12,8 +12,7 @@
     "@tailwindcss/vite": "^4.0.6",
     "react": "^18.2.0",
     "react-dom": "^18.2.0",
-    "react-router-dom": "^6.x",
-    "socket.io-client": "^4.x"
+    "react-router-dom": "^6.x"
   },
   "devDependencies": {
     "@eslint/js": "^9.19.0",

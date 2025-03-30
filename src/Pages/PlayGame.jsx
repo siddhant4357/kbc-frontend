@@ -2,8 +2,10 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { API_URL } from '../utils/config';
 import defaultQuestionImage from '../assets/default_img.jpg';
-import { useGameState } from '../hooks/useGameState';
 import { useAudioManager } from '../hooks/useAudioManager';
+import { useFirebaseGameState } from '../hooks/useFirebaseGameState';
+import { ref, set } from 'firebase/database';
+import { db } from '../utils/firebase';
 
 // Import audio assets
 import themeAudio from '../assets/kbc_theme.wav';
@@ -35,8 +37,9 @@ const PRIZE_LEVELS = [
 const PlayGame = () => {
   const { id } = useParams();
   const navigate = useNavigate();
-  const { gameState, error: connectionError, socket } = useGameState(id);
+  const { gameState } = useFirebaseGameState(id);
   const [error, setError] = useState('');
+  const user = JSON.parse(localStorage.getItem('user'));
 
   // Initialize audio files
   const audioFiles = {
@@ -72,6 +75,29 @@ const PlayGame = () => {
   // User interaction state
   const [hasUserInteracted, setHasUserInteracted] = useState(false);
   const [isSoundPaused, setIsSoundPaused] = useState(false);
+
+  // Join game and track user presence
+  useEffect(() => {
+    if (gameState && user) {
+      const userRef = ref(db, `games/${id}/players/${user.username}`);
+      set(userRef, {
+        joinedAt: Date.now(),
+        isOnline: true,
+        answers: {}
+      });
+
+      // Cleanup when user leaves
+      return () => {
+        if (gameState.players?.[user.username]) {
+          set(userRef, {
+            ...gameState.players[user.username],
+            isOnline: false,
+            leftAt: Date.now()
+          });
+        }
+      };
+    }
+  }, [id, user?.username, gameState]);
 
   const processGameState = async (state) => {
     if (!state) return;
@@ -222,10 +248,15 @@ const PlayGame = () => {
   }, [timerStartedAt, timerDuration, showOptions, lockedAnswer]);
 
   useEffect(() => {
-    if (gameState) {
-      processGameState(gameState);
+    if (gameState && user) {
+      if (!gameState.isActive) {
+        setIsWaiting(true);
+      } else {
+        setIsWaiting(false);
+        processGameState(gameState);
+      }
     }
-  }, [gameState]);
+  }, [gameState, user]);
 
   useEffect(() => {
     const handleVisibilityChange = () => {
@@ -247,23 +278,6 @@ const PlayGame = () => {
     };
   }, []);
 
-  useEffect(() => {
-    if (socket) {
-      socket.on('gameStateUpdate', (state) => {
-        processGameState(state);
-      });
-
-      socket.on('gameEnd', ({ playerScores }) => {
-        navigate('/dashboard');
-      });
-
-      return () => {
-        socket.off('gameStateUpdate');
-        socket.off('gameEnd');
-      };
-    }
-  }, [socket, navigate]);
-
   const handleOptionSelect = (option) => {
     if (!showAnswer && !lockedAnswer) {
       setSelectedOption(option);
@@ -271,46 +285,17 @@ const PlayGame = () => {
   };
 
   const handleLockAnswer = async () => {
-    if (selectedOption && !lockedAnswer && !showAnswer && !isTimerExpired) {
-      setLockedAnswer(selectedOption);
-      const user = JSON.parse(localStorage.getItem('user'));
-
+    if (selectedOption && !lockedAnswer && !showAnswer && timeLeft > 0) {
       try {
-        const response = await fetch(`${API_URL}/api/game/${id}/answer`, {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json'
-          },
-          body: JSON.stringify({
-            answer: selectedOption,
-            username: user.username,
-            gameToken: gameToken
-          }),
-          credentials: 'include'
+        const userRef = ref(db, `games/${id}/players/${user.username}/answers/${currentQuestion.questionIndex}`);
+        await set(userRef, {
+          answer: selectedOption,
+          answeredAt: Date.now()
         });
-
-        if (response.status === 404) {
-          setError('Game session not found. Please try rejoining the game.');
-          setLockedAnswer(null);
-          return;
-        }
-
-        if (response.status === 429) {
-          setError('Too many requests. Please wait a moment before trying again.');
-          setLockedAnswer(null);
-          return;
-        }
-
-        if (!response.ok) {
-          throw new Error(`HTTP error! status: ${response.status}`);
-        }
-
-        const data = await response.json();
-        // Handle successful response
-      } catch (err) {
-        console.error('Error submitting answer:', err);
-        setLockedAnswer(null);
-        setError('Connection error. Please try again.');
+        setLockedAnswer(selectedOption);
+      } catch (error) {
+        console.error('Error submitting answer:', error);
+        setError('Failed to submit answer');
       }
     }
   };
@@ -323,6 +308,17 @@ const PlayGame = () => {
     await stopAll();
 
     try {
+      // Update Firebase to mark player as offline
+      if (user) {
+        const userRef = ref(db, `games/${id}/players/${user.username}`);
+        await set(userRef, {
+          ...gameState?.players?.[user.username],
+          isOnline: false,
+          leftAt: Date.now()
+        });
+      }
+
+      // Keep the existing API call
       await fetch(`${API_URL}/api/game/${id}/leave`, {
         method: 'POST',
         credentials: 'include',
