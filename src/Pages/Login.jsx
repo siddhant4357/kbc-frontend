@@ -1,6 +1,7 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { API_URL } from '../utils/config';
+import kbcLogo from '../assets/kbc-logo.jpg';
 
 const Login = () => {
   const [username, setUsername] = useState('');
@@ -71,11 +72,11 @@ const Login = () => {
 
           .login-card {
             width: 100%;
-            max-width: 30rem;
+            max-width: 24rem; // Changed from 30rem to 24rem for smaller size
             background: rgba(11, 29, 120, 0.85);
             border: 1px solid rgba(255, 184, 0, 0.3);
             border-radius: 1.5rem;
-            padding: 2.5rem 2rem;
+            padding: 2rem 1.75rem; // Slightly reduced padding
             box-shadow: 0 8px 32px rgba(0, 0, 0, 0.4);
             backdrop-filter: blur(10px);
             transform: translateY(0);
@@ -284,16 +285,16 @@ const Login = () => {
 
           @media (min-width: 640px) {
             .login-card {
-              padding: 3rem;
+              padding: 2.5rem; // Reduced from 3rem
             }
             
             .logo {
-              width: 8rem;
-              height: 8rem;
+              width: 6rem; // Reduced from 8rem
+              height: 6rem; // Reduced from 8rem
             }
             
             .app-title {
-              font-size: 2.25rem;
+              font-size: 2rem; // Reduced from 2.25rem
             }
             
             .passcode-container {
@@ -313,7 +314,7 @@ const Login = () => {
         <div className="login-card">
           <div className="logo-container">
             <img 
-              src="/src/assets/kbc-logo.jpg" 
+              src={kbcLogo} 
               alt="KBC Logo" 
               className="logo"
             />
