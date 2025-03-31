@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import io from 'socket.io-client';
 import { SOCKET_URL } from '../utils/config';
+import kbcLogo from '../assets/kbc-logo.jpg';
 
 const Dashboard = () => {
   const [user, setUser] = useState(null);
@@ -427,7 +428,7 @@ const Dashboard = () => {
         <div className="dashboard-header">
           <div className="logo-container">
             <img 
-              src="/src/assets/kbc-logo.jpg" 
+              src={kbcLogo} 
               alt="KBC Logo" 
               className="app-logo"
             />

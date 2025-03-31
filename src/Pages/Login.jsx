@@ -1,6 +1,7 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { API_URL } from '../utils/config';
+import kbcLogo from '../assets/kbc-logo.jpg';
 
 const Login = () => {
   const [username, setUsername] = useState('');
@@ -313,7 +314,7 @@ const Login = () => {
         <div className="login-card">
           <div className="logo-container">
             <img 
-              src="/src/assets/kbc-logo.jpg" 
+              src={kbcLogo} 
               alt="KBC Logo" 
               className="logo"
             />
