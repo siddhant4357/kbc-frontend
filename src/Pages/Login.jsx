@@ -1,7 +1,6 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { API_URL } from '../utils/config';
-import kbcLogo from '../assets/kbc-logo.jpg';
 
 const Login = () => {
   const [username, setUsername] = useState('');
@@ -72,11 +71,11 @@ const Login = () => {
 
           .login-card {
             width: 100%;
-            max-width: 24rem; // Changed from 30rem to 24rem for smaller size
+            max-width: 34rem;
             background: rgba(11, 29, 120, 0.85);
             border: 1px solid rgba(255, 184, 0, 0.3);
             border-radius: 1.5rem;
-            padding: 2rem 1.75rem; // Slightly reduced padding
+            padding: 2.5rem 2rem;
             box-shadow: 0 8px 32px rgba(0, 0, 0, 0.4);
             backdrop-filter: blur(10px);
             transform: translateY(0);
@@ -160,7 +159,7 @@ const Login = () => {
           }
 
           .input-field {
-            width: 100%;
+            width: 90%;
             padding: 1rem 1.25rem;
             background: rgba(0, 11, 62, 0.6);
             border: 2px solid rgba(28, 63, 170, 0.5);
@@ -285,16 +284,16 @@ const Login = () => {
 
           @media (min-width: 640px) {
             .login-card {
-              padding: 2.5rem; // Reduced from 3rem
+              padding: 3rem;
             }
             
             .logo {
-              width: 6rem; // Reduced from 8rem
-              height: 6rem; // Reduced from 8rem
+              width: 8rem;
+              height: 8rem;
             }
             
             .app-title {
-              font-size: 2rem; // Reduced from 2.25rem
+              font-size: 2.25rem;
             }
             
             .passcode-container {
@@ -314,7 +313,7 @@ const Login = () => {
         <div className="login-card">
           <div className="logo-container">
             <img 
-              src={kbcLogo} 
+              src="/src/assets/kbc-logo.jpg" 
               alt="KBC Logo" 
               className="logo"
             />
@@ -369,20 +368,43 @@ const Login = () => {
                     value={passcode[index] || ''}
                     onChange={(e) => {
                       const newValue = e.target.value.replace(/\D/g, '');
-                      if (newValue) {
-                        setPasscode(current => {
-                          const updated = current.split('');
-                          updated[index] = newValue;
-                          return updated.join('');
-                        });
-                        
-                        // Move focus to next input
-                        if (index < 3 && passcodeRefs[index + 1].current) {
-                          passcodeRefs[index + 1].current.focus();
-                        }
+                      
+                      // Update the passcode state regardless of whether there's a value or not
+                      setPasscode(current => {
+                        const updated = current.split('');
+                        updated[index] = newValue; // This will be empty string if deleted
+                        return updated.join('');
+                      });
+                      
+                      // Only move focus to next input if there's a value
+                      if (newValue && index < 3 && passcodeRefs[index + 1].current) {
+                        passcodeRefs[index + 1].current.focus();
                       }
                     }}
-                    onKeyDown={(e) => handleKeyDown(e, index)}
+                    onKeyDown={(e) => {
+                      // Enhanced key handling
+                      if (e.key === 'Backspace') {
+                        // If current field is empty and not the first field, go to previous field
+                        if (!passcode[index] && index > 0) {
+                          passcodeRefs[index - 1].current.focus();
+                        } 
+                        // If current field has a value, clear it but stay in the same field
+                        else if (passcode[index]) {
+                          setPasscode(current => {
+                            const updated = current.split('');
+                            updated[index] = '';
+                            return updated.join('');
+                          });
+                        }
+                      }
+                      // Arrow navigation between fields
+                      else if (e.key === 'ArrowLeft' && index > 0) {
+                        passcodeRefs[index - 1].current.focus();
+                      }
+                      else if (e.key === 'ArrowRight' && index < 3) {
+                        passcodeRefs[index + 1].current.focus();
+                      }
+                    }}
                     className="passcode-input"
                     required
                   />
