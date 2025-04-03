@@ -6,11 +6,9 @@ import timerSound from '../assets/kbc_time.mp3';
 import timerEndSound from '../assets/kbc_timer_finish.mp4';
 import correctAnswerSound from '../assets/kbc_correct_ans.wav';
 import wrongAnswerSound from '../assets/kbc_wrong_ans.wav';
-// Import default question image
-import defaultQuestionImage from '../assets/default_img.jpg'; // Add this image to your assets folder
+import defaultQuestionImage from '../assets/default_img.jpg';
+import '../styles/JoinQuestions.css';
 
-
-// Add prize levels (from lowest to highest)
 const PRIZE_LEVELS = [
   "₹1,000",
   "₹2,000",
@@ -29,15 +27,6 @@ const PRIZE_LEVELS = [
   "₹1,00,00,000"
 ];
 
-const AudioIndicator = ({ isPlaying }) => (
-  <div className={`audio-playing ${isPlaying ? 'visible' : 'invisible'}`}>
-    <span className="absolute -top-4 -right-4 text-kbc-gold animate-pulse">
-      🔊
-    </span>
-  </div>
-);
-
-// Add this component near other utility components at the top
 const RestartSoundButton = ({ onClick }) => (
   <button
     onClick={onClick}
@@ -48,12 +37,18 @@ const RestartSoundButton = ({ onClick }) => (
   </button>
 );
 
+const scrollToFeedback = () => {
+  const feedbackElement = document.getElementById('feedback-section');
+  if (feedbackElement) {
+    feedbackElement.scrollIntoView({ behavior: 'smooth', block: 'center' });
+  }
+};
+
 const JoinQuestions = () => {
   const { id } = useParams();
   const navigate = useNavigate();
   const [questionBank, setQuestionBank] = useState(null);
   const [currentQuestionIndex, setCurrentQuestionIndex] = useState(() => {
-    // Try to get saved index from localStorage
     const savedIndex = localStorage.getItem(`questionIndex_${id}`);
     return savedIndex ? parseInt(savedIndex) : 0;
   });
@@ -84,65 +79,99 @@ const JoinQuestions = () => {
   const [currentQuestion, setCurrentQuestion] = useState(null);
   const [isSoundPaused, setIsSoundPaused] = useState(false);
   const [isInfiniteTimer, setIsInfiniteTimer] = useState(false);
-  
-  // Add audio states
-  const [timerAudio] = useState(() => {
-    const audio = new Audio(timerSound);
-    audio.volume = 0.5;
-    return audio;
-  });
 
-  const [questionAudio] = useState(() => {
-    const audio = new Audio(questionTune);
-    audio.volume = 0.5;
-    return audio;
-  });
+  const [audioElements, setAudioElements] = useState(() => ({
+    timer: new Audio(timerSound),
+    question: new Audio(questionTune),
+    timerEnd: new Audio(timerEndSound),
+    correct: new Audio(correctAnswerSound),
+    wrong: new Audio(wrongAnswerSound)
+  }));
 
-  const [timerEndAudio] = useState(new Audio(timerEndSound));
-  const [correctAudio] = useState(new Audio(correctAnswerSound));
-  const [wrongAudio] = useState(new Audio(wrongAnswerSound));
-  const [volume, setVolume] = useState(0.5);
+  useEffect(() => {
+    Object.values(audioElements).forEach(audio => {
+      audio.volume = 0.5;
+      audio.preload = 'auto';
+    });
 
-  // Update volume control to exclude lockAudio
+    return () => {
+      stopAllSounds();
+      Object.values(audioElements).forEach(audio => {
+        audio.src = '';
+        audio.load();
+      });
+    };
+  }, [audioElements]);
+
   const updateVolume = (newVolume) => {
-    setVolume(newVolume);
-    [timerAudio, timerEndAudio, questionAudio, correctAudio, wrongAudio].forEach(audio => {
+    Object.values(audioElements).forEach(audio => {
       audio.volume = newVolume;
     });
   };
 
-  // Move audio utility functions inside the component
-  const playAudioWithChecks = async (audio) => {
+  const playSound = async (key, options = {}) => {
     try {
-      if (!audio.paused) {
-        await audio.pause();
-        await new Promise(resolve => setTimeout(resolve, 50));
-        audio.currentTime = 0;
+      const audio = audioElements[key];
+      if (!audio) return;
+
+      // Reset the audio source if it was cleared
+      switch (key) {
+        case 'timer':
+          audio.src = timerSound;
+          break;
+        case 'question':
+          audio.src = questionTune;
+          break;
+        case 'timerEnd':
+          audio.src = timerEndSound;
+          break;
+        case 'correct':
+          audio.src = correctAnswerSound;
+          break;
+        case 'wrong':
+          audio.src = wrongAnswerSound;
+          break;
       }
-      await audio.play();
+
+      if (options.stopOthers) {
+        await stopAllSounds();
+      }
+
+      audio.currentTime = 0;
+      audio.loop = !!options.loop;
+
+      try {
+        await audio.load(); // Ensure audio is loaded before playing
+        await audio.play();
+      } catch (error) {
+        console.error(`Error playing ${key}:`, error);
+      }
     } catch (error) {
-      if (error.name !== 'AbortError') {
-        console.error("Error playing audio:", error);
-      }
+      console.error(`Error in playSound ${key}:`, error);
     }
   };
 
-  const stopAudio = async (audio) => {
+  const stopSound = async (key) => {
     try {
-      if (!audio.paused) {
-        await audio.pause();
-        audio.currentTime = 0;
-      }
+      const audio = audioElements[key];
+      if (!audio) return;
+
+      audio.pause();
+      audio.currentTime = 0;
+      audio.loop = false;
     } catch (error) {
-      if (error.name !== 'AbortError') {
-        console.error("Error stopping audio:", error);
-      }
+      console.error(`Error stopping ${key}:`, error);
     }
   };
 
   const stopAllSounds = async () => {
-    const sounds = [timerAudio, correctAudio, wrongAudio, questionAudio, timerEndAudio];
-    await Promise.all(sounds.filter(Boolean).map(audio => stopAudio(audio)));
+    Object.values(audioElements).forEach(audio => {
+      if (audio) {
+        audio.pause();
+        audio.currentTime = 0;
+        audio.loop = false;
+      }
+    });
   };
 
   useEffect(() => {
@@ -151,14 +180,13 @@ const JoinQuestions = () => {
         const response = await fetch(`${API_URL}/api/questionbanks/${id}`, {
           credentials: 'include'
         });
-        
+
         if (!response.ok) {
           throw new Error('Failed to fetch question bank');
         }
-        
+
         const data = await response.json();
         setQuestionBank(data);
-        // Set current question when question bank is loaded
         if (data?.questions?.length > 0) {
           setCurrentQuestion(data.questions[currentQuestionIndex]);
         }
@@ -179,9 +207,14 @@ const JoinQuestions = () => {
         setTimeLeft(prev => prev - 1);
       }, 1000);
     } else if (timeLeft === 0 && !lockedAnswer && !isTimerStopped && !isInfiniteTimer) {
-      setTimeExpired(true);
-      setTimerStarted(false);
-      setShowAnswer(true);
+      const handleTimerEnd = async () => {
+        await stopAllSounds();
+        await playSound('timerEnd');
+        setTimeExpired(true);
+        setTimerStarted(false);
+        setShowAnswer(true);
+      };
+      handleTimerEnd();
     }
 
     return () => clearInterval(timer);
@@ -194,77 +227,29 @@ const JoinQuestions = () => {
         setRedirectTimer(prev => prev - 1);
       }, 1000);
     } else if (redirectTimer === 0) {
-      // Stop all sounds before redirecting
       stopAllSounds();
-      // Clear saved index when game ends
       localStorage.removeItem(`questionIndex_${id}`);
       navigate('/dashboard');
     }
     return () => {
       clearInterval(timer);
-      stopAllSounds(); // Also stop sounds when component unmounts
+      stopAllSounds();
     };
   }, [showGameEndPopup, redirectTimer, navigate, id]);
 
   useEffect(() => {
-    // Clean up function for all audio
-    return () => {
-      timerAudio.pause();
-      timerEndAudio.pause();
-      questionAudio.pause();
-      correctAudio.pause();
-      wrongAudio.pause();
-      
-      timerAudio.currentTime = 0;
-      timerEndAudio.currentTime = 0;
-      questionAudio.currentTime = 0;
-      correctAudio.currentTime = 0;
-      wrongAudio.currentTime = 0;
-    };
-  }, [timerAudio, timerEndAudio, questionAudio, correctAudio, wrongAudio]);
-
-  // Add effect for timer end
-  useEffect(() => {
-    if (timeLeft === 0) {
-      timerAudio.pause();
-      timerAudio.currentTime = 0;
-      timerEndAudio.play();
-      
-      // Stop timer end sound after 3 seconds
-      setTimeout(() => {
-        timerEndAudio.pause();
-        timerEndAudio.currentTime = 0;
-      }, 3000);
-    }
-  }, [timeLeft, timerAudio, timerEndAudio]);
-
-  // Play question tune when new question appears
-  useEffect(() => {
-    // Only play if questionBank is loaded and currentQuestion exists
-    // and it's a new question (not just showing options)
-    if (questionBank && currentQuestion && !showOptions) {
+    if (currentQuestion && !showOptions && !showAnswer && !lockedAnswer) {
       const playQuestionSound = async () => {
-        // Stop all other sounds first
-        [timerAudio, correctAudio, wrongAudio].forEach(audio => {
-          audio.pause();
-          audio.currentTime = 0;
-        });
-        
-        // Add a small delay before playing new sound
-        await new Promise(resolve => setTimeout(resolve, 100));
-        await playAudioWithChecks(questionAudio);
+        await stopAllSounds();
+        await playSound('question');
       };
-
       playQuestionSound();
     }
 
     return () => {
-      if (!questionAudio.paused) {
-        questionAudio.pause();
-        questionAudio.currentTime = 0;
-      }
+      stopSound('question');
     };
-  }, [currentQuestionIndex, questionAudio, questionBank, currentQuestion, showOptions]);
+  }, [currentQuestion?.question]);
 
   useEffect(() => {
     if (questionBank?.questions) {
@@ -272,141 +257,107 @@ const JoinQuestions = () => {
     }
   }, [questionBank, currentQuestionIndex]);
 
-  // Add this effect to detect page visibility changes
-useEffect(() => {
-  const handleVisibilityChange = () => {
-    if (document.hidden) {
+  useEffect(() => {
+    const handleVisibilityChange = () => {
+      if (document.hidden) {
+        stopAllSounds();
+        setIsSoundPaused(true);
+      }
+    };
+
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+    return () => {
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
       stopAllSounds();
-      setIsSoundPaused(true);
-    }
+    };
+  }, []);
+
+  useEffect(() => {
+    localStorage.setItem(`questionIndex_${id}`, currentQuestionIndex);
+  }, [currentQuestionIndex, id]);
+
+  useEffect(() => {
+    return () => {
+      stopAllSounds();
+    };
+  }, []);
+
+  const handleShowOptions = async () => {
+    setTimeLeft(customTimerInput);
+    setTimerDuration(customTimerInput);
+    setShowOptions(true);
+    setTimerStarted(true);
+
+    await stopAllSounds();
+    await playSound('timer', { loop: true });
   };
-
-  document.addEventListener('visibilitychange', handleVisibilityChange);
-  
-  return () => {
-    document.removeEventListener('visibilitychange', handleVisibilityChange);
-  };
-}, []);
-
-// Add this effect to save index when it changes
-useEffect(() => {
-  localStorage.setItem(`questionIndex_${id}`, currentQuestionIndex);
-}, [currentQuestionIndex, id]);
-
-// Modify handleShowOptions function
-const handleShowOptions = async () => {
-  setTimeLeft(customTimerInput);
-  setTimerDuration(customTimerInput);
-  setShowOptions(true);
-  setTimerStarted(true);
-  
-  // Stop question sound
-  if (!questionAudio.paused) {
-    await questionAudio.pause();
-    questionAudio.currentTime = 0;
-  }
-  
-  // Start timer sound after a small delay
-  await new Promise(resolve => setTimeout(resolve, 100));
-  timerAudio.loop = true;
-  await playAudioWithChecks(timerAudio);
-};
 
   const handleOptionSelect = (option) => {
-    // Remove the negative condition that was causing the issue
     if (!showAnswer && !lockedAnswer && timeLeft > 0) {
       setSelectedOption(option);
     }
   };
 
-  // Update handleLockAnswer function
-const handleLockAnswer = async () => {
-  if (selectedOption && !lockedAnswer && !showAnswer && (timeLeft > 0 || isInfiniteTimer)) {
-    setLockedAnswer(selectedOption);
-    setTimerStarted(false);
-    setShowAnswer(true);
-    setIsInfiniteTimer(false); // Reset infinite timer after locking answer
-    
-    // Stop all playing sounds
-    await Promise.all([timerAudio, questionAudio].map(async (audio) => {
-      if (!audio.paused) {
-        await audio.pause();
-        audio.currentTime = 0;
-      }
-    }));
-    
-    // Add delay before playing result sound
-    await new Promise(resolve => setTimeout(resolve, 100));
-    
-    // Play correct/wrong sound
-    if (selectedOption === currentQuestion.correctAnswer) {
-      await playAudioWithChecks(correctAudio);
-    } else {
-      await playAudioWithChecks(wrongAudio);
+  const handleLockAnswer = async () => {
+    if (selectedOption && !lockedAnswer && !showAnswer && (timeLeft > 0 || isInfiniteTimer)) {
+      setLockedAnswer(selectedOption);
+      setTimerStarted(false);
+      setShowAnswer(true);
+      setIsInfiniteTimer(false);
+
+      await stopAllSounds();
+      const soundKey = selectedOption === currentQuestion.correctAnswer ? 'correct' : 'wrong';
+      await playSound(soundKey);
     }
-  }
-};
+  };
 
   const confirmLockAnswer = () => {
     setLockedAnswer(selectedOption);
     setTimerStarted(false);
     setShowAnswer(true);
-    
+
     if (selectedOption !== currentQuestion.correctAnswer) {
       setGameEndMessage('Better luck next time!');
       setShowGameEndPopup(true);
     }
   };
 
-  // Update handleNextQuestion function
-const handleNextQuestion = () => {
-  if (currentQuestionIndex < questionBank.questions.length - 1) {
-    // Stop all current sounds
-    [timerAudio, correctAudio, wrongAudio, questionAudio].forEach(audio => {
-      audio.pause();
-      audio.currentTime = 0;
-    });
-    
-    setCurrentQuestionIndex(prev => prev + 1);
-    setShowOptions(false);
-    setSelectedOption(null);
-    setShowAnswer(false);
-    setTimerStarted(false);
-    setTimeLeft(timerDuration);
-    setLockedAnswer(null);
-    setTimeExpired(false);
-    setContinuePlaying(false);
-    setHiddenOptions([]);
-    setIsTimerStopped(false);
-    
-    // Play question tune for new question
-    questionAudio.play().catch(console.error);
-    
-  } else if (lockedAnswer === currentQuestion?.correctAnswer) {
-    setGameEndMessage('Congratulations! You have successfully completed the game! 🎉');
-    setShowGameEndPopup(true);
-    correctAudio.play();
-  }
-};
+  const handleNextQuestion = async () => {
+    if (currentQuestionIndex < questionBank.questions.length - 1) {
+      await stopAllSounds();
+
+      setCurrentQuestionIndex(prev => prev + 1);
+      setShowOptions(false);
+      setSelectedOption(null);
+      setShowAnswer(false);
+      setTimerStarted(false);
+      setTimeLeft(timerDuration);
+      setLockedAnswer(null);
+      setTimeExpired(false);
+      setContinuePlaying(false);
+      setHiddenOptions([]);
+      setIsTimerStopped(false);
+    } else if (lockedAnswer === currentQuestion?.correctAnswer) {
+      setGameEndMessage('Congratulations! You have successfully completed the game! 🎉');
+      setShowGameEndPopup(true);
+      playSound('correct');
+    }
+  };
 
   const handleLifeline = (lifeline) => {
     setLifelines(prev => ({
       ...prev,
       [lifeline]: false
     }));
-    
-    // Handle 50:50 lifeline specifically
+
     if (lifeline === 'fiftyFifty' && currentQuestion) {
-      // Get all incorrect options
       const incorrectOptions = currentQuestion.options.filter(
         option => option !== currentQuestion.correctAnswer
       );
-      
-      // Randomly select two incorrect options to hide
+
       const shuffled = [...incorrectOptions].sort(() => 0.5 - Math.random());
       const optionsToHide = shuffled.slice(0, 2);
-      
-      // Set these options as hidden
+
       setHiddenOptions(optionsToHide);
     }
   };
@@ -415,22 +366,19 @@ const handleNextQuestion = () => {
     setContinuePlaying(true);
   };
 
-  // Modify handleEndGame
-const handleEndGame = async () => {
-  // Stop all currently playing sounds
-  await stopAllSounds();
-  
-  // Show different message if completed all questions successfully
-  const isGameCompleted = currentQuestionIndex === questionBank.questions.length - 1 
-    && lockedAnswer === currentQuestion.correctAnswer;
+  const handleEndGame = async () => {
+    await stopAllSounds();
 
-  setGameEndMessage(
-    isGameCompleted 
-      ? 'Congratulations! You have successfully completed the game! 🎉' 
-      : 'Thank you for playing this game!'
-  );
-  setShowGameEndPopup(true);
-};
+    const isGameCompleted = currentQuestionIndex === questionBank.questions.length - 1 
+      && lockedAnswer === currentQuestion.correctAnswer;
+
+    setGameEndMessage(
+      isGameCompleted 
+        ? 'Congratulations! You have successfully completed the game! 🎉' 
+        : 'Thank you for playing this game!'
+    );
+    setShowGameEndPopup(true);
+  };
 
   const formatTime = (seconds) => {
     return seconds.toString().padStart(2, '0');
@@ -441,34 +389,27 @@ const handleEndGame = async () => {
     setShowQuitConfirm(true);
   };
 
-  // Modify handleQuitGame
-const handleQuitGame = async () => {
-  // Stop all sounds before quitting
-  await stopAllSounds();
-  localStorage.removeItem(`questionIndex_${id}`);
-  navigate('/dashboard');
-};
+  const handleQuitGame = async () => {
+    await stopAllSounds();
+    localStorage.removeItem(`questionIndex_${id}`);
+    navigate('/dashboard');
+  };
 
-  // Add this function in the JoinQuestions component
-const handleRestartSound = async () => {
-  // Stop all current sounds first
-  await stopAllSounds();
-  
-  setIsSoundPaused(false);
-  
-  // Restart appropriate sound based on current game state
-  if (timerStarted && timeLeft > 0) {
-    timerAudio.loop = true;
-    await playAudioWithChecks(timerAudio);
-  } else if (currentQuestion && !showOptions) {
-    await playAudioWithChecks(questionAudio);
-  }
-};
+  const handleRestartSound = async () => {
+    await stopAllSounds();
+    setIsSoundPaused(false);
 
-const handleInfiniteTimer = () => {
-  setIsInfiniteTimer(prev => !prev);
-  setIsTimerStopped(prev => !prev);
-};
+    if (timerStarted && timeLeft > 0) {
+      playSound('timer', { loop: true });
+    } else if (currentQuestion && !showOptions) {
+      playSound('question');
+    }
+  };
+
+  const handleInfiniteTimer = () => {
+    setIsInfiniteTimer(prev => !prev);
+    setIsTimerStopped(prev => !prev);
+  };
 
   if (loading) return (
     <div className="min-h-screen p-4 flex items-center justify-center">
@@ -488,177 +429,179 @@ const handleInfiniteTimer = () => {
   );
 
   return (
-    <div className="min-h-screen bg-gradient-to-b from-kbc-dark-blue to-kbc-purple">
-      {/* Header with better responsiveness for mobile */}
-      <header className="fixed top-0 left-0 right-0 bg-kbc-dark-blue/90 backdrop-blur-sm z-10 p-2 sm:p-4">
-        <div className="flex flex-wrap items-center justify-between gap-2 w-full">
-          {/* Left section: Quit button and player info */}
-          <div className="flex items-center gap-2">
-            <button
-              onClick={handleBackClick}
-              className="kbc-button bg-red-600 hover:bg-red-700 text-xs h-8 w-14 sm:px-4"
-            >
-              QUIT
-            </button>
-            <div className="hidden sm:block">
-              <p className="text-kbc-gold text-xs">Player</p>
-              <p className="text-white font-bold text-sm">
-                {JSON.parse(localStorage.getItem('user'))?.username}
-              </p>
-            </div>
-          </div>
-          
-          {/* Center section: Timer controls or timer display - with fixed positioning for mobile */}
-          <div className="flex items-center justify-center absolute left-1/2 transform -translate-x-1/2">
-            {!showOptions ? (
+    <div className="game-container">
+      <header className="game-header">
+        <div className="header-content">
+          <div className="fixed top-0 left-0 right-0 bg-kbc-dark-blue/90 backdrop-blur-sm z-10 p-2 sm:p-4">
+            <div className="flex flex-wrap items-center justify-between gap-2 w-full">
               <div className="flex items-center gap-2">
-                <input
-                  type="number"
-                  min="5"
-                  max="60"
-                  value={customTimerInput}
-                  onChange={(e) => setCustomTimerInput(Number(e.target.value))}
-                  className="kbc-input w-16 text-xs h-8 py-0.5 px-1"
-                  placeholder="Sec"
-                />
                 <button
-                  onClick={handleShowOptions}
-                  className="kbc-button1 text-xs h-8 py-0.5 px-2 min-w-0 w-auto"
+                  onClick={handleBackClick}
+                  className="kbc-button bg-red-600 hover:bg-red-700 text-xs h-8 w-14 sm:px-4"
                 >
-                  Start
-                  <AudioIndicator isPlaying={timerStarted} />
+                  QUIT
                 </button>
-              </div>
-            ) : (
-              <div className="flex items-center justify-center gap-2">
-                <div className="relative w-12 h-12 sm:w-16 sm:h-16 flex items-center">
-                  {/* Infinite Timer Button - Now positioned to the left of the timer */}
-                  <button
-                    onClick={handleInfiniteTimer}
-                    className={`absolute -left-25 kbc-button w-8 h-8 sm:w-10 sm:h-10 flex items-center justify-center text-xs rounded-full ${
-                      isInfiniteTimer ? 'bg-green-600 hover:bg-green-700' : ''
-                    }`}
-                    title={isInfiniteTimer ? 'Timer is infinite' : 'Click to make timer infinite'}
-                  >
-                    {isInfiniteTimer ? '∞' : '⏸'}
-                  </button>
-                  
-                  {/* Timer Circle */}
-                  <svg className="w-full h-full transform -rotate-90">
-                    <circle
-                      cx="50%"
-                      cy="50%"
-                      r="45%"
-                      stroke="currentColor"
-                      strokeWidth="4"
-                      fill="transparent"
-                      className="text-kbc-gold"
-                      strokeDasharray={isInfiniteTimer ? '176 176' : `${(timeLeft / timerDuration) * 176} 176`}
-                    />
-                  </svg>
-                  <span className="absolute inset-0 flex items-center justify-center text-base sm:text-xl text-kbc-gold">
-                    {isInfiniteTimer ? '∞' : formatTime(timeLeft)}
-                  </span>
+                <div className="hidden sm:block">
+                  <p className="text-kbc-gold text-xs">Player</p>
+                  <p className="text-white font-bold text-sm">
+                    {JSON.parse(localStorage.getItem('user'))?.username}
+                  </p>
                 </div>
+                
               </div>
-            )}
+              <div className="flex justify-center absolute left-1/2 transform -translate-x-1/2">
+                {!showOptions ? (
+                  <div className="flex items-center gap-2">
+                    <input
+                      type="number"
+                      min="5"
+                      max="60"
+                      value={customTimerInput}
+                      onChange={(e) => setCustomTimerInput(Number(e.target.value))}
+                      className="kbc-input w-16 text-xs h-8 py-0.5 px-1"
+                      placeholder="Sec"
+                    />
+                    <button
+                      onClick={handleShowOptions}
+                      className="kbc-button1 text-xs h-8 py-0.5 px-2 min-w-0 w-auto"
+                    >
+                      Start
+                    </button>
+                  </div>
+                ) : (
+                  <div className="flex items-center gap-2">
+                    
+                    <button
+                        onClick={handleInfiniteTimer}
+                        className={`kbc-button w-16 text-xs h-12 py-0.5 px-1 sm:w-8 sm:h-8 flex items-center justify-center text-xs rounded-full ${
+                          isInfiniteTimer ? 'bg-green-600 hover:bg-green-700' : ''
+                        }`}
+                        title={isInfiniteTimer ? 'Timer is infinite' : 'Click to make timer infinite'}
+                      >
+                        {isInfiniteTimer ? '∞' : '⏸'}
+                      </button>
+                      
+                    <div className="relative w-10 h-10 sm:w-12 sm:h-12"> {/* Removed p-2, adjusted size */}
+                      <svg className="w-full h-full transform -rotate-90" viewBox="0 0 100 100"> {/* Added viewBox */}
+                        {/* Background circle */}
+                        <circle
+                          cx="50"
+                          cy="50"
+                          r="45"
+                          fill="transparent"
+                          stroke="rgba(255, 184, 0, 0.2)"
+                          strokeWidth="8"
+                        />
+                        {/* Timer circle */}
+                        <circle
+                          cx="50"
+                          cy="50"
+                          r="45"
+                          fill="transparent"
+                          stroke="var(--kbc-gold)"
+                          strokeWidth="8"
+                          strokeLinecap="round"
+                          strokeDasharray={`${2 * Math.PI * 45}`}
+                          strokeDashoffset={`${(1 - timeLeft / timerDuration) * 2 * Math.PI * 45}`}
+                          style={{
+                            transition: 'stroke-dashoffset 1s linear'
+                          }}
+                        />
+                      </svg>
+                      <span className="absolute inset-0 flex items-center justify-center text-sm sm:text-base font-bold text-kbc-gold">
+                        {isInfiniteTimer ? '∞' : formatTime(timeLeft)}
+                      </span>
+                    </div>
+                  </div>
+                )}
+              </div>
+              
+            </div>
           </div>
         </div>
       </header>
-
-      {/* Main game area - adjusted padding for mobile */}
-      <div className="container mx-auto pt-16 sm:pt-20 px-2 sm:px-4 flex flex-col lg:flex-row h-screen">
-        {/* Question Box */}
-        <div className="flex-1 flex flex-col justify-center min-h-0 lg:pr-80 order-2 lg:order-1 pb-4">
-          {/* Mobile Prize and Lifelines Bar - Only visible on mobile/tablet devices, hidden on laptops/desktops */}
-          <div className="block lg:hidden flex flex-col space-y-3 mb-4">
+      
+      <div className="container mx-auto pt-16 sm:pt-20 px-2 sm:px-4 flex flex-col lg:flex-row min-h-screen">
+        <div className="flex-1 flex flex-col lg:pr-80 order-2 lg:order-1 pb-4">
+          <div className="block lg:hidden mb-4">
             <div className="kbc-question-box lg:hidden p-3 shadow-glow">
-              <div className="flex justify-between items-center">
-                <div>
-                  <p className="text-xs text-kbc-gold">Current Prize</p>
-                  <p className="text-lg font-bold text-white">{PRIZE_LEVELS[currentQuestionIndex]}</p>
+              <div className="flex justify-around items-center gap-2">
+                {/* 50:50 Lifeline */}
+                <div className="relative">
+                  <button
+                    onClick={() => handleLifeline('fiftyFifty')}
+                    disabled={!lifelines.fiftyFifty}
+                    className={`kbc-button w-10 h-10 flex items-center justify-center text-xs ${
+                      !lifelines.fiftyFifty ? 'opacity-50 cursor-not-allowed' : ''
+                    }`}
+                  >
+                    50:50
+                  </button>
+                  {!lifelines.fiftyFifty && (
+                    <div className="absolute inset-0 flex items-center justify-center">
+                      <span className="text-red-500 text-xl font-bold transform rotate-90">×</span>
+                    </div>
+                  )}
                 </div>
-                
-                {/* Mobile Lifelines */}
-                <div className="flex gap-2">
-                  <div className="relative">
-                    <button
-                      onClick={() => handleLifeline('fiftyFifty')}
-                      disabled={!lifelines.fiftyFifty}
-                      className={`kbc-button w-10 h-10 flex items-center justify-center text-xs ${
-                        !lifelines.fiftyFifty ? 'opacity-50 cursor-not-allowed' : ''
-                      }`}
-                    >
-                      50:50
-                    </button>
-                    {!lifelines.fiftyFifty && (
-                      <div className="absolute inset-0 flex items-center justify-center">
-                        <span className="text-red-500 text-xl font-bold transform rotate-90">×</span>
-                      </div>
-                    )}
-                  </div>
-                  <div className="relative">
-                    <button
-                      onClick={() => handleLifeline('phoneAFriend')}
-                      disabled={!lifelines.phoneAFriend}
-                      className={`kbc-button w-10 h-10 flex items-center justify-center text-xs ${
-                        !lifelines.phoneAFriend ? 'opacity-50 cursor-not-allowed' : ''
-                      }`}
-                    >
-                      📞
-                    </button>
-                    {!lifelines.phoneAFriend && (
-                      <div className="absolute inset-0 flex items-center justify-center">
-                        <span className="text-red-500 text-xl font-bold transform rotate-90">×</span>
-                      </div>
-                    )}
-                  </div>
-                  <div className="relative">
-                    <button
-                      onClick={() => handleLifeline('askAudience')}
-                      disabled={!lifelines.askAudience}
-                      className={`kbc-button w-10 h-10 flex items-center justify-center text-xs ${
-                        !lifelines.askAudience ? 'opacity-50 cursor-not-allowed' : ''
-                      }`}
-                    >
-                      👥
-                    </button>
-                    {!lifelines.askAudience && (
-                      <div className="absolute inset-0 flex items-center justify-center">
-                        <span className="text-red-500 text-xl font-bold transform rotate-90">×</span>
-                      </div>
-                    )}
-                  </div>
+
+                {/* Phone a Friend Lifeline */}
+                <div className="relative">
+                  <button
+                    onClick={() => handleLifeline('phoneAFriend')}
+                    disabled={!lifelines.phoneAFriend}
+                    className={`kbc-button w-10 h-10 flex items-center justify-center text-xs ${
+                      !lifelines.phoneAFriend ? 'opacity-50 cursor-not-allowed' : ''
+                    }`}
+                  >
+                    📞
+                  </button>
+                  {!lifelines.phoneAFriend && (
+                    <div className="absolute inset-0 flex items-center justify-center">
+                      <span className="text-red-500 text-xl font-bold transform rotate-90">×</span>
+                    </div>
+                  )}
+                </div>
+
+                {/* Ask the Audience Lifeline */}
+                <div className="relative">
+                  <button
+                    onClick={() => handleLifeline('askAudience')}
+                    disabled={!lifelines.askAudience}
+                    className={`kbc-button w-10 h-10 flex items-center justify-center text-xs ${
+                      !lifelines.askAudience ? 'opacity-50 cursor-not-allowed' : ''
+                    }`}
+                  >
+                    👥
+                  </button>
+                  {!lifelines.askAudience && (
+                    <div className="absolute inset-0 flex items-center justify-center">
+                      <span className="text-red-500 text-xl font-bold transform rotate-90">×</span>
+                    </div>
+                  )}
                 </div>
               </div>
             </div>
           </div>
-
-          <div className="flex-grow" />
-          
-          {/* Question container with image support */}
           {currentQuestion && (
             <>
-              {/* Image container - with dynamic height based on options visibility */}
-              <div className="mb-4 flex justify-center transition-all duration-300">
+              <div className="question-image mb-4 flex justify-center transition-all duration-300">
                 <div className={`relative w-full max-w-xl ${
                   showOptions || (selectedOption && !lockedAnswer) 
-                    ? 'h-32 sm:h-40 lg:h-66' // Smaller height when options are shown
-                    : 'h-48 sm:h-64 lg:h-88' // Larger height when only question is shown
+                    ? 'h-32 sm:h-40 lg:h-66'
+                    : 'h-48 sm:h-64 lg:h-88'
                 }`}>
                   <img
                     src={currentQuestion.imageUrl 
-                      ? `${API_URL}${currentQuestion.imageUrl}` 
+                      ? `${API_URL}${currentQuestion.imageUrl}`.replace(/([^:]\/)\/+/g, "$1") // Clean double slashes
                       : defaultQuestionImage}
                     alt="Question"
                     className="w-full h-full object-contain rounded-lg shadow-glow"
+                    crossOrigin="anonymous" // Add this line
                     onError={(e) => {
-                      // If the user-provided image fails to load, fall back to default
                       if (e.target.src !== defaultQuestionImage) {
                         console.warn('Error loading image, falling back to default');
                         e.target.src = defaultQuestionImage;
                       } else {
-                        // If even the default fails, hide the image
                         e.target.style.display = 'none';
                         console.error('Error loading default image');
                       }
@@ -666,9 +609,7 @@ const handleInfiniteTimer = () => {
                   />
                 </div>
               </div>
-
-              {/* Question box */}
-              <div className="kbc-question-box p-4 sm:p-6 shadow-glow mb-4 max-w-3xl mx-auto w-full z-10"> 
+              <div className="kbc-question-box p-4 sm:p-6 shadow-glow mb-4 max-w-3xl mx-auto w-full z-10">
                 <h2 className="text-xl text-kbc-gold mb-3">
                   Question {currentQuestionIndex + 1} 
                 </h2>
@@ -676,16 +617,14 @@ const handleInfiniteTimer = () => {
               </div>
             </>
           )}
-
-          {/* Options container - now with connector lines */}
           {showOptions && currentQuestion && (
-            <div className="max-w-3xl mx-auto w-full mb-8 relative">
+            <div className="options-grid max-w-3xl mx-auto w-full mb-8 relative">
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 {currentQuestion.options.map((option, index) => (
                   <button
                     key={index}
                     onClick={() => handleOptionSelect(option)}
-                    className={`kbc-option shadow-glow position-relative ${
+                    className={`kbc-option ${
                       selectedOption === option ? 'selected' : ''
                     } ${
                       showAnswer && option === currentQuestion.correctAnswer ? 'correct' : ''
@@ -693,28 +632,19 @@ const handleInfiniteTimer = () => {
                       showAnswer && lockedAnswer === option && 
                       option !== currentQuestion.correctAnswer ? 'incorrect' : ''
                     } ${
-                      hiddenOptions.includes(option) ? 'opacity-0 pointer-events-none' : ''
+                      hiddenOptions.includes(option) ? 'opacity-0' : ''
                     }`}
-                    disabled={lockedAnswer || showAnswer || timeLeft === 0 || hiddenOptions.includes(option)}
+                    disabled={lockedAnswer || showAnswer || timeLeft === 0}
                   >
                     <span className="option-letter">
-                      {String.fromCharCode(65 + index)}
+                      {['A', 'B', 'C', 'D'][index]}
                     </span>
-                    <span className="option-text">{option}</span>
-                    
-                    {/* Option connector lines - displayed based on position */}
-                    <div className={`absolute ${index % 2 === 0 ? 'left-0' : 'right-0'} top-1/2 
-                      ${index % 2 === 0 ? 'w-[50vw] right-full bg-gradient-to-l' : 'w-[50vw] left-full bg-gradient-to-r'} 
-                      h-0.5 from-kbc-gold to-transparent transform 
-                      ${index % 2 === 0 ? '-translate-x-4' : 'translate-x-4'}`}>
-                    </div>
+                    {option}
                   </button>
                 ))}
               </div>
             </div>
           )}
-
-          {/* Lock Answer Button */}
           {selectedOption && !lockedAnswer && !showAnswer && timeLeft > 0 && (
             <div className="text-center max-w-3xl mx-auto w-full mb-8">
               <button
@@ -725,10 +655,8 @@ const handleInfiniteTimer = () => {
               </button>
             </div>
           )}
-
-          {/* Show Result and Next Question Button */}
           {showAnswer && (
-            <div className="text-center max-w-3xl mx-auto w-full mb-8 space-y-4">
+            <div id="feedback-section" className="text-center max-w-3xl mx-auto w-full mb-8 space-y-2">
               {lockedAnswer === currentQuestion.correctAnswer ? (
                 <>
                   <p className="text-green-400 text-xl">Correct Answer! 🎉</p>
@@ -753,7 +681,6 @@ const handleInfiniteTimer = () => {
                   <p className="text-red-400 text-xl">
                     {timeExpired ? "Answer not locked before time!" : "Answer is not correct!"} Better luck next time.
                   </p>
-                  
                   {currentQuestionIndex === questionBank.questions.length - 1 ? (
                     <button
                       onClick={handleEndGame}
@@ -778,9 +705,9 @@ const handleInfiniteTimer = () => {
                     </div>
                   ) : (
                     <>
-                      <p className="text-white mb-4">
+                      {/* <p className="text-white mb-4">
                         The correct answer was: {currentQuestion.correctAnswer}
-                      </p>
+                      </p> */}
                       <button
                         onClick={handleNextQuestion}
                         className="kbc-button1 shadow-glow"
@@ -794,15 +721,9 @@ const handleInfiniteTimer = () => {
             </div>
           )}
         </div>
-
-        {/* Desktop Prize Ladder - Hide on mobile */}
-        <div className="hidden lg:block w-80 ml-6 fixed right-8 top-24 order-1 lg:order-2">
-          <div className="kbc-question-box p-3 shadow-glow relative">
-            {/* Add connector line from question to prize ladder */}
-            <div className="absolute left-0 top-1/2 w-8 h-0.5 bg-gradient-to-l from-kbc-gold to-transparent transform -translate-x-8"></div>
-            
-            {/* Lifelines - moved above the prize ladder heading */}
-            <div className="flex justify-around items-center mb-3">
+        <div className="hidden lg:block w-80 fixed right-8 top-24 order-1 lg:order-2">
+          <div className="kbc-question-box p-3 shadow-glow relative prize-ladder">
+            <div className="flex justify-around items-center">
               <div className="relative">
                 <button
                   onClick={() => handleLifeline('fiftyFifty')}
@@ -852,17 +773,12 @@ const handleInfiniteTimer = () => {
                 )}
               </div>
             </div>
-            
-            {/* Divider */}
-            <hr className="my-2 border-kbc-gold/30" />
-            
-            {/* Prize Ladder - with updated styling */}
             <h3 className="text-kbc-gold text-base font-bold text-center mb-2">Prize Ladder</h3>
             <div className="space-y-0.5 text-sm">
               {PRIZE_LEVELS.map((prize, index) => (
                 <div
                   key={prize}
-                  className={`py-0.5 px-1 rounded-sm transition-all text-center ${
+                  className={`py-1 px-2 rounded-sm transition-all text-center ${
                     index === currentQuestionIndex
                       ? 'bg-kbc-gold text-kbc-dark-blue font-bold shadow-glow'
                       : index < currentQuestionIndex 
@@ -878,7 +794,15 @@ const handleInfiniteTimer = () => {
         </div>
       </div>
 
-      {/* Game End Popup */}
+      {/* Mobile Prize Ladder - Show only on small screens */}
+      <div className="lg:hidden fixed bottom-0 left-0 right-0 bg-kbc-dark-blue/90 backdrop-blur-sm p-2">
+        <div className="text-center">
+          <span className="text-kbc-gold">Current Prize: </span>
+          <span className="text-white font-bold">{PRIZE_LEVELS[currentQuestionIndex]}</span>
+        </div>
+      </div>
+
+      {/* Game end popup and other modals */}
       {showGameEndPopup && (
         <div className="fixed inset-0 bg-black/75 backdrop-blur-sm flex items-center justify-center z-50 p-4">
           <div className="kbc-card p-4 sm:p-8 max-w-md w-full mx-auto text-center shadow-glow">
@@ -894,8 +818,6 @@ const handleInfiniteTimer = () => {
           </div>
         </div>
       )}
-
-      {/* Quit Confirmation Popup */}
       {showQuitConfirm && (
         <div className="fixed inset-0 bg-black/75 backdrop-blur-sm flex items-center justify-center z-50 p-4">
           <div className="kbc-card p-4 sm:p-8 max-w-md w-full mx-auto text-center shadow-glow">
@@ -922,8 +844,6 @@ const handleInfiniteTimer = () => {
           </div>
         </div>
       )}
-
-      {/* Add restart sound button */}
       {isSoundPaused && (
         <RestartSoundButton onClick={handleRestartSound} />
       )}
