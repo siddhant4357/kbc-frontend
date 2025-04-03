@@ -592,11 +592,13 @@ const JoinQuestions = () => {
                 }`}>
                   <img
                     src={currentQuestion.imageUrl 
-                      ? `${API_URL}${currentQuestion.imageUrl}`.replace(/([^:]\/)\/+/g, "$1") // Clean double slashes
+                      ? currentQuestion.imageUrl.startsWith('http') 
+                        ? currentQuestion.imageUrl 
+                        : `${API_URL}${currentQuestion.imageUrl}`.replace(/([^:]\/)\/+/g, "$1")
                       : defaultQuestionImage}
                     alt="Question"
                     className="w-full h-full object-contain rounded-lg shadow-glow"
-                    crossOrigin="anonymous" // Add this line
+                    crossOrigin="anonymous"
                     onError={(e) => {
                       if (e.target.src !== defaultQuestionImage) {
                         console.warn('Error loading image, falling back to default');
