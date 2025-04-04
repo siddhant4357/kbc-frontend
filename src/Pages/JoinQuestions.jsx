@@ -429,7 +429,7 @@ const JoinQuestions = () => {
   );
 
   return (
-    <div className="game-container">
+    <div className="game-container overflow-hidden">
       <header className="game-header">
         <div className="header-content">
           <div className="fixed top-0 left-0 right-0 bg-kbc-dark-blue/90 backdrop-blur-sm z-10 p-2 sm:p-4">
