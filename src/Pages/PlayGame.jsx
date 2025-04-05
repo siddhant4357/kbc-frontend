@@ -124,7 +124,7 @@ const PlayGame = () => {
   const [isWaiting, setIsWaiting] = useState(true);
 
   // Firebase game state
-  const { gameState: firebaseGameState, isInitialized } = useFirebaseGameState(id);
+  const { gameState: firebaseGameState, error: firebaseError, isInitialized, isConnected } = useFirebaseGameState(id);
 
   // Add refs for tracking timeouts and navigation
   const timeoutsRef = useRef([]);
@@ -149,6 +149,15 @@ const PlayGame = () => {
     if (seconds < 0) return '00';
     return seconds.toString().padStart(2, '0');
   };
+
+  // Add connection status effect
+  useEffect(() => {
+    if (!isConnected) {
+      setError('Lost connection to game server. Trying to reconnect...');
+    } else {
+      setError(null);
+    }
+  }, [isConnected]);
 
   // Update the timer effect
   useEffect(() => {
@@ -261,7 +270,15 @@ const PlayGame = () => {
   };
 
   const handleLockAnswer = async () => {
-    if (!selectedOption || lockedAnswer || showAnswer || timeLeft <= 0) return;
+    if (!selectedOption || lockedAnswer || showAnswer || timeLeft <= 0) {
+      console.log('Lock answer conditions not met:', {
+        selectedOption,
+        lockedAnswer,
+        showAnswer,
+        timeLeft
+      });
+      return;
+    }
 
     try {
       const userRef = ref(db, `games/${id}/players/${user.username}/answers/${currentQuestion.questionIndex}`);
@@ -277,7 +294,7 @@ const PlayGame = () => {
 
       // Update user points in MongoDB
       if (selectedOption === currentQuestion.correctAnswer) {
-        await fetch(`${API_URL}/api/leaderboard/update`, {
+        const response = await fetch(`${API_URL}/api/leaderboard/update`, {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json'
@@ -289,10 +306,15 @@ const PlayGame = () => {
             isCorrect: true
           })
         });
+
+        if (!response.ok) {
+          throw new Error('Failed to update points');
+        }
       }
+      console.log('Answer locked successfully');
     } catch (error) {
       console.error('Error submitting answer:', error);
-      setError('Failed to submit answer');
+      setError('Failed to submit answer. Please try again.');
     }
   };
 
