@@ -6,7 +6,6 @@ import { useFirebaseGameState } from '../hooks/useFirebaseGameState';
 import { ref, set } from 'firebase/database';
 import { db } from '../utils/firebase';
 import kbcLogo from '../assets/kbc-logo.jpg';
-import debounce from 'lodash.debounce';
 
 const getImageUrl = (imageUrl) => {
   if (!imageUrl || imageUrl === '') return defaultQuestionImage;
@@ -103,13 +102,6 @@ const PlayGame = () => {
   const navigate = useNavigate();
   const user = JSON.parse(localStorage.getItem('user'));
 
-  const debouncedNavigate = useCallback(
-    debounce((path) => {
-      navigate(path);
-    }, 300),
-    [navigate]
-  );
-
   // State management - group related states together
   const [gameState, setGameState] = useState(null);
   const [error, setError] = useState('');
@@ -137,35 +129,21 @@ const PlayGame = () => {
   const processGameState = useCallback(async (state) => {
     if (!state) return;
 
-    // Batch state updates together
-    const updateStates = (updates) => {
-      // Use a single state update
-      setGameState(prev => ({
-        ...prev,
-        ...updates
-      }));
-    };
-
     // Check if game is stopped or inactive
     if (!state.isActive) {
-      updateStates({
-        gameStopped: true,
-        currentQuestion: null,
-        showOptions: false,
-        showAnswer: false,
-        selectedOption: null,
-        lockedAnswer: null,
-        error: 'Game has been stopped by the admin'
-      });
+      setGameStopped(true);
+      setCurrentQuestion(null);
+      setShowOptions(false);
+      setShowAnswer(false);
+      setSelectedOption(null);
+      setLockedAnswer(null);
       
-      // Use a ref to track if navigation is pending
-      const navigationTimeout = setTimeout(() => {
+      setError('Game has been stopped by the admin');
+      setTimeout(() => {
         localStorage.removeItem(`game_${id}_token`);
-        debouncedNavigate('/dashboard');
+        navigate('/dashboard');
       }, 2000);
-
-      // Cleanup timeout if component unmounts
-      return () => clearTimeout(navigationTimeout);
+      return;
     }
 
     // Process game token
@@ -174,19 +152,16 @@ const PlayGame = () => {
       localStorage.setItem(`game_${id}_token`, state.gameToken);
     }
 
-    // Handle game stopped state with batched updates
+    // Handle game stopped state
     if (state.gameStopped && !gameStopped) {
-      updateStates({
-        gameStopped: true,
-        currentQuestion: null,
-        showOptions: false,
-        showAnswer: false,
-        selectedOption: null,
-        lockedAnswer: null
-      });
-      
-      const stopTimeout = setTimeout(() => debouncedNavigate('/dashboard'), 2000);
-      return () => clearTimeout(stopTimeout);
+      setGameStopped(true);
+      setCurrentQuestion(null);
+      setShowOptions(false);
+      setShowAnswer(false);
+      setSelectedOption(null);
+      setLockedAnswer(null);
+      setTimeout(() => navigate('/dashboard'), 2000);
+      return;
     }
 
     setIsWaiting(false);
@@ -219,7 +194,7 @@ const PlayGame = () => {
     if (state.showAnswer && !showAnswer) {
       setShowAnswer(true);
     }
-  }, [id, gameToken, gameStopped, debouncedNavigate]);
+  }, [id, gameToken, currentQuestion, showOptions, showAnswer, gameStopped, navigate]);
 
   const formatTime = (seconds) => {
     if (seconds < 0) return '00';
@@ -257,23 +232,9 @@ const PlayGame = () => {
   }, [timerStartedAt, timerDuration, showOptions, lockedAnswer, isTimerExpired]);
 
   useEffect(() => {
-    let timeouts = [];
-
-    // Store timeout IDs
-    const addTimeout = (callback, delay) => {
-      const id = setTimeout(callback, delay);
-      timeouts.push(id);
-      return id;
-    };
-
     if (firebaseGameState && user) {
       processGameState(firebaseGameState).catch(console.error);
     }
-
-    // Cleanup
-    return () => {
-      timeouts.forEach(clearTimeout);
-    };
   }, [firebaseGameState, user, processGameState]);
 
   const handleOptionSelect = (option) => {
@@ -338,7 +299,7 @@ const PlayGame = () => {
     }
 
     localStorage.removeItem(`game_${id}_token`);
-    debouncedNavigate('/dashboard');
+    navigate('/dashboard');
   };
 
   if (isWaiting) {
