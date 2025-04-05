@@ -133,45 +133,92 @@ const PlayGame = () => {
   const processGameState = useCallback(async (state) => {
     if (!state || isNavigatingRef.current) return;
 
-    // First check if game is stopped or inactive
-    if (state.isActive === false || state.gameStopped) {
+    const updateStates = (updates) => {
+      setGameState(prev => ({
+        ...prev,
+        ...updates
+      }));
+    };
+
+    // First check if game exists and is active
+    if (state.isActive === false) {
+      updateStates({
+        gameStopped: true,
+        currentQuestion: null,
+        showOptions: false,
+        showAnswer: false,
+        selectedOption: null,
+        lockedAnswer: null,
+        error: 'Game has been stopped by the admin'
+      });
+
       if (!isNavigatingRef.current) {
         isNavigatingRef.current = true;
-        setGameState(prev => ({
-          ...prev,
-          gameStopped: true,
-          currentQuestion: null,
-          showOptions: false,
-          showAnswer: false,
-          selectedOption: null,
-          lockedAnswer: null,
-          error: 'Game has been stopped by the admin'
-        }));
-
-        // Clear game token
-        localStorage.removeItem(`game_${id}_token`);
-
-        // Add a small delay before navigation
-        setTimeout(() => {
+        const timeout = setTimeout(() => {
+          localStorage.removeItem(`game_${id}_token`);
           navigate('/dashboard');
-        }, 1500);
+        }, 2000);
+        timeoutsRef.current.push(timeout);
       }
       return;
     }
 
-    // Rest of your existing processGameState code...
-  }, [id, navigate]);
-
-  useEffect(() => {
-    if (gameStopped && !isNavigatingRef.current) {
-      isNavigatingRef.current = true;
-      const timeout = setTimeout(() => {
-        localStorage.removeItem(`game_${id}_token`);
-        navigate('/dashboard');
-      }, 1500);
-      timeoutsRef.current.push(timeout);
+    // If game is active, update waiting state
+    if (state.isActive) {
+      setIsWaiting(false);
     }
-  }, [gameStopped, id, navigate]);
+
+    // Process game token
+    if (state.gameToken && state.gameToken !== gameToken) {
+      setGameToken(state.gameToken);
+      localStorage.setItem(`game_${id}_token`, state.gameToken);
+    }
+
+    // Handle game stopped state with batched updates
+    if (state.gameStopped && !gameStopped) {
+      updateStates({
+        gameStopped: true,
+        currentQuestion: null,
+        showOptions: false,
+        showAnswer: false,
+        selectedOption: null,
+        lockedAnswer: null
+      });
+      
+      const stopTimeout = setTimeout(() => navigate('/dashboard'), 2000);
+      timeoutsRef.current.push(stopTimeout);
+      return;
+    }
+
+    // Handle question changes
+    const newQuestionIndex = parseInt(state.currentQuestion?.questionIndex ?? 0);
+    const currentQuestionIndex = parseInt(currentQuestion?.questionIndex ?? -1);
+    
+    if (state.currentQuestion && newQuestionIndex !== currentQuestionIndex) {
+      setCurrentQuestion({
+        ...state.currentQuestion,
+        questionIndex: newQuestionIndex
+      });
+      setShowOptions(false);
+      setShowAnswer(false);
+      setSelectedOption(null);
+      setLockedAnswer(null);
+      setGameStopped(false);
+    }
+
+    // Handle options state
+    if (state.showOptions !== showOptions) {
+      setTimerStartedAt(state.timerStartedAt);
+      setTimerDuration(state.timerDuration || 15);
+      setIsTimerExpired(false);
+      setShowOptions(state.showOptions);
+    }
+
+    // Handle answer reveal
+    if (state.showAnswer && !showAnswer) {
+      setShowAnswer(true);
+    }
+  }, [id, gameToken, gameStopped, navigate, currentQuestion, showOptions, showAnswer]);
 
   const formatTime = (seconds) => {
     if (seconds < 0) return '00';
@@ -291,7 +338,6 @@ const PlayGame = () => {
   };
 
   const handleExitGame = () => {
-    if (isNavigatingRef.current) return;
     setShowExitConfirm(true);
   };
 
@@ -300,25 +346,23 @@ const PlayGame = () => {
     
     try {
       isNavigatingRef.current = true;
-      setShowExitConfirm(false); // Hide the confirmation dialog first
-
       if (user) {
-        // Update player status in Firebase
         const userRef = ref(db, `games/${id}/players/${user.username}`);
         await set(userRef, {
+          ...firebaseGameState?.players?.[user.username],
           isOnline: false,
-          leftAt: serverTimestamp()
+          leftAt: Date.now()
         });
       }
       
-      // Clear game token
       localStorage.removeItem(`game_${id}_token`);
-      
-      // Navigate after a short delay
-      navigate('/dashboard');
+      // Add slight delay before navigation
+      const timeout = setTimeout(() => {
+        navigate('/dashboard');
+      }, 300);
+      timeoutsRef.current.push(timeout);
     } catch (err) {
       console.error('Error updating player status:', err);
-      setError('Failed to exit game');
       isNavigatingRef.current = false;
     }
   };
