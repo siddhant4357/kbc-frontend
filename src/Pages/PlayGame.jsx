@@ -305,11 +305,33 @@ const PlayGame = () => {
   if (isWaiting) {
     return (
       <div className="game-container overflow-hidden">
+        <style>
+          {`
+            @keyframes glow {
+              0%, 100% { box-shadow: 0 0 15px rgba(255, 184, 0, 0.3); }
+              50% { box-shadow: 0 0 30px rgba(255, 184, 0, 0.5); }
+            }
+
+            @keyframes spin {
+              to { transform: rotate(360deg); }
+            }
+
+            @keyframes ripple {
+              0% { transform: scale(0.8); opacity: 1; }
+              100% { transform: scale(2); opacity: 0; }
+            }
+          `}
+        </style>
+
         <header className="game-header">
           <div className="header-content">
             <button
               onClick={handleExitGame}
               className="kbc-button bg-red-600 hover:bg-red-700 w-14 h-8 text-xs"
+              style={{
+                transition: 'all 0.3s ease',
+                border: '1px solid rgba(255, 184, 0, 0.3)'
+              }}
             >
               QUIT
             </button>
@@ -317,22 +339,93 @@ const PlayGame = () => {
               src={kbcLogo}
               alt="KBC Logo"
               className="h-8"
+              style={{ filter: 'drop-shadow(0 0 8px rgba(255, 184, 0, 0.3))' }}
             />
           </div>
         </header>
 
-        <div className="kbc-card p-8 text-center mt-20 mx-4 animate-pulse">
-          <img
-            src={kbcLogo}
-            alt="KBC Logo"
-            className="w-24 h-24 mx-auto mb-6"
-          />
-          <h2 className="text-2xl text-kbc-gold font-bold mb-4">
-            Waiting for Admin to Start the Game
-          </h2>
-          <p className="text-gray-300 mb-6">
-            Please stay on this screen. The game will begin automatically.
-          </p>
+        <div className="flex items-center justify-center min-h-[calc(100vh-5rem)] p-4">
+          <div 
+            className="relative max-w-lg w-full mx-auto text-center p-8 rounded-xl"
+            style={{
+              background: 'linear-gradient(135deg, rgba(11, 29, 120, 0.95), rgba(28, 63, 170, 0.95))',
+              border: '2px solid rgba(255, 184, 0, 0.3)',
+              backdropFilter: 'blur(10px)',
+              animation: 'glow 2s infinite',
+              boxShadow: '0 8px 32px rgba(0, 0, 0, 0.4)'
+            }}
+          >
+            {/* Ripple effect */}
+            <div className="absolute inset-0 -z-10">
+              <div 
+                className="absolute inset-0 rounded-xl"
+                style={{
+                  animation: 'ripple 2s linear infinite',
+                  border: '2px solid rgba(255, 184, 0, 0.2)'
+                }}
+              />
+              <div 
+                className="absolute inset-0 rounded-xl"
+                style={{
+                  animation: 'ripple 2s linear infinite 0.5s',
+                  border: '2px solid rgba(255, 184, 0, 0.2)'
+                }}
+              />
+            </div>
+
+            <img
+              src={kbcLogo}
+              alt="KBC Logo"
+              className="w-24 h-24 mx-auto mb-6 animate-pulse"
+              style={{ filter: 'drop-shadow(0 0 10px rgba(255, 184, 0, 0.4))' }}
+            />
+
+            {/* Loading spinner */}
+            <div className="relative w-16 h-16 mx-auto mb-6">
+              <div 
+                className="absolute inset-0 rounded-full"
+                style={{
+                  border: '3px solid transparent',
+                  borderTopColor: '#FFB800',
+                  animation: 'spin 1s linear infinite'
+                }}
+              />
+              <div 
+                className="absolute inset-2 rounded-full"
+                style={{
+                  border: '3px solid transparent',
+                  borderTopColor: '#1C3FAA',
+                  animation: 'spin 1.5s linear infinite reverse'
+                }}
+              />
+            </div>
+
+            <h2 
+              className="text-2xl font-bold mb-4"
+              style={{
+                color: '#FFB800',
+                textShadow: '0 2px 4px rgba(0, 0, 0, 0.3)'
+              }}
+            >
+              Waiting for Host to Start
+            </h2>
+            
+            <p className="text-gray-300 mb-6">
+              Get ready for an exciting game of KBC!
+            </p>
+
+            <div 
+              className="text-sm text-gray-400"
+              style={{
+                background: 'linear-gradient(135deg, rgba(0, 11, 62, 0.5), rgba(28, 63, 170, 0.5))',
+                padding: '0.75rem',
+                borderRadius: '0.5rem',
+                border: '1px solid rgba(255, 255, 255, 0.1)'
+              }}
+            >
+              Please stay on this screen. The game will begin automatically.
+            </div>
+          </div>
         </div>
       </div>
     );
