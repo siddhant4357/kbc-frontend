@@ -140,8 +140,8 @@ const PlayGame = () => {
       }));
     };
 
-    // Handle game stopped/inactive state
-    if (!state.isActive) {
+    // First check if game exists and is active
+    if (state.isActive === false) {
       updateStates({
         gameStopped: true,
         currentQuestion: null,
@@ -161,6 +161,11 @@ const PlayGame = () => {
         timeoutsRef.current.push(timeout);
       }
       return;
+    }
+
+    // If game is active, update waiting state
+    if (state.isActive) {
+      setIsWaiting(false);
     }
 
     // Process game token
@@ -184,8 +189,6 @@ const PlayGame = () => {
       timeoutsRef.current.push(stopTimeout);
       return;
     }
-
-    setIsWaiting(false);
 
     // Handle question changes
     const newQuestionIndex = parseInt(state.currentQuestion?.questionIndex ?? 0);
@@ -215,7 +218,7 @@ const PlayGame = () => {
     if (state.showAnswer && !showAnswer) {
       setShowAnswer(true);
     }
-  }, [id, gameToken, gameStopped, navigate]);
+  }, [id, gameToken, gameStopped, navigate, currentQuestion, showOptions, showAnswer]);
 
   const formatTime = (seconds) => {
     if (seconds < 0) return '00';
