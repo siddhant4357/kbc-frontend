@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { API_URL } from '../utils/config';
 import defaultQuestionImage from '../assets/default_img.jpg';
@@ -34,25 +34,24 @@ const PRIZE_LEVELS = [
   "₹1,00,00,000"
 ];
 
+const getImageUrl = (imageUrl) => {
+  if (!imageUrl) return defaultQuestionImage;
+  if (imageUrl.startsWith('http')) return imageUrl;
+  
+  // Clean the URL path to handle double slashes
+  const cleanPath = imageUrl.startsWith('/') ? imageUrl : `/${imageUrl}`;
+  return `${API_URL}${cleanPath}`.replace(/([^:]\/)\/+/g, "$1");
+};
+
 const PlayGame = () => {
   const { id } = useParams();
   const navigate = useNavigate();
-  const { gameState } = useFirebaseGameState(id);
-  const [error, setError] = useState('');
   const user = JSON.parse(localStorage.getItem('user'));
 
-  // Initialize audio files
-  const audioFiles = {
-    theme: themeAudio,
-    question: questionTune,
-    timer: timerSound,
-    correct: correctAnswerSound,
-    wrong: wrongAnswerSound,
-    timerEnd: timerEndSound
-  };
-
-  const { play, stop, stopAll } = useAudioManager(audioFiles);
-
+  // State management - group related states together
+  const [gameState, setGameState] = useState(null);
+  const [error, setError] = useState('');
+  
   // Game state
   const [currentQuestion, setCurrentQuestion] = useState(null);
   const [showOptions, setShowOptions] = useState(false);
@@ -61,12 +60,10 @@ const PlayGame = () => {
   const [lockedAnswer, setLockedAnswer] = useState(null);
   const [gameStopped, setGameStopped] = useState(false);
   const [showExitConfirm, setShowExitConfirm] = useState(false);
-  const [gameToken, setGameToken] = useState(localStorage.getItem(`game_${id}_token`));
+  const [gameToken, setGameToken] = useState(() => localStorage.getItem(`game_${id}_token`));
   
-  // Timer and prize state
+  // Timer state
   const [timeLeft, setTimeLeft] = useState(30);
-  const [currentPrizeIndex, setCurrentPrizeIndex] = useState(PRIZE_LEVELS.length - 1);
-  const [showPrizeLadder, setShowPrizeLadder] = useState(false);
   const [timerStartedAt, setTimerStartedAt] = useState(null);
   const [timerDuration, setTimerDuration] = useState(15);
   const [isTimerExpired, setIsTimerExpired] = useState(false);
@@ -76,38 +73,34 @@ const PlayGame = () => {
   const [hasUserInteracted, setHasUserInteracted] = useState(false);
   const [isSoundPaused, setIsSoundPaused] = useState(false);
 
-  // Join game and track user presence
-  useEffect(() => {
-    if (gameState && user) {
-      const userRef = ref(db, `games/${id}/players/${user.username}`);
-      set(userRef, {
-        joinedAt: Date.now(),
-        isOnline: true,
-        answers: {}
-      });
+  // Initialize audio files
+  const audioFiles = useMemo(() => ({
+    theme: themeAudio,
+    question: questionTune,
+    timer: timerSound,
+    correct: correctAnswerSound,
+    wrong: wrongAnswerSound,
+    timerEnd: timerEndSound
+  }), []);
 
-      // Cleanup when user leaves
-      return () => {
-        if (gameState.players?.[user.username]) {
-          set(userRef, {
-            ...gameState.players[user.username],
-            isOnline: false,
-            leftAt: Date.now()
-          });
-        }
-      };
-    }
-  }, [id, user?.username, gameState]);
+  // Audio management
+  const { play, stop, stopAll } = useAudioManager(audioFiles);
 
-  const processGameState = async (state) => {
+  // Firebase game state
+  const { gameState: firebaseGameState } = useFirebaseGameState(id);
+
+  // Modify the processGameState function to be memoized
+  const processGameState = useCallback(async (state) => {
     if (!state) return;
 
-    if (state.gameToken) {
+    // Process game token
+    if (state.gameToken && state.gameToken !== gameToken) {
       setGameToken(state.gameToken);
       localStorage.setItem(`game_${id}_token`, state.gameToken);
     }
 
-    if (state.gameStopped) {
+    // Handle game stopped state
+    if (state.gameStopped && !gameStopped) {
       await stopAll();
       setGameStopped(true);
       setCurrentQuestion(null);
@@ -115,51 +108,50 @@ const PlayGame = () => {
       setShowAnswer(false);
       setSelectedOption(null);
       setLockedAnswer(null);
-
-      setTimeout(() => {
-        navigate('/dashboard');
-      }, 2000);
+      setTimeout(() => navigate('/dashboard'), 2000);
       return;
     }
 
+    // Handle inactive state
     if (!state.isActive) {
-      await stopAll();
-      if (hasUserInteracted) {
-        play('theme').catch(console.error);
+      if (!isWaiting) {
+        await stopAll();
+        if (hasUserInteracted) {
+          play('theme').catch(console.error);
+        }
+        setCurrentQuestion(null);
+        setShowOptions(false);
+        setShowAnswer(false);
+        setSelectedOption(null);
+        setLockedAnswer(null);
+        setGameStopped(false);
+        setIsWaiting(true);
       }
-      setCurrentQuestion(null);
-      setShowOptions(false);
-      setShowAnswer(false);
-      setSelectedOption(null);
-      setLockedAnswer(null);
-      setGameStopped(false);
-      setIsWaiting(true);
       return;
     }
 
     setIsWaiting(false);
 
-    if (state.currentQuestion && (!currentQuestion || state.currentQuestion.id !== currentQuestion.id)) {
+    // Handle question changes
+    const newQuestionIndex = parseInt(state.currentQuestion?.questionIndex ?? 0);
+    const currentQuestionIndex = parseInt(currentQuestion?.questionIndex ?? -1);
+    
+    if (state.currentQuestion && newQuestionIndex !== currentQuestionIndex) {
       await stopAll();
       play('question').catch(console.error);
 
-      const newQuestion = {
+      setCurrentQuestion({
         ...state.currentQuestion,
-        questionIndex: parseInt(state.currentQuestion.questionIndex ?? 0)
-      };
-
-      setCurrentQuestion(newQuestion);
+        questionIndex: newQuestionIndex
+      });
       setShowOptions(false);
       setShowAnswer(false);
       setSelectedOption(null);
       setLockedAnswer(null);
       setGameStopped(false);
-
-      const questionIndex = parseInt(state.currentQuestion.questionIndex ?? 0);
-      const newPrizeIndex = PRIZE_LEVELS.length - 1 - questionIndex;
-      setCurrentPrizeIndex(newPrizeIndex);
     }
 
+    // Handle options state
     if (state.showOptions !== showOptions) {
       if (state.showOptions) {
         await stopAll();
@@ -171,31 +163,23 @@ const PlayGame = () => {
       setShowOptions(state.showOptions);
     }
 
+    // Handle answer reveal
     if (state.showAnswer && !showAnswer) {
       try {
         await stopAll();
-
         await new Promise(resolve => setTimeout(resolve, 100));
 
         if (currentQuestion && selectedOption) {
-          if (selectedOption === currentQuestion.correctAnswer) {
-            play('correct').catch(console.error);
-          } else {
-            play('wrong').catch(console.error);
-          }
+          const soundKey = selectedOption === currentQuestion.correctAnswer ? 'correct' : 'wrong';
+          play(soundKey).catch(console.error);
         }
-
         setShowAnswer(true);
       } catch (error) {
         console.error("Error playing answer sound:", error);
         setShowAnswer(true);
       }
     }
-
-    if (state.lockedAnswer && !lockedAnswer) {
-      setLockedAnswer(state.lockedAnswer);
-    }
-  };
+  }, [id, gameToken, currentQuestion, showOptions, showAnswer, gameStopped, isWaiting, hasUserInteracted]);
 
   const handleStartExperience = async () => {
     try {
@@ -224,39 +208,41 @@ const PlayGame = () => {
     return seconds.toString().padStart(2, '0');
   };
 
+  // Update the timer effect
   useEffect(() => {
-    if (timerStartedAt && showOptions) {
-      const interval = setInterval(() => {
+    let interval;
+    if (timerStartedAt && showOptions && !isTimerExpired) {
+      interval = setInterval(() => {
         const now = new Date();
         const startTime = new Date(timerStartedAt);
         const elapsedSeconds = Math.floor((now - startTime) / 1000);
         const remainingSeconds = timerDuration - elapsedSeconds;
 
-        setTimeLeft(Math.max(0, remainingSeconds));
-
         if (remainingSeconds <= 0) {
+          setTimeLeft(0);
           setIsTimerExpired(true);
           if (!lockedAnswer) {
             setSelectedOption(null);
           }
           clearInterval(interval);
+        } else {
+          setTimeLeft(remainingSeconds);
         }
       }, 1000);
-
-      return () => clearInterval(interval);
     }
-  }, [timerStartedAt, timerDuration, showOptions, lockedAnswer]);
+
+    return () => {
+      if (interval) {
+        clearInterval(interval);
+      }
+    };
+  }, [timerStartedAt, timerDuration, showOptions, lockedAnswer, isTimerExpired]);
 
   useEffect(() => {
-    if (gameState && user) {
-      if (!gameState.isActive) {
-        setIsWaiting(true);
-      } else {
-        setIsWaiting(false);
-        processGameState(gameState);
-      }
+    if (firebaseGameState && user) {
+      processGameState(firebaseGameState).catch(console.error);
     }
-  }, [gameState, user]);
+  }, [firebaseGameState, user, processGameState]);
 
   useEffect(() => {
     const handleVisibilityChange = () => {
@@ -269,14 +255,9 @@ const PlayGame = () => {
     document.addEventListener('visibilitychange', handleVisibilityChange);
     return () => {
       document.removeEventListener('visibilitychange', handleVisibilityChange);
-    };
-  }, []);
-
-  useEffect(() => {
-    return () => {
       stopAll();
     };
-  }, []);
+  }, [stopAll]);
 
   const handleOptionSelect = (option) => {
     if (!showAnswer && !lockedAnswer) {
@@ -285,18 +266,20 @@ const PlayGame = () => {
   };
 
   const handleLockAnswer = async () => {
-    if (selectedOption && !lockedAnswer && !showAnswer && timeLeft > 0) {
-      try {
-        const userRef = ref(db, `games/${id}/players/${user.username}/answers/${currentQuestion.questionIndex}`);
-        await set(userRef, {
-          answer: selectedOption,
-          answeredAt: Date.now()
-        });
-        setLockedAnswer(selectedOption);
-      } catch (error) {
-        console.error('Error submitting answer:', error);
-        setError('Failed to submit answer');
-      }
+    if (!selectedOption || lockedAnswer || showAnswer || timeLeft <= 0) return;
+
+    try {
+      const userRef = ref(db, `games/${id}/players/${user.username}/answers/${currentQuestion.questionIndex}`);
+      const answerData = {
+        answer: selectedOption,
+        answeredAt: Date.now()
+      };
+
+      await set(userRef, answerData);
+      setLockedAnswer(selectedOption);
+    } catch (error) {
+      console.error('Error submitting answer:', error);
+      setError('Failed to submit answer');
     }
   };
 
@@ -312,23 +295,13 @@ const PlayGame = () => {
       if (user) {
         const userRef = ref(db, `games/${id}/players/${user.username}`);
         await set(userRef, {
-          ...gameState?.players?.[user.username],
+          ...firebaseGameState?.players?.[user.username],
           isOnline: false,
           leftAt: Date.now()
         });
       }
-
-      // Keep the existing API call
-      await fetch(`${API_URL}/api/game/${id}/leave`, {
-        method: 'POST',
-        credentials: 'include',
-        headers: {
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify({ gameToken })
-      });
     } catch (err) {
-      console.error('Error notifying server about exit:', err);
+      console.error('Error updating player status:', err);
     }
 
     localStorage.removeItem(`game_${id}_token`);
@@ -337,7 +310,7 @@ const PlayGame = () => {
 
   if (isWaiting) {
     return (
-      <div className="min-h-screen bg-gradient-to-b from-kbc-dark-blue to-kbc-purple flex items-center justify-center">
+      <div className="game-container overflow-hidden">
         {!hasUserInteracted ? (
           <div className="fixed inset-0 bg-black/80 flex items-center justify-center z-50">
             <div className="kbc-card p-8 text-center max-w-md mx-4">
@@ -353,21 +326,23 @@ const PlayGame = () => {
           </div>
         ) : (
           <>
-            <header className="fixed top-0 left-0 right-0 flex justify-between items-center p-3 bg-kbc-dark-blue/80 backdrop-blur-[4px] z-10">
-              <button
-                onClick={handleExitGame}
-                className="kbc-button bg-red-600 hover:bg-red-700 w-10 h-8 text-xs"
-              >
-                QUIT
-              </button>
-              <img
-                src="/src/assets/kbc-logo.png"
-                alt="KBC Logo"
-                className="h-8"
-              />
+            <header className="game-header">
+              <div className="header-content">
+                <button
+                  onClick={handleExitGame}
+                  className="kbc-button bg-red-600 hover:bg-red-700 w-14 h-8 text-xs"
+                >
+                  QUIT
+                </button>
+                <img
+                  src="/src/assets/kbc-logo.png"
+                  alt="KBC Logo"
+                  className="h-8"
+                />
+              </div>
             </header>
 
-            <div className="kbc-card p-8 text-center animate-pulse">
+            <div className="kbc-card p-8 text-center mt-20 mx-4 animate-pulse">
               <img
                 src="/src/assets/kbc-logo.png"
                 alt="KBC Logo"
@@ -380,32 +355,32 @@ const PlayGame = () => {
                 Please stay on this screen. The game will begin automatically.
               </p>
             </div>
-
-            {showExitConfirm && (
-              <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4">
-                <div className="kbc-card w-full max-w-md p-4 sm:p-6">
-                  <h2 className="text-xl font-bold text-kbc-gold mb-4">Confirm Exit</h2>
-                  <p className="text-gray-300 mb-6">
-                    Are you sure you want to leave the game?
-                  </p>
-                  <div className="flex flex-col sm:flex-row justify-end gap-3 sm:gap-4">
-                    <button
-                      onClick={() => setShowExitConfirm(false)}
-                      className="kbc-button1 w-full sm:w-auto order-2 sm:order-1"
-                    >
-                      Cancel
-                    </button>
-                    <button
-                      onClick={confirmExit}
-                      className="kbc-button1 bg-red-600 hover:bg-red-700 w-full sm:w-auto order-1 sm:order-2"
-                    >
-                      Exit Game
-                    </button>
-                  </div>
-                </div>
-              </div>
-            )}
           </>
+        )}
+
+        {showExitConfirm && (
+          <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+            <div className="kbc-card w-full max-w-md p-4 sm:p-6">
+              <h2 className="text-xl font-bold text-kbc-gold mb-4">Confirm Exit</h2>
+              <p className="text-gray-300 mb-6">
+                Are you sure you want to leave the game?
+              </p>
+              <div className="flex flex-col sm:flex-row justify-end gap-3 sm:gap-4">
+                <button
+                  onClick={() => setShowExitConfirm(false)}
+                  className="kbc-button1 w-full sm:w-auto order-2 sm:order-1"
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={confirmExit}
+                  className="kbc-button1 bg-red-600 hover:bg-red-700 w-full sm:w-auto order-1 sm:order-2"
+                >
+                  Exit Game
+                </button>
+              </div>
+            </div>
+          </div>
         )}
 
         {isSoundPaused && (
@@ -422,111 +397,106 @@ const PlayGame = () => {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-b from-kbc-dark-blue to-kbc-purple">
-      <header className="fixed top-0 left-0 right-0 bg-kbc-dark-blue/90 backdrop-blur-sm z-10 p-2 sm:p-4">
-        <div className="flex flex-wrap items-center justify-between gap-2 w-full">
-          <div className="flex items-center gap-2">
-            <button
-              onClick={handleExitGame}
-              className="kbc-button bg-red-600 hover:bg-red-700 text-xs h-8 w-14 sm:px-4"
-            >
-              QUIT
-            </button>
-            <div className="hidden sm:block">
-              <p className="text-kbc-gold text-xs">Player</p>
-              <p className="text-white font-bold text-sm">
-                {JSON.parse(localStorage.getItem('user'))?.username}
-              </p>
+    <div className="game-container overflow-hidden">
+      <header className="game-header">
+        <div className="header-content">
+          <div className="flex flex-wrap items-center justify-between gap-2 w-full">
+            <div className="flex items-center gap-2">
+              <button
+                onClick={handleExitGame}
+                className="kbc-button bg-red-600 hover:bg-red-700 text-xs h-8 w-14"
+              >
+                QUIT
+              </button>
+              <div className="hidden sm:block">
+                <p className="text-kbc-gold text-xs">Player</p>
+                <p className="text-white font-bold text-sm">
+                  {JSON.parse(localStorage.getItem('user'))?.username}
+                </p>
+              </div>
             </div>
-          </div>
 
-          <div className="flex items-center justify-center absolute left-1/2 transform -translate-x-1/2">
-            <div className="relative w-12 h-12 sm:w-16 right-15 sm:h-16">
-              <svg className="w-full h-full transform -rotate-90">
-                <circle
-                  cx="50%"
-                  cy="50%"
-                  r="45%"
-                  stroke="currentColor"
-                  strokeWidth="4"
-                  fill="transparent"
-                  className="text-kbc-gold"
-                  strokeDasharray={`${(timeLeft / timerDuration) * 176} 176`}
-                />
-              </svg>
-              <span className="absolute inset-0 flex items-center justify-center text-base sm:text-xl text-kbc-gold">
-                {formatTime(timeLeft)}
-              </span>
+            <div className="flex justify-center absolute left-1/2 transform -translate-x-1/2">
+              <div className="relative w-10 h-10 sm:w-12 sm:h-12">
+                <svg className="w-full h-full transform -rotate-90" viewBox="0 0 100 100">
+                  <circle
+                    cx="50"
+                    cy="50"
+                    r="45"
+                    fill="transparent"
+                    stroke="rgba(255, 184, 0, 0.2)"
+                    strokeWidth="8"
+                  />
+                  <circle
+                    cx="50"
+                    cy="50"
+                    r="45"
+                    fill="transparent"
+                    stroke="var(--kbc-gold)"
+                    strokeWidth="8"
+                    strokeLinecap="round"
+                    strokeDasharray={`${2 * Math.PI * 45}`}
+                    strokeDashoffset={`${(1 - timeLeft / timerDuration) * 2 * Math.PI * 45}`}
+                    style={{
+                      transition: 'stroke-dashoffset 1s linear'
+                    }}
+                  />
+                </svg>
+                <span className="absolute inset-0 flex items-center justify-center text-sm sm:text-base font-bold text-kbc-gold">
+                  {formatTime(timeLeft)}
+                </span>
+              </div>
             </div>
-          </div>
-
-          <div className="block sm:hidden text-right">
-            <p className="text-white font-bold text-sm">
-              {JSON.parse(localStorage.getItem('user'))?.username}
-            </p>
           </div>
         </div>
       </header>
 
-      <div className="container mx-auto pt-16 sm:pt-24 px-2 sm:px-4 flex flex-col lg:flex-row min-h-screen pb-6">
-        <div className="flex-1 flex flex-col justify-between min-h-[calc(100vh-8rem)] lg:pr-80 order-2 lg:order-1">
-          <div className="block lg:hidden flex flex-col space-y-3 mb-4">
-            <div className="kbc-question-box lg:hidden p-3 shadow-glow">
-              <div className="flex justify-between items-center">
-                <div>
-                  <p className="text-xs text-kbc-gold">Current Prize</p>
-                  <p className="text-lg font-bold text-white">{PRIZE_LEVELS[currentPrizeIndex]}</p>
-                </div>
-              </div>
-            </div>
-          </div>
-
-          <div className="flex-grow" />
-
+      <div className="container mx-auto pt-16 sm:pt-20 px-2 sm:px-4 flex flex-col lg:flex-row min-h-screen">
+        {/* Main game content */}
+        <div className="flex-1 flex flex-col order-2 lg:order-1 pb-4">
           {currentQuestion && (
             <>
-              <div className="mb-4 flex justify-center transition-all duration-300">
+              <div className="question-image mb-4 flex justify-center transition-all duration-300">
                 <div className={`relative w-full max-w-xl ${
                   showOptions || (selectedOption && !lockedAnswer) 
-                    ? 'h-32 sm:h-40 lg:h-66' 
+                    ? 'h-32 sm:h-40 lg:h-66'
                     : 'h-48 sm:h-64 lg:h-88'
                 }`}>
                   <img
-                    src={currentQuestion.imageUrl 
-                      ? `http://localhost:4000${currentQuestion.imageUrl}` 
-                      : defaultQuestionImage}
+                    src={getImageUrl(currentQuestion.imageUrl)}
                     alt="Question"
                     className="w-full h-full object-contain rounded-lg shadow-glow"
                     onError={(e) => {
+                      console.warn('Error loading image:', currentQuestion.imageUrl);
                       if (e.target.src !== defaultQuestionImage) {
-                        console.warn('Error loading image, falling back to default');
+                        console.log('Falling back to default image');
                         e.target.src = defaultQuestionImage;
-                      } else {
-                        e.target.style.display = 'none';
-                        console.error('Error loading default image');
+                        e.target.onerror = null; // Prevent infinite loop
                       }
                     }}
+                    crossOrigin="anonymous"
                   />
                 </div>
               </div>
 
-              <div className="kbc-question-box p-4 sm:p-8 shadow-glow mb-6 max-w-3xl mx-auto w-full animate-fadeIn">
-                <h2 className="text-2xl text-kbc-gold mb-6">
-                  Question {(parseInt(currentQuestion.questionIndex ?? 0) + 1)} 
+              <div className="kbc-question-box p-4 sm:p-6 shadow-glow mb-4 max-w-3xl mx-auto w-full">
+                <h2 className="text-xl text-kbc-gold mb-3">
+                  Question {(parseInt(currentQuestion.questionIndex ?? 0) + 1)}
                 </h2>
-                <p className="text-white text-xl">{currentQuestion.question}</p>
+                <p className="text-white text-lg mb-3">{currentQuestion.question}</p>
               </div>
             </>
           )}
 
+          {/* Options grid */}
           {showOptions && currentQuestion && (
-            <div className="max-w-3xl mx-auto w-full mb-8 relative">
+            <div className="options-grid max-w-3xl mx-auto w-full mb-8 relative">
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 {currentQuestion.options.map((option, index) => (
                   <button
                     key={index}
                     onClick={() => handleOptionSelect(option)}
-                    className={`kbc-option shadow-glow position-relative ${
+                    className={`kbc-option ${
                       selectedOption === option ? 'selected' : ''
                     } ${
                       showAnswer && option === currentQuestion.correctAnswer ? 'correct' : ''
@@ -540,17 +510,13 @@ const PlayGame = () => {
                       {String.fromCharCode(65 + index)}
                     </span>
                     <span className="option-text">{option}</span>
-                    <div className={`absolute ${index % 2 === 0 ? 'left-0' : 'right-0'} top-1/2 
-                      ${index % 2 === 0 ? 'w-[50vw] right-full bg-gradient-to-l' : 'w-[50vw] left-full bg-gradient-to-r'} 
-                      h-0.5 from-kbc-gold to-transparent transform 
-                      ${index % 2 === 0 ? '-translate-x-4' : 'translate-x-4'}`}>
-                    </div>
                   </button>
                 ))}
               </div>
             </div>
           )}
 
+          {/* Lock answer button */}
           {selectedOption && !lockedAnswer && !showAnswer && timeLeft > 0 && (
             <div className="text-center max-w-3xl mx-auto w-full mb-8">
               <button
@@ -562,29 +528,12 @@ const PlayGame = () => {
             </div>
           )}
         </div>
+      </div>
 
-        <div className="hidden lg:block w-80 ml-6 fixed right-8 top-24 order-1 lg:order-2">
-          <div className="kbc-question-box p-3 shadow-glow relative">
-            <div className="absolute left-0 top-1/2 w-8 h-0.5 bg-gradient-to-l from-kbc-gold to-transparent transform -translate-x-8"></div>
-            <hr className="my-2 border-kbc-gold/30" />
-            <h3 className="text-kbc-gold text-base font-bold text-center mb-2">Prize Ladder</h3>
-            <div className="space-y-0.5 text-sm overflow-y-auto max-h-[calc(100vh-14rem)]">
-              {PRIZE_LEVELS.map((prize, index) => (
-                <div
-                  key={prize}
-                  className={`py-1 px-2 rounded-sm transition-all text-center ${
-                    index === currentPrizeIndex
-                      ? 'bg-kbc-gold text-kbc-dark-blue font-bold shadow-glow'
-                      : index < currentPrizeIndex 
-                        ? 'text-white bg-kbc-blue/20'
-                        : 'text-kbc-gold'
-                  }`}
-                >
-                  {prize}
-                </div>
-              ))}
-            </div>
-          </div>
+      {/* Mobile prize display */}
+      <div className="lg:hidden fixed bottom-0 left-0 right-0 bg-kbc-dark-blue/90 backdrop-blur-sm p-2">
+        <div className="text-center">
+          <span className="text-kbc-gold">Made with ❤️ by Sid</span>
         </div>
       </div>
 

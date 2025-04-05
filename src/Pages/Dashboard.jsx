@@ -1,7 +1,5 @@
 import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import io from 'socket.io-client';
-import { SOCKET_URL } from '../utils/config';
 import kbcLogo from '../assets/kbc-logo.jpg';
 
 const Dashboard = () => {
@@ -16,23 +14,6 @@ const Dashboard = () => {
       return;
     }
     setUser(JSON.parse(userStr));
-
-    // Connect to Socket.IO server
-    const socket = io(SOCKET_URL);
-
-    // Listen for force logout event
-    socket.on('forceLogout', () => {
-      const currentUser = JSON.parse(localStorage.getItem('user'));
-      if (currentUser && !currentUser.isAdmin) {
-        localStorage.removeItem('user');
-        navigate('/login');
-      }
-    });
-
-    // Cleanup on unmount
-    return () => {
-      socket.disconnect();
-    };
   }, [navigate]);
 
   const DashboardCard = ({ title, icon, onCardClick }) => (

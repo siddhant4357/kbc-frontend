@@ -1,14 +1,31 @@
-import { useEffect, useState } from 'react';
-import { ref, onValue, set, update } from 'firebase/database';
+import { useState, useEffect, useCallback } from 'react';
+import { ref, onValue, set } from 'firebase/database';
 import { db } from '../utils/firebase';
 
 export const useFirebaseGameState = (gameId) => {
   const [gameState, setGameState] = useState(null);
   const [error, setError] = useState(null);
 
-  useEffect(() => {
-    const gameRef = ref(db, `games/${gameId}`);
+  const updateGameState = useCallback(async (newState) => {
+    if (!gameId) return;
     
+    try {
+      const gameRef = ref(db, `games/${gameId}`);
+      await set(gameRef, {
+        ...gameState,
+        ...newState,
+        updatedAt: Date.now()
+      });
+    } catch (err) {
+      setError(err.message);
+      throw err;
+    }
+  }, [gameId, gameState]);
+
+  useEffect(() => {
+    if (!gameId) return;
+
+    const gameRef = ref(db, `games/${gameId}`);
     const unsubscribe = onValue(gameRef, (snapshot) => {
       const data = snapshot.val();
       if (data) {
@@ -20,25 +37,6 @@ export const useFirebaseGameState = (gameId) => {
 
     return () => unsubscribe();
   }, [gameId]);
-
-  useEffect(() => {
-    const connectedRef = ref(db, '.info/connected');
-    onValue(connectedRef, (snap) => {
-      if (!snap.val()) {
-        setError('Lost connection to Firebase');
-      }
-    });
-  }, []);
-
-  const updateGameState = async (updates) => {
-    try {
-      const gameRef = ref(db, `games/${gameId}`);
-      await update(gameRef, updates);
-    } catch (error) {
-      console.error('Firebase update error:', error);
-      throw new Error('Failed to update game state');
-    }
-  };
 
   return { gameState, error, updateGameState };
 };

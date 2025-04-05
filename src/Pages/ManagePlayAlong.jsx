@@ -290,7 +290,9 @@ const ManagePlayAlong = () => {
   };
 
   const startGame = async () => {
-    if (selectedBank) {
+    if (!selectedBank) return;
+
+    try {
       await updateGameState({
         isActive: true,
         currentQuestion: {
@@ -305,6 +307,9 @@ const ManagePlayAlong = () => {
         startedAt: Date.now(),
       });
       setGameStarted(true);
+    } catch (err) {
+      console.error('Error starting game:', err);
+      setError('Failed to start game. Please try again.');
     }
   };
 
@@ -325,34 +330,49 @@ const ManagePlayAlong = () => {
   };
 
   const showOptions = async () => {
-    if (gameStarted) {
+    if (!gameStarted) return;
+
+    try {
       await updateGameState({
         showOptions: true,
         timerStartedAt: Date.now(),
         timerDuration: parseInt(timerDuration),
       });
+    } catch (err) {
+      console.error('Error showing options:', err);
+      setError('Failed to show options. Please try again.');
     }
   };
 
   const showAnswer = async () => {
-    if (gameStarted) {
+    if (!gameStarted) return;
+
+    try {
       await updateGameState({
         showAnswer: true,
       });
+    } catch (err) {
+      console.error('Error showing answer:', err);
+      setError('Failed to show answer. Please try again.');
     }
   };
 
   const stopGame = async () => {
-    await updateGameState({
-      isActive: false,
-      currentQuestion: null,
-      showOptions: false,
-      showAnswer: false,
-      timerStartedAt: null,
-      timerDuration: 0,
-    });
-    setGameStarted(false);
-    navigate('/dashboard');
+    try {
+      await updateGameState({
+        isActive: false,
+        currentQuestion: null,
+        showOptions: false,
+        showAnswer: false,
+        timerStartedAt: null,
+        timerDuration: 0,
+      });
+      setGameStarted(false);
+      navigate('/dashboard');
+    } catch (err) {
+      console.error('Error stopping game:', err);
+      setError('Failed to stop game. Please try again.');
+    }
   };
 
   const handleButtonPress = (buttonName) => {
