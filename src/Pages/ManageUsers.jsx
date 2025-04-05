@@ -241,17 +241,32 @@ const ManageUsers = () => {
 
   const handleDeleteAllUsers = async () => {
     try {
+      // Verify admin status locally first
+      const user = JSON.parse(localStorage.getItem('user'));
+      if (!user?.isAdmin) {
+        setError('Unauthorized: Admin access required');
+        return;
+      }
+
       const response = await fetch(`${API_URL}/api/users`, {
         method: 'DELETE',
-        credentials: 'include'
+        credentials: 'include',
+        headers: {
+          'Content-Type': 'application/json'
+        }
       });
+
+      if (response.status === 403) {
+        setError('Unauthorized: Admin access required');
+        return;
+      }
 
       if (!response.ok) {
         throw new Error(`HTTP error! status: ${response.status}`);
       }
 
       const data = await response.json();
-      setSuccess('All users have been deleted and logged out');
+      setSuccess('All users have been deleted');
       setUsers([]);
       setShowConfirmDialog(false);
       setTimeout(() => setSuccess(''), 3000);
