@@ -10,11 +10,79 @@ import kbcLogo from '../assets/kbc-logo.jpg';
 const getImageUrl = (imageUrl) => {
   if (!imageUrl) return defaultQuestionImage;
   if (imageUrl.startsWith('http')) return imageUrl;
+  if (imageUrl.startsWith('data:')) return imageUrl;
   
-  // Clean the URL path to handle double slashes
-  const cleanPath = imageUrl.startsWith('/') ? imageUrl : `/${imageUrl}`;
-  return `${API_URL}${cleanPath}`.replace(/([^:]\/)\/+/g, "$1");
+  // Handle relative paths from backend
+  const baseUrl = API_URL.endsWith('/') ? API_URL.slice(0, -1) : API_URL;
+  const imagePath = imageUrl.startsWith('/') ? imageUrl : `/${imageUrl}`;
+  
+  try {
+    return `${baseUrl}/uploads/questions/${imagePath.split('/').pop()}`;
+  } catch (error) {
+    console.error('Error formatting image URL:', error);
+    return defaultQuestionImage;
+  }
 };
+
+const ImageErrorBoundary = React.memo(({ children }) => {
+  const [hasError, setHasError] = useState(false);
+
+  useEffect(() => {
+    if (hasError) {
+      // Reset error state after 5 seconds
+      const timer = setTimeout(() => setHasError(false), 5000);
+      return () => clearTimeout(timer);
+    }
+  }, [hasError]);
+
+  if (hasError) {
+    return (
+      <div className="w-full h-full flex items-center justify-center bg-kbc-dark-blue/50 rounded-lg">
+        <div className="text-kbc-gold text-sm text-center p-4">
+          Unable to load image
+        </div>
+      </div>
+    );
+  }
+
+  return children;
+});
+
+const QuestionImage = React.memo(({ imageUrl }) => {
+  const [imgSrc, setImgSrc] = useState(getImageUrl(imageUrl));
+  const [hasError, setHasError] = useState(false);
+  const [isLoading, setIsLoading] = useState(true);
+
+  const handleError = () => {
+    console.warn('Error loading image:', imgSrc);
+    if (imgSrc !== defaultQuestionImage) {
+      setImgSrc(defaultQuestionImage);
+      setHasError(true);
+    }
+  };
+
+  return (
+    <ImageErrorBoundary>
+      <div className="relative w-full h-full">
+        {isLoading && !hasError && (
+          <div className="absolute inset-0 flex items-center justify-center bg-kbc-dark-blue/50">
+            <div className="animate-spin rounded-full h-8 w-8 border-2 border-kbc-gold"></div>
+          </div>
+        )}
+        <img
+          src={imgSrc}
+          alt="Question"
+          className={`w-full h-full object-contain rounded-lg shadow-glow transition-opacity duration-300 ${
+            isLoading ? 'opacity-0' : 'opacity-100'
+          }`}
+          onError={handleError}
+          onLoad={() => setIsLoading(false)}
+          crossOrigin="anonymous"
+        />
+      </div>
+    </ImageErrorBoundary>
+  );
+});
 
 const PlayGame = () => {
   const { id } = useParams();
@@ -323,20 +391,9 @@ const PlayGame = () => {
                     ? 'h-32 sm:h-40 lg:h-66'
                     : 'h-48 sm:h-64 lg:h-88'
                 }`}>
-                  <img
-                    src={getImageUrl(currentQuestion.imageUrl)}
-                    alt="Question"
-                    className="w-full h-full object-contain rounded-lg shadow-glow"
-                    onError={(e) => {
-                      console.warn('Error loading image:', currentQuestion.imageUrl);
-                      if (e.target.src !== defaultQuestionImage) {
-                        console.log('Falling back to default image');
-                        e.target.src = defaultQuestionImage;
-                        e.target.onerror = null; // Prevent infinite loop
-                      }
-                    }}
-                    crossOrigin="anonymous"
-                  />
+                  <ImageErrorBoundary>
+                    <QuestionImage imageUrl={currentQuestion.imageUrl} />
+                  </ImageErrorBoundary>
                 </div>
               </div>
 
