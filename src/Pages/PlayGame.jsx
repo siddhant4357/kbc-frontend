@@ -6,6 +6,7 @@ import { useAudioManager } from '../hooks/useAudioManager';
 import { useFirebaseGameState } from '../hooks/useFirebaseGameState';
 import { ref, set } from 'firebase/database';
 import { db } from '../utils/firebase';
+import kbcLogo from '../assets/kbc-logo.png';
 
 // Import audio assets
 import themeAudio from '../assets/kbc_theme.wav';
@@ -339,7 +340,7 @@ const PlayGame = () => {
                   QUIT
                 </button>
                 <img
-                  src="/src/assets/kbc-logo.png"
+                  src={kbcLogo}
                   alt="KBC Logo"
                   className="h-8"
                 />
@@ -348,7 +349,7 @@ const PlayGame = () => {
 
             <div className="kbc-card p-8 text-center mt-20 mx-4 animate-pulse">
               <img
-                src="/src/assets/kbc-logo.png"
+                src={kbcLogo}
                 alt="KBC Logo"
                 className="w-24 h-24 mx-auto mb-6"
               />
