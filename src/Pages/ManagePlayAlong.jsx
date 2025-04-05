@@ -366,6 +366,7 @@ const ManagePlayAlong = () => {
         showAnswer: false,
         timerStartedAt: null,
         timerDuration: 0,
+        gameStopped: true, // Add this flag
       });
       setGameStarted(false);
       navigate('/dashboard');

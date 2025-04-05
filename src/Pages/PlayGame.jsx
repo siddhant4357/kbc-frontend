@@ -89,9 +89,31 @@ const PlayGame = () => {
   // Firebase game state
   const { gameState: firebaseGameState } = useFirebaseGameState(id);
 
-  // Modify the processGameState function to be memoized
+  // Update the processGameState function in PlayGame.jsx
   const processGameState = useCallback(async (state) => {
     if (!state) return;
+
+    // Check if game is stopped or inactive
+    if (!state.isActive) {
+      await stopAll();
+      setGameStopped(true);
+      setCurrentQuestion(null);
+      setShowOptions(false);
+      setShowAnswer(false);
+      setSelectedOption(null);
+      setLockedAnswer(null);
+      
+      // Show a brief message before redirecting
+      setError('Game has been stopped by the admin');
+      
+      // Redirect after a short delay
+      setTimeout(() => {
+        localStorage.removeItem(`game_${id}_token`);
+        navigate('/dashboard');
+      }, 2000);
+      
+      return;
+    }
 
     // Process game token
     if (state.gameToken && state.gameToken !== gameToken) {
@@ -109,24 +131,6 @@ const PlayGame = () => {
       setSelectedOption(null);
       setLockedAnswer(null);
       setTimeout(() => navigate('/dashboard'), 2000);
-      return;
-    }
-
-    // Handle inactive state
-    if (!state.isActive) {
-      if (!isWaiting) {
-        await stopAll();
-        if (hasUserInteracted) {
-          play('theme').catch(console.error);
-        }
-        setCurrentQuestion(null);
-        setShowOptions(false);
-        setShowAnswer(false);
-        setSelectedOption(null);
-        setLockedAnswer(null);
-        setGameStopped(false);
-        setIsWaiting(true);
-      }
       return;
     }
 
@@ -179,7 +183,7 @@ const PlayGame = () => {
         setShowAnswer(true);
       }
     }
-  }, [id, gameToken, currentQuestion, showOptions, showAnswer, gameStopped, isWaiting, hasUserInteracted]);
+  }, [id, gameToken, currentQuestion, showOptions, showAnswer, gameStopped, isWaiting, hasUserInteracted, navigate, stopAll]);
 
   const handleStartExperience = async () => {
     try {
