@@ -1,10 +1,11 @@
 import { useState, useEffect, useCallback } from 'react';
-import { ref, onValue, set, off } from 'firebase/database';
+import { ref, onValue, set } from 'firebase/database';
 import { db } from '../utils/firebase';
 
 export const useFirebaseGameState = (gameId) => {
   const [gameState, setGameState] = useState(null);
   const [error, setError] = useState(null);
+  const [isInitialized, setIsInitialized] = useState(false);
 
   // Set up real-time listener
   useEffect(() => {
@@ -13,26 +14,25 @@ export const useFirebaseGameState = (gameId) => {
     const gameRef = ref(db, `games/${gameId}`);
     
     // Listen for real-time updates
-    onValue(gameRef, (snapshot) => {
+    const unsubscribe = onValue(gameRef, (snapshot) => {
       const data = snapshot.val();
-      if (data) {
-        console.log('Firebase update received:', data);
-        setGameState(data);
-      }
+      console.log('Firebase state update:', data);
+      setGameState(data);
+      setIsInitialized(true);
     }, (error) => {
       console.error('Firebase error:', error);
       setError('Error connecting to game');
+      setIsInitialized(true);
     });
 
     // Cleanup listener
     return () => {
-      off(gameRef);
+      unsubscribe();
     };
   }, [gameId]);
 
-  // Update game state function
   const updateGameState = useCallback(async (updates) => {
-    if (!gameId) return;
+    if (!gameId) return false;
 
     try {
       const gameRef = ref(db, `games/${gameId}`);
@@ -49,5 +49,5 @@ export const useFirebaseGameState = (gameId) => {
     }
   }, [gameId, gameState]);
 
-  return { gameState, error, updateGameState };
+  return { gameState, error, updateGameState, isInitialized };
 };
