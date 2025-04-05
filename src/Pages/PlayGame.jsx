@@ -8,18 +8,21 @@ import { db } from '../utils/firebase';
 import kbcLogo from '../assets/kbc-logo.jpg';
 
 const getImageUrl = (imageUrl) => {
-  if (!imageUrl) return defaultQuestionImage;
+  if (!imageUrl || imageUrl === '') return defaultQuestionImage;
   if (imageUrl.startsWith('http')) return imageUrl;
   if (imageUrl.startsWith('data:')) return imageUrl;
   
-  // Handle relative paths from backend
-  const baseUrl = API_URL.endsWith('/') ? API_URL.slice(0, -1) : API_URL;
-  const imagePath = imageUrl.startsWith('/') ? imageUrl : `/${imageUrl}`;
-  
   try {
-    return `${baseUrl}/uploads/questions/${imagePath.split('/').pop()}`;
+    // For relative paths from backend, ensure consistent formatting
+    if (imageUrl.includes('uploads/questions/')) {
+      return `${API_URL}/${imageUrl.replace(/^\//, '')}`;
+    }
+    
+    // Extract filename and construct proper URL
+    const filename = imageUrl.split('/').pop();
+    return `${API_URL}/uploads/questions/${filename}`;
   } catch (error) {
-    console.error('Error formatting image URL:', error);
+    console.warn('Error formatting image URL:', error);
     return defaultQuestionImage;
   }
 };
@@ -29,7 +32,6 @@ const ImageErrorBoundary = React.memo(({ children }) => {
 
   useEffect(() => {
     if (hasError) {
-      // Reset error state after 5 seconds
       const timer = setTimeout(() => setHasError(false), 5000);
       return () => clearTimeout(timer);
     }
@@ -38,8 +40,13 @@ const ImageErrorBoundary = React.memo(({ children }) => {
   if (hasError) {
     return (
       <div className="w-full h-full flex items-center justify-center bg-kbc-dark-blue/50 rounded-lg">
-        <div className="text-kbc-gold text-sm text-center p-4">
-          Unable to load image
+        <div className="text-center">
+          <div className="text-kbc-gold text-sm mb-2">Unable to load image</div>
+          <img 
+            src={defaultQuestionImage}
+            alt="Default"
+            className="w-24 h-24 mx-auto opacity-50"
+          />
         </div>
       </div>
     );
@@ -49,38 +56,44 @@ const ImageErrorBoundary = React.memo(({ children }) => {
 });
 
 const QuestionImage = React.memo(({ imageUrl }) => {
-  const [imgSrc, setImgSrc] = useState(getImageUrl(imageUrl));
+  const [imgSrc, setImgSrc] = useState(() => getImageUrl(imageUrl));
   const [hasError, setHasError] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
+
+  useEffect(() => {
+    // Reset states when imageUrl changes
+    setImgSrc(getImageUrl(imageUrl));
+    setHasError(false);
+    setIsLoading(true);
+  }, [imageUrl]);
 
   const handleError = () => {
     console.warn('Error loading image:', imgSrc);
     if (imgSrc !== defaultQuestionImage) {
       setImgSrc(defaultQuestionImage);
       setHasError(true);
+      setIsLoading(false);
     }
   };
 
   return (
-    <ImageErrorBoundary>
-      <div className="relative w-full h-full">
-        {isLoading && !hasError && (
-          <div className="absolute inset-0 flex items-center justify-center bg-kbc-dark-blue/50">
-            <div className="animate-spin rounded-full h-8 w-8 border-2 border-kbc-gold"></div>
-          </div>
-        )}
-        <img
-          src={imgSrc}
-          alt="Question"
-          className={`w-full h-full object-contain rounded-lg shadow-glow transition-opacity duration-300 ${
-            isLoading ? 'opacity-0' : 'opacity-100'
-          }`}
-          onError={handleError}
-          onLoad={() => setIsLoading(false)}
-          crossOrigin="anonymous"
-        />
-      </div>
-    </ImageErrorBoundary>
+    <div className="relative w-full h-full">
+      {isLoading && !hasError && (
+        <div className="absolute inset-0 flex items-center justify-center bg-kbc-dark-blue/50 rounded-lg">
+          <div className="animate-spin rounded-full h-8 w-8 border-2 border-kbc-gold"></div>
+        </div>
+      )}
+      <img
+        src={imgSrc}
+        alt="Question"
+        className={`w-full h-full object-contain rounded-lg shadow-glow transition-opacity duration-300 ${
+          isLoading ? 'opacity-0' : 'opacity-100'
+        }`}
+        onError={handleError}
+        onLoad={() => setIsLoading(false)}
+        crossOrigin="anonymous"
+      />
+    </div>
   );
 });
 
