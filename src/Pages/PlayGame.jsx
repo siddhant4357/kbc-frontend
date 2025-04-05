@@ -1,9 +1,9 @@
-import React, { useState, useEffect, useCallback, useMemo } from 'react';
+import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { API_URL } from '../utils/config';
 import defaultQuestionImage from '../assets/default_img.jpg';
 import { useFirebaseGameState } from '../hooks/useFirebaseGameState';
-import { ref, set } from 'firebase/database';
+import { ref, set, onDisconnect, serverTimestamp } from 'firebase/database';
 import { db } from '../utils/firebase';
 import kbcLogo from '../assets/kbc-logo.jpg';
 
@@ -126,23 +126,40 @@ const PlayGame = () => {
   // Firebase game state
   const { gameState: firebaseGameState } = useFirebaseGameState(id);
 
-  const processGameState = useCallback(async (state) => {
-    if (!state) return;
+  // Add refs for tracking timeouts and navigation
+  const timeoutsRef = useRef([]);
+  const isNavigatingRef = useRef(false);
 
-    // Check if game is stopped or inactive
+  const processGameState = useCallback(async (state) => {
+    if (!state || isNavigatingRef.current) return;
+
+    const updateStates = (updates) => {
+      setGameState(prev => ({
+        ...prev,
+        ...updates
+      }));
+    };
+
+    // Handle game stopped/inactive state
     if (!state.isActive) {
-      setGameStopped(true);
-      setCurrentQuestion(null);
-      setShowOptions(false);
-      setShowAnswer(false);
-      setSelectedOption(null);
-      setLockedAnswer(null);
-      
-      setError('Game has been stopped by the admin');
-      setTimeout(() => {
-        localStorage.removeItem(`game_${id}_token`);
-        navigate('/dashboard');
-      }, 2000);
+      updateStates({
+        gameStopped: true,
+        currentQuestion: null,
+        showOptions: false,
+        showAnswer: false,
+        selectedOption: null,
+        lockedAnswer: null,
+        error: 'Game has been stopped by the admin'
+      });
+
+      if (!isNavigatingRef.current) {
+        isNavigatingRef.current = true;
+        const timeout = setTimeout(() => {
+          localStorage.removeItem(`game_${id}_token`);
+          navigate('/dashboard');
+        }, 2000);
+        timeoutsRef.current.push(timeout);
+      }
       return;
     }
 
@@ -152,15 +169,19 @@ const PlayGame = () => {
       localStorage.setItem(`game_${id}_token`, state.gameToken);
     }
 
-    // Handle game stopped state
+    // Handle game stopped state with batched updates
     if (state.gameStopped && !gameStopped) {
-      setGameStopped(true);
-      setCurrentQuestion(null);
-      setShowOptions(false);
-      setShowAnswer(false);
-      setSelectedOption(null);
-      setLockedAnswer(null);
-      setTimeout(() => navigate('/dashboard'), 2000);
+      updateStates({
+        gameStopped: true,
+        currentQuestion: null,
+        showOptions: false,
+        showAnswer: false,
+        selectedOption: null,
+        lockedAnswer: null
+      });
+      
+      const stopTimeout = setTimeout(() => navigate('/dashboard'), 2000);
+      timeoutsRef.current.push(stopTimeout);
       return;
     }
 
@@ -194,7 +215,7 @@ const PlayGame = () => {
     if (state.showAnswer && !showAnswer) {
       setShowAnswer(true);
     }
-  }, [id, gameToken, currentQuestion, showOptions, showAnswer, gameStopped, navigate]);
+  }, [id, gameToken, gameStopped, navigate]);
 
   const formatTime = (seconds) => {
     if (seconds < 0) return '00';
@@ -232,10 +253,44 @@ const PlayGame = () => {
   }, [timerStartedAt, timerDuration, showOptions, lockedAnswer, isTimerExpired]);
 
   useEffect(() => {
-    if (firebaseGameState && user) {
+    return () => {
+      // Clear all timeouts on unmount
+      timeoutsRef.current.forEach(timeout => clearTimeout(timeout));
+      timeoutsRef.current = [];
+      isNavigatingRef.current = false;
+    };
+  }, []);
+
+  useEffect(() => {
+    if (firebaseGameState && user && !isNavigatingRef.current) {
       processGameState(firebaseGameState).catch(console.error);
     }
+
+    return () => {
+      timeoutsRef.current.forEach(timeout => clearTimeout(timeout));
+      timeoutsRef.current = [];
+    };
   }, [firebaseGameState, user, processGameState]);
+
+  // Add this effect for Firebase cleanup
+  useEffect(() => {
+    const userRef = user ? ref(db, `games/${id}/players/${user.username}`) : null;
+    
+    if (userRef) {
+      // Set up disconnect handler
+      onDisconnect(userRef).update({
+        isOnline: false,
+        leftAt: serverTimestamp()
+      }).catch(console.error);
+    }
+
+    return () => {
+      if (userRef) {
+        // Clear disconnect handler on cleanup
+        onDisconnect(userRef).cancel().catch(console.error);
+      }
+    };
+  }, [db, id, user]);
 
   const handleOptionSelect = (option) => {
     if (!showAnswer && !lockedAnswer) {
@@ -284,8 +339,10 @@ const PlayGame = () => {
   };
 
   const confirmExit = async () => {
+    if (isNavigatingRef.current) return;
+    
     try {
-      // Update Firebase to mark player as offline
+      isNavigatingRef.current = true;
       if (user) {
         const userRef = ref(db, `games/${id}/players/${user.username}`);
         await set(userRef, {
@@ -294,12 +351,17 @@ const PlayGame = () => {
           leftAt: Date.now()
         });
       }
+      
+      localStorage.removeItem(`game_${id}_token`);
+      // Add slight delay before navigation
+      const timeout = setTimeout(() => {
+        navigate('/dashboard');
+      }, 300);
+      timeoutsRef.current.push(timeout);
     } catch (err) {
       console.error('Error updating player status:', err);
+      isNavigatingRef.current = false;
     }
-
-    localStorage.removeItem(`game_${id}_token`);
-    navigate('/dashboard');
   };
 
   if (isWaiting) {
