@@ -6,7 +6,7 @@ import { useAudioManager } from '../hooks/useAudioManager';
 import { useFirebaseGameState } from '../hooks/useFirebaseGameState';
 import { ref, set } from 'firebase/database';
 import { db } from '../utils/firebase';
-import kbcLogo from '../assets/kbc-logo.png';
+import kbcLogo from '../assets/kbc-logo.jpg';
 
 // Import audio assets
 import themeAudio from '../assets/kbc_theme.wav';
