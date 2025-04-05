@@ -301,16 +301,15 @@ const ManagePlayAlong = () => {
     if (!selectedBank) return;
 
     try {
-      // First check if user is admin
       const user = JSON.parse(localStorage.getItem('user'));
       if (!user?.isAdmin) {
         setError('Only admins can start the game');
         return;
       }
 
-      // Create initial game state
+      // Create initial game state with explicit isActive true
       const gameData = {
-        isActive: true,
+        isActive: true, // Make sure this is explicitly set to true
         admin: user.username,
         gameToken: Date.now().toString(),
         currentQuestion: {

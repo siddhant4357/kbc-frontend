@@ -140,7 +140,12 @@ const PlayGame = () => {
       }));
     };
 
-    // First check if game exists and is active
+    // Check if game is active first and update waiting state immediately
+    if (state.isActive === true) {
+      setIsWaiting(false);
+    }
+
+    // Check for game stopped state
     if (state.isActive === false) {
       updateStates({
         gameStopped: true,
@@ -161,11 +166,6 @@ const PlayGame = () => {
         timeoutsRef.current.push(timeout);
       }
       return;
-    }
-
-    // If game is active, update waiting state
-    if (state.isActive) {
-      setIsWaiting(false);
     }
 
     // Process game token
