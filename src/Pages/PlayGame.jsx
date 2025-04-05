@@ -277,11 +277,29 @@ const PlayGame = () => {
       const userRef = ref(db, `games/${id}/players/${user.username}/answers/${currentQuestion.questionIndex}`);
       const answerData = {
         answer: selectedOption,
-        answeredAt: Date.now()
+        answeredAt: Date.now(),
+        isCorrect: selectedOption === currentQuestion.correctAnswer
       };
 
+      // Update Firebase
       await set(userRef, answerData);
       setLockedAnswer(selectedOption);
+
+      // Update user points in MongoDB
+      if (selectedOption === currentQuestion.correctAnswer) {
+        await fetch(`${API_URL}/api/leaderboard/update`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json'
+          },
+          credentials: 'include',
+          body: JSON.stringify({
+            username: user.username,
+            points: 10,
+            isCorrect: true
+          })
+        });
+      }
     } catch (error) {
       console.error('Error submitting answer:', error);
       setError('Failed to submit answer');
