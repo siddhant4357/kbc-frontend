@@ -20,9 +20,17 @@ export const useAudioManager = (audioFiles) => {
     };
   }, []);
 
-  const play = async (key) => {
+  const play = async (key, options = {}) => {
     try {
-      await audioElements[key]?.play();
+      await stopAll();
+      await new Promise(resolve => setTimeout(resolve, 100));
+      
+      const audio = audioElements[key];
+      if (!audio) return;
+
+      audio.currentTime = 0;
+      audio.loop = !!options.loop;
+      await audio.play();
     } catch (error) {
       console.error(`Error playing ${key}:`, error);
     }
