@@ -307,14 +307,14 @@ const ManagePlayAlong = () => {
         return;
       }
 
-      // Create initial game state with explicit isActive true
       const gameData = {
-        isActive: true, // Make sure this is explicitly set to true
+        isActive: true,
         admin: user.username,
         gameToken: Date.now().toString(),
         currentQuestion: {
           ...selectedBank.questions[0],
           questionIndex: 0,
+          imageUrl: selectedBank.questions[0].imageUrl || '',
         },
         showOptions: false,
         showAnswer: false,
@@ -322,6 +322,7 @@ const ManagePlayAlong = () => {
         timerDuration: parseInt(timerDuration),
         players: {},
         startedAt: Date.now(),
+        questionBankId: selectedBank._id,
       };
 
       // Update Firebase
@@ -329,6 +330,7 @@ const ManagePlayAlong = () => {
       await set(gameRef, gameData);
       
       setGameStarted(true);
+      console.log('Game started successfully');
     } catch (err) {
       console.error('Error starting game:', err);
       setError('Failed to start game. Please check your permissions.');
@@ -359,7 +361,9 @@ const ManagePlayAlong = () => {
         showOptions: true,
         timerStartedAt: Date.now(),
         timerDuration: parseInt(timerDuration),
+        updatedAt: Date.now(),
       });
+      console.log('Options shown successfully');
     } catch (err) {
       console.error('Error showing options:', err);
       setError('Failed to show options. Please try again.');
@@ -372,7 +376,9 @@ const ManagePlayAlong = () => {
     try {
       await updateGameState({
         showAnswer: true,
+        updatedAt: Date.now(),
       });
+      console.log('Answer shown successfully');
     } catch (err) {
       console.error('Error showing answer:', err);
       setError('Failed to show answer. Please try again.');
