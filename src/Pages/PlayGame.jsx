@@ -133,16 +133,74 @@ const PlayGame = () => {
   const processGameState = useCallback(async (state) => {
     if (!state || isNavigatingRef.current || !isInitialized) return;
 
-    console.log('Processing game state:', state); // Add this for debugging
+    console.log('Processing game state:', state); // Debug log
 
     // First handle active state
     if (state.isActive === true) {
       setIsWaiting(false);
     } else if (state.isActive === false) {
       setIsWaiting(true);
+      return; // Exit early if game is not active
     }
 
-    // Rest of your processGameState logic...
+    // Handle game stopped state
+    if (state.gameStopped && !gameStopped) {
+      setGameStopped(true);
+      setCurrentQuestion(null);
+      setShowOptions(false);
+      setShowAnswer(false);
+      setSelectedOption(null);
+      setLockedAnswer(null);
+      setError('Game has been stopped by the admin');
+      
+      const timeout = setTimeout(() => {
+        localStorage.removeItem(`game_${id}_token`);
+        navigate('/dashboard');
+      }, 2000);
+      timeoutsRef.current.push(timeout);
+      return;
+    }
+
+    // Handle question changes
+    if (state.currentQuestion) {
+      const newQuestionIndex = parseInt(state.currentQuestion.questionIndex ?? 0);
+      const currentQuestionIndex = parseInt(currentQuestion?.questionIndex ?? -1);
+
+      if (newQuestionIndex !== currentQuestionIndex) {
+        // Reset states for new question
+        setCurrentQuestion(state.currentQuestion);
+        setShowOptions(false);
+        setShowAnswer(false);
+        setSelectedOption(null);
+        setLockedAnswer(null);
+        setTimeLeft(state.timerDuration || 15);
+        setIsTimerExpired(false);
+      }
+    }
+
+    // Handle options visibility
+    if (state.showOptions !== showOptions) {
+      setShowOptions(state.showOptions);
+      if (state.showOptions) {
+        setTimerStartedAt(state.timerStartedAt);
+        setTimerDuration(state.timerDuration || 15);
+        setTimeLeft(state.timerDuration || 15);
+        setIsTimerExpired(false);
+        setSelectedOption(null);
+        setLockedAnswer(null);
+      }
+    }
+
+    // Handle answer reveal
+    if (state.showAnswer && !showAnswer) {
+      setShowAnswer(true);
+    }
+
+    // Update game token if changed
+    if (state.gameToken && state.gameToken !== gameToken) {
+      setGameToken(state.gameToken);
+      localStorage.setItem(`game_${id}_token`, state.gameToken);
+    }
   }, [id, gameToken, gameStopped, navigate, currentQuestion, showOptions, showAnswer, isInitialized]);
 
   const formatTime = (seconds) => {
@@ -264,7 +322,8 @@ const PlayGame = () => {
   }, [firebaseGameState]);
 
   const handleOptionSelect = (option) => {
-    if (!showAnswer && !lockedAnswer) {
+    if (!showAnswer && !lockedAnswer && timeLeft > 0 && showOptions) {
+      console.log('Option selected:', option); // Debug log
       setSelectedOption(option);
     }
   };
