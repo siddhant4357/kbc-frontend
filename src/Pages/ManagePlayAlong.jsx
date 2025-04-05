@@ -267,6 +267,14 @@ const ManagePlayAlong = () => {
       });
   }, []);
 
+  useEffect(() => {
+    if (error) {
+      // Show error message to user
+      console.error('Game error:', error);
+      setTimeout(() => setError(null), 5000); // Clear error after 5 seconds
+    }
+  }, [error]);
+
   const fetchQuestionBanks = async () => {
     try {
       const response = await fetch(`${API_URL}/api/questionbanks`, {
@@ -293,8 +301,18 @@ const ManagePlayAlong = () => {
     if (!selectedBank) return;
 
     try {
-      await updateGameState({
+      // First check if user is admin
+      const user = JSON.parse(localStorage.getItem('user'));
+      if (!user?.isAdmin) {
+        setError('Only admins can start the game');
+        return;
+      }
+
+      // Create initial game state
+      const gameData = {
         isActive: true,
+        admin: user.username,
+        gameToken: Date.now().toString(),
         currentQuestion: {
           ...selectedBank.questions[0],
           questionIndex: 0,
@@ -305,11 +323,16 @@ const ManagePlayAlong = () => {
         timerDuration: parseInt(timerDuration),
         players: {},
         startedAt: Date.now(),
-      });
+      };
+
+      // Update Firebase
+      const gameRef = ref(db, `games/${selectedBank._id}`);
+      await set(gameRef, gameData);
+      
       setGameStarted(true);
     } catch (err) {
       console.error('Error starting game:', err);
-      setError('Failed to start game. Please try again.');
+      setError('Failed to start game. Please check your permissions.');
     }
   };
 
@@ -441,7 +464,11 @@ const ManagePlayAlong = () => {
 
         {success && <div style={styles.successAlert}>{success}</div>}
 
-        {error && <div style={styles.errorAlert}>{error}</div>}
+        {error && (
+          <div className="text-red-500 bg-red-100 p-4 rounded-md mb-4">
+            {error}
+          </div>
+        )}
 
         <div style={styles.cardContainer}>
           <div

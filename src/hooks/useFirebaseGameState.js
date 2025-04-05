@@ -10,11 +10,15 @@ export const useFirebaseGameState = (gameId) => {
     if (!gameId) return;
     
     try {
+      const user = JSON.parse(localStorage.getItem('user'));
+      if (!user) throw new Error('User not authenticated');
+
       const gameRef = ref(db, `games/${gameId}`);
       await set(gameRef, {
         ...gameState,
         ...newState,
-        updatedAt: Date.now()
+        updatedAt: Date.now(),
+        admin: user.username // Add admin info
       });
     } catch (err) {
       setError(err.message);
