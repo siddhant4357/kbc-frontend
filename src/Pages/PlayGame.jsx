@@ -61,19 +61,18 @@ const QuestionImage = React.memo(({ imageUrl }) => {
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
-    // Reset states when imageUrl changes
     setImgSrc(getImageUrl(imageUrl));
     setHasError(false);
     setIsLoading(true);
   }, [imageUrl]);
 
-  const handleError = () => {
-    console.warn('Error loading image:', imgSrc);
+  const handleError = (e) => {
+    console.error('Image load error for:', imgSrc);
     if (imgSrc !== defaultQuestionImage) {
-      setImgSrc(defaultQuestionImage);
+      e.target.src = defaultQuestionImage;
       setHasError(true);
-      setIsLoading(false);
     }
+    setIsLoading(false);
   };
 
   return (
