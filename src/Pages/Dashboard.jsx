@@ -413,7 +413,7 @@ const Dashboard = () => {
               alt="KBC Logo" 
               className="app-logo"
             />
-            <span className="app-name">KBC Quiz Dashboard</span>
+            <span className="app-name">KBG Quiz Dashboard</span>
           </div>
         </div>
 
