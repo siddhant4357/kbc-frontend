@@ -6,6 +6,7 @@ import { useFirebaseGameState } from '../hooks/useFirebaseGameState';
 import { ref, set, onDisconnect, serverTimestamp, onValue } from 'firebase/database';
 import { db } from '../utils/firebase';
 import kbcLogo from '../assets/kbc-logo.jpg';
+import { debounce } from 'lodash';
 
 const getImageUrl = (imageUrl) => {
   if (!imageUrl || imageUrl === '') return defaultQuestionImage;
@@ -134,6 +135,8 @@ const PlayGame = () => {
   const timeoutsRef = useRef([]);
   const isNavigatingRef = useRef(false);
 
+  const [connectionAttempts, setConnectionAttempts] = useState(0);
+
   const processGameState = useCallback(async (state) => {
     if (!state || isNavigatingRef.current || !isInitialized) return;
 
@@ -204,6 +207,14 @@ const PlayGame = () => {
     }
   }, [id, gameToken, gameStopped, navigate, currentQuestion, showOptions, showAnswer, isInitialized]);
 
+  const debouncedProcessGameState = useCallback(
+    debounce((state) => {
+      if (!state || isNavigatingRef.current || !isInitialized) return;
+      processGameState(state).catch(console.error);
+    }, 500),
+    [processGameState]
+  );
+
   const formatTime = (seconds) => {
     if (seconds < 0) return '00';
     return seconds.toString().padStart(2, '0');
@@ -224,6 +235,18 @@ const PlayGame = () => {
       setError('Lost connection to game server. You may need to rejoin.');
     }
   }, [isConnected, isWaiting]);
+
+  useEffect(() => {
+    if (!isConnected && connectionAttempts < 3) {
+      const reconnectTimeout = setTimeout(() => {
+        setConnectionAttempts(prev => prev + 1);
+        // Attempt to reconnect
+        window.location.reload();
+      }, Math.pow(2, connectionAttempts) * 1000);
+
+      return () => clearTimeout(reconnectTimeout);
+    }
+  }, [isConnected, connectionAttempts]);
 
   // Update the timer effect
   useEffect(() => {
@@ -266,15 +289,13 @@ const PlayGame = () => {
 
   useEffect(() => {
     if (firebaseGameState && user && !isNavigatingRef.current && isInitialized) {
-      // console.log('Firebase state updated:', firebaseGameState);
-      processGameState(firebaseGameState).catch(console.error);
+      debouncedProcessGameState(firebaseGameState);
     }
 
     return () => {
-      timeoutsRef.current.forEach(timeout => clearTimeout(timeout));
-      timeoutsRef.current = [];
+      debouncedProcessGameState.cancel();
     };
-  }, [firebaseGameState, user, processGameState, isInitialized]);
+  }, [firebaseGameState, user, debouncedProcessGameState, isInitialized]);
 
   useEffect(() => {
     const userRef = user ? ref(db, `games/${id}/players/${user.username}`) : null;
@@ -351,23 +372,32 @@ const PlayGame = () => {
     }
 
     try {
-      const userRef = ref(db, `games/${id}/players/${user.username}/answers/${currentQuestion.questionIndex}`);
-      const answerData = {
+      const batchUpdates = {};
+      
+      // Add answer to Firebase batch
+      batchUpdates[`games/${id}/players/${user.username}/answers/${currentQuestion.questionIndex}`] = {
         answer: selectedOption,
         answeredAt: Date.now(),
         isCorrect: selectedOption === currentQuestion.correctAnswer
       };
 
-      // Update Firebase
-      await set(userRef, answerData);
+      // Update player status in same batch
+      batchUpdates[`games/${id}/players/${user.username}/status`] = {
+        lastActive: Date.now(),
+        currentQuestion: currentQuestion.questionIndex
+      };
+
+      // Execute batch update
+      await set(ref(db), batchUpdates);
       setLockedAnswer(selectedOption);
 
-      // Update user points in MongoDB
+      // Update points in MongoDB only if correct
       if (selectedOption === currentQuestion.correctAnswer) {
         const response = await fetch(`${API_URL}/api/leaderboard/update`, {
           method: 'POST',
           headers: {
-            'Content-Type': 'application/json'
+            'Content-Type': 'application/json',
+            'Cache-Control': 'no-cache'
           },
           credentials: 'include',
           body: JSON.stringify({
@@ -391,33 +421,35 @@ const PlayGame = () => {
     setShowExitConfirm(true);
   };
 
+  const retryOperation = async (operation, maxRetries = 3) => {
+    for (let i = 0; i < maxRetries; i++) {
+      try {
+        return await operation();
+      } catch (error) {
+        if (i === maxRetries - 1) throw error;
+        await new Promise(resolve => setTimeout(resolve, Math.pow(2, i) * 1000));
+      }
+    }
+  };
+
   const confirmExit = async () => {
     if (isNavigatingRef.current) return;
     
     try {
       isNavigatingRef.current = true;
       
-      // Clean up Firebase presence
       if (user) {
-        const userRef = ref(db, `games/${id}/players/${user.username}`);
-        try {
-          // Cancel any existing disconnect handlers first
+        await retryOperation(async () => {
+          const userRef = ref(db, `games/${id}/players/${user.username}`);
           await onDisconnect(userRef).cancel();
-          // Remove the user node
           await set(userRef, null);
-        } catch (firebaseError) {
-          console.error('Firebase cleanup failed:', firebaseError);
-        }
+        });
       }
       
-      // Clean up local storage
       localStorage.removeItem(`game_${id}_token`);
-      
-      // Clean up timeouts
       timeoutsRef.current.forEach(timeout => clearTimeout(timeout));
       timeoutsRef.current = [];
       
-      // Navigate to dashboard immediately
       navigate('/dashboard');
     } catch (err) {
       console.error('Error during exit:', err);
