@@ -6,7 +6,12 @@ import { useFirebaseGameState } from '../hooks/useFirebaseGameState';
 import { ref, set, onDisconnect, serverTimestamp, onValue } from 'firebase/database';
 import { db } from '../utils/firebase';
 import kbcLogo from '../assets/kbc-logo.jpg';
-import { debounce } from 'lodash';
+
+import { debounce, throttle } from 'lodash';
+
+const BATCH_INTERVAL = 2000; // 2 seconds
+const MAX_RETRIES = 3;
+const RECONNECT_DELAY = 2000;
 
 const getImageUrl = (imageUrl) => {
   if (!imageUrl || imageUrl === '') return defaultQuestionImage;
@@ -14,14 +19,10 @@ const getImageUrl = (imageUrl) => {
   if (imageUrl.startsWith('data:')) return imageUrl;
   
   try {
-    // Clean the imageUrl by removing any double slashes except after http(s)
     const cleanUrl = imageUrl.replace(/([^:])\/+/g, '$1/');
-    
-    // Handle both cases - full URL and relative path
     if (cleanUrl.includes('uploads/questions/')) {
       return `${API_URL}/${cleanUrl.split('uploads/questions/')[1]}`;
     }
-    
     return `${API_URL}/uploads/questions/${cleanUrl.split('/').pop()}`;
   } catch (error) {
     console.error('Error formatting image URL:', error);
@@ -67,7 +68,6 @@ const QuestionImage = React.memo(({ imageUrl }) => {
     console.error('Image load error for:', imgSrc);
     if (retryCount.current < 3 && imgSrc !== defaultQuestionImage) {
       retryCount.current += 1;
-      // Retry with a slight delay
       setTimeout(() => {
         setImgSrc(`${imgSrc}?retry=${retryCount.current}`);
       }, 1000);
@@ -107,11 +107,8 @@ const PlayGame = () => {
   const navigate = useNavigate();
   const user = JSON.parse(localStorage.getItem('user'));
 
-  // State management - group related states together
   const [gameState, setGameState] = useState(null);
   const [error, setError] = useState('');
-  
-  // Game state
   const [currentQuestion, setCurrentQuestion] = useState(null);
   const [showOptions, setShowOptions] = useState(false);
   const [showAnswer, setShowAnswer] = useState(false);
@@ -120,31 +117,24 @@ const PlayGame = () => {
   const [gameStopped, setGameStopped] = useState(false);
   const [showExitConfirm, setShowExitConfirm] = useState(false);
   const [gameToken, setGameToken] = useState(() => localStorage.getItem(`game_${id}_token`));
-  
-  // Timer state
   const [timeLeft, setTimeLeft] = useState(30);
   const [timerStartedAt, setTimerStartedAt] = useState(null);
   const [timerDuration, setTimerDuration] = useState(15);
   const [isTimerExpired, setIsTimerExpired] = useState(false);
   const [isWaiting, setIsWaiting] = useState(true);
-
-  // Firebase game state
   const { gameState: firebaseGameState, error: firebaseError, isInitialized, isConnected } = useFirebaseGameState(id);
-
-  // Add refs for tracking timeouts and navigation
   const timeoutsRef = useRef([]);
   const isNavigatingRef = useRef(false);
-
   const [connectionAttempts, setConnectionAttempts] = useState(0);
+  const pendingUpdatesRef = useRef([]);
+  const batchTimeoutRef = useRef(null);
 
   const processGameState = useCallback(async (state) => {
     if (!state || isNavigatingRef.current || !isInitialized) return;
 
-    // First handle active state
     if (state.isActive === true) {
       setIsWaiting(false);
     } else if (state.isActive === false && state.gameStopped) {
-      // Handle game being stopped by admin
       setGameStopped(true);
       setCurrentQuestion(null);
       setShowOptions(false);
@@ -152,8 +142,6 @@ const PlayGame = () => {
       setSelectedOption(null);
       setLockedAnswer(null);
       setError('Game has been stopped by the admin');
-      
-      // Clear game token and navigate to dashboard
       localStorage.removeItem(`game_${id}_token`);
       const timeout = setTimeout(() => {
         navigate('/dashboard');
@@ -162,16 +150,14 @@ const PlayGame = () => {
       return;
     } else if (state.isActive === false) {
       setIsWaiting(true);
-      return; // Exit early if game is not active
+      return;
     }
 
-    // Handle question changes
     if (state.currentQuestion) {
       const newQuestionIndex = parseInt(state.currentQuestion.questionIndex ?? 0);
       const currentQuestionIndex = parseInt(currentQuestion?.questionIndex ?? -1);
 
       if (newQuestionIndex !== currentQuestionIndex) {
-        // Reset states for new question
         setCurrentQuestion(state.currentQuestion);
         setShowOptions(false);
         setShowAnswer(false);
@@ -182,7 +168,6 @@ const PlayGame = () => {
       }
     }
 
-    // Handle options visibility
     if (state.showOptions !== showOptions) {
       setShowOptions(state.showOptions);
       if (state.showOptions) {
@@ -195,12 +180,10 @@ const PlayGame = () => {
       }
     }
 
-    // Handle answer reveal
     if (state.showAnswer && !showAnswer) {
       setShowAnswer(true);
     }
 
-    // Update game token if changed
     if (state.gameToken && state.gameToken !== gameToken) {
       setGameToken(state.gameToken);
       localStorage.setItem(`game_${id}_token`, state.gameToken);
@@ -215,12 +198,35 @@ const PlayGame = () => {
     [processGameState]
   );
 
+  const throttledProcessGameState = useMemo(() => 
+    throttle((state) => {
+      if (!state || isNavigatingRef.current || !isInitialized) return;
+      processGameState(state).catch(console.error);
+    }, 1000), 
+    [processGameState, isInitialized]
+  );
+
+  const batchedFirebaseUpdate = useCallback(async () => {
+    if (pendingUpdatesRef.current.length === 0) return;
+
+    try {
+      const updates = pendingUpdatesRef.current.reduce((acc, update) => ({
+        ...acc,
+        ...update
+      }), {});
+
+      await set(ref(db), updates);
+      pendingUpdatesRef.current = [];
+    } catch (error) {
+      console.error('Batch update failed:', error);
+    }
+  }, [db]);
+
   const formatTime = (seconds) => {
     if (seconds < 0) return '00';
     return seconds.toString().padStart(2, '0');
   };
 
-  // Add connection status effect
   useEffect(() => {
     if (!isConnected) {
       setError('Lost connection to game server. Trying to reconnect...');
@@ -230,25 +236,22 @@ const PlayGame = () => {
   }, [isConnected]);
 
   useEffect(() => {
-    // Show error message in waiting area if connection is lost
     if (!isConnected && isWaiting) {
       setError('Lost connection to game server. You may need to rejoin.');
     }
   }, [isConnected, isWaiting]);
 
   useEffect(() => {
-    if (!isConnected && connectionAttempts < 3) {
+    if (!isConnected && connectionAttempts < MAX_RETRIES) {
       const reconnectTimeout = setTimeout(() => {
         setConnectionAttempts(prev => prev + 1);
-        // Attempt to reconnect
         window.location.reload();
-      }, Math.pow(2, connectionAttempts) * 1000);
+      }, RECONNECT_DELAY * Math.pow(2, connectionAttempts));
 
       return () => clearTimeout(reconnectTimeout);
     }
   }, [isConnected, connectionAttempts]);
 
-  // Update the timer effect
   useEffect(() => {
     let interval;
     if (timerStartedAt && showOptions && !isTimerExpired) {
@@ -280,7 +283,6 @@ const PlayGame = () => {
 
   useEffect(() => {
     return () => {
-      // Clear all timeouts on unmount
       timeoutsRef.current.forEach(timeout => clearTimeout(timeout));
       timeoutsRef.current = [];
       isNavigatingRef.current = false;
@@ -301,26 +303,32 @@ const PlayGame = () => {
     const userRef = user ? ref(db, `games/${id}/players/${user.username}`) : null;
     
     if (userRef) {
-      // Set initial presence
-      set(userRef, {
+      const presenceData = {
         isOnline: true,
-        joinedAt: serverTimestamp()
-      }).catch(console.error);
+        joinedAt: serverTimestamp(),
+        lastActive: Date.now()
+      };
 
-      // Set up disconnect handler
-      onDisconnect(userRef).remove().catch(console.error);
-    }
+      set(userRef, presenceData)
+        .catch(error => console.error('Presence update failed:', error));
 
-    return () => {
-      if (userRef) {
-        // Clean up on unmount
+      onDisconnect(userRef)
+        .remove()
+        .catch(error => console.error('Disconnect handler failed:', error));
+
+      const presenceInterval = setInterval(() => {
+        set(ref(db, `games/${id}/players/${user.username}/lastActive`), Date.now())
+          .catch(error => console.error('Presence refresh failed:', error));
+      }, 30000);
+
+      return () => {
+        clearInterval(presenceInterval);
         set(userRef, null).catch(console.error);
         onDisconnect(userRef).cancel().catch(console.error);
-      }
-    };
+      };
+    }
   }, [db, id, user]);
 
-  // Add this near your other useEffects
   useEffect(() => {
     const connectedRef = ref(db, '.info/connected');
     const unsubscribe = onValue(connectedRef, (snap) => {
@@ -339,7 +347,6 @@ const PlayGame = () => {
 
   useEffect(() => {
     if (firebaseGameState) {
-      // Update local state based on Firebase state
       setShowOptions(firebaseGameState.showOptions || false);
       setShowAnswer(firebaseGameState.showAnswer || false);
       if (firebaseGameState.currentQuestion) {
@@ -355,7 +362,6 @@ const PlayGame = () => {
 
   useEffect(() => {
     return () => {
-      // Clean up game token on unmount
       localStorage.removeItem(`game_${id}_token`);
     };
   }, [id]);
@@ -367,31 +373,31 @@ const PlayGame = () => {
   };
 
   const handleLockAnswer = async () => {
-    if (!selectedOption || lockedAnswer || showAnswer || timeLeft <= 0) {
-      return;
-    }
+    if (!selectedOption || lockedAnswer || showAnswer || timeLeft <= 0) return;
 
     try {
-      const batchUpdates = {};
-      
-      // Add answer to Firebase batch
-      batchUpdates[`games/${id}/players/${user.username}/answers/${currentQuestion.questionIndex}`] = {
-        answer: selectedOption,
-        answeredAt: Date.now(),
-        isCorrect: selectedOption === currentQuestion.correctAnswer
+      const update = {
+        [`games/${id}/players/${user.username}/answers/${currentQuestion.questionIndex}`]: {
+          answer: selectedOption,
+          answeredAt: Date.now(),
+          isCorrect: selectedOption === currentQuestion.correctAnswer
+        },
+        [`games/${id}/players/${user.username}/status`]: {
+          lastActive: Date.now(),
+          currentQuestion: currentQuestion.questionIndex
+        }
       };
 
-      // Update player status in same batch
-      batchUpdates[`games/${id}/players/${user.username}/status`] = {
-        lastActive: Date.now(),
-        currentQuestion: currentQuestion.questionIndex
-      };
-
-      // Execute batch update
-      await set(ref(db), batchUpdates);
+      pendingUpdatesRef.current.push(update);
       setLockedAnswer(selectedOption);
 
-      // Update points in MongoDB only if correct
+      if (!batchTimeoutRef.current) {
+        batchTimeoutRef.current = setTimeout(() => {
+          batchedFirebaseUpdate();
+          batchTimeoutRef.current = null;
+        }, BATCH_INTERVAL);
+      }
+
       if (selectedOption === currentQuestion.correctAnswer) {
         const response = await fetch(`${API_URL}/api/leaderboard/update`, {
           method: 'POST',
@@ -403,13 +409,12 @@ const PlayGame = () => {
           body: JSON.stringify({
             username: user.username,
             points: 10,
-            isCorrect: true
+            isCorrect: true,
+            timestamp: Date.now()
           })
         });
 
-        if (!response.ok) {
-          throw new Error('Failed to update points');
-        }
+        if (!response.ok) throw new Error('Failed to update points');
       }
     } catch (error) {
       console.error('Error submitting answer:', error);
@@ -474,7 +479,6 @@ const PlayGame = () => {
   if (isWaiting && isInitialized) {
     return (
       <div className="game-container min-h-screen flex flex-col relative">
-        {/* Header with Quit Button */}
         <header className="game-header fixed top-0 left-0 right-0 z-20">
           <div className="header-content">
             <button
@@ -491,7 +495,6 @@ const PlayGame = () => {
           </div>
         </header>
 
-        {/* Center Content */}
         <div className="fixed inset-0 flex items-center justify-center p-4 z-10">
           <div className="kbc-card max-w-md w-full p-6 md:p-8 text-center animate-fadeIn">
             <div className="flex justify-center mb-6">
@@ -523,7 +526,6 @@ const PlayGame = () => {
           </div>
         </div>
 
-        {/* Exit Confirmation Dialog - Moved outside fixed container */}
         {showExitConfirm && (
           <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4">
             <div className="kbc-card w-full max-w-md p-4 sm:p-6">
@@ -608,7 +610,6 @@ const PlayGame = () => {
       </header>
 
       <div className="container mx-auto pt-16 sm:pt-20 px-2 sm:px-4 flex flex-col lg:flex-row min-h-screen">
-        {/* Main game content */}
         <div className="flex-1 flex flex-col order-2 lg:order-1 pb-4">
           {currentQuestion && (
             <>
@@ -633,7 +634,6 @@ const PlayGame = () => {
             </>
           )}
 
-          {/* Options grid */}
           {showOptions && currentQuestion && (
             <div className="options-grid max-w-3xl mx-auto w-full mb-8 relative">
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
@@ -661,7 +661,6 @@ const PlayGame = () => {
             </div>
           )}
 
-          {/* Lock answer button */}
           {selectedOption && !lockedAnswer && !showAnswer && timeLeft > 0 && (
             <div className="text-center max-w-3xl mx-auto w-full mb-8">
               <button
@@ -675,7 +674,6 @@ const PlayGame = () => {
         </div>
       </div>
 
-      {/* Mobile prize display */}
       <div className="lg:hidden fixed bottom-0 left-0 right-0 bg-kbc-dark-blue/90 backdrop-blur-sm p-2">
         <div className="text-center">
           <span className="text-kbc-gold">Made with ❤️ by Sid</span>
