@@ -137,18 +137,11 @@ const PlayGame = () => {
   const processGameState = useCallback(async (state) => {
     if (!state || isNavigatingRef.current || !isInitialized) return;
 
-    // console.log('Processing game state:', state); // Debug log
-
     // First handle active state
     if (state.isActive === true) {
       setIsWaiting(false);
-    } else if (state.isActive === false) {
-      setIsWaiting(true);
-      return; // Exit early if game is not active
-    }
-
-    // Handle game stopped state
-    if (state.gameStopped && !gameStopped) {
+    } else if (state.isActive === false && state.gameStopped) {
+      // Handle game being stopped by admin
       setGameStopped(true);
       setCurrentQuestion(null);
       setShowOptions(false);
@@ -157,12 +150,16 @@ const PlayGame = () => {
       setLockedAnswer(null);
       setError('Game has been stopped by the admin');
       
+      // Clear game token and navigate to dashboard
+      localStorage.removeItem(`game_${id}_token`);
       const timeout = setTimeout(() => {
-        localStorage.removeItem(`game_${id}_token`);
         navigate('/dashboard');
       }, 2000);
       timeoutsRef.current.push(timeout);
       return;
+    } else if (state.isActive === false) {
+      setIsWaiting(true);
+      return; // Exit early if game is not active
     }
 
     // Handle question changes
@@ -220,6 +217,13 @@ const PlayGame = () => {
       setError(null);
     }
   }, [isConnected]);
+
+  useEffect(() => {
+    // Show error message in waiting area if connection is lost
+    if (!isConnected && isWaiting) {
+      setError('Lost connection to game server. You may need to rejoin.');
+    }
+  }, [isConnected, isWaiting]);
 
   // Update the timer effect
   useEffect(() => {
@@ -393,41 +397,27 @@ const PlayGame = () => {
     try {
       isNavigatingRef.current = true;
       
-      // First try to clean up Firebase presence
+      // Clean up Firebase presence
       if (user) {
         const userRef = ref(db, `games/${id}/players/${user.username}`);
         try {
-          // Force remove the user node instead of just setting offline
-          await set(userRef, null);
-          
-          // Also clean up any disconnect handlers
+          // Cancel any existing disconnect handlers first
           await onDisconnect(userRef).cancel();
+          // Remove the user node
+          await set(userRef, null);
         } catch (firebaseError) {
           console.error('Firebase cleanup failed:', firebaseError);
-          // Continue with navigation even if Firebase cleanup fails
         }
       }
       
-      // Clear local storage
+      // Clean up local storage
       localStorage.removeItem(`game_${id}_token`);
       
-      // Update API if needed (optional)
-      try {
-        await fetch(`${API_URL}/api/game/${id}/leave`, {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json'
-          },
-          credentials: 'include',
-          body: JSON.stringify({
-            username: user?.username
-          })
-        });
-      } catch (apiError) {
-        console.error('API cleanup failed:', apiError);
-      }
+      // Clean up timeouts
+      timeoutsRef.current.forEach(timeout => clearTimeout(timeout));
+      timeoutsRef.current = [];
       
-      // Navigate immediately
+      // Navigate to dashboard immediately
       navigate('/dashboard');
     } catch (err) {
       console.error('Error during exit:', err);
@@ -451,7 +441,7 @@ const PlayGame = () => {
 
   if (isWaiting && isInitialized) {
     return (
-      <div className="game-container min-h-screen flex flex-col">
+      <div className="game-container min-h-screen flex flex-col relative">
         {/* Header with Quit Button */}
         <header className="game-header fixed top-0 left-0 right-0 z-20">
           <div className="header-content">
@@ -501,13 +491,13 @@ const PlayGame = () => {
           </div>
         </div>
 
-        {/* Add exit confirmation dialog here */}
+        {/* Exit Confirmation Dialog - Moved outside fixed container */}
         {showExitConfirm && (
           <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4">
             <div className="kbc-card w-full max-w-md p-4 sm:p-6">
               <h2 className="text-xl font-bold text-kbc-gold mb-4">Confirm Exit</h2>
               <p className="text-gray-300 mb-6">
-                Are you sure you want to quit the game?
+                Are you sure you want to quit the waiting room?
               </p>
               <div className="flex flex-col sm:flex-row justify-end gap-3 sm:gap-4">
                 <button
