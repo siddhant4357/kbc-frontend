@@ -262,27 +262,24 @@ const PlayGame = () => {
     if (pendingUpdatesRef.current.length === 0) return;
 
     try {
-      // Create the reference once
       const gameRef = ref(db, `games/${id}`);
-
-      // Restructure updates to avoid using path segments in keys
-      const updates = pendingUpdatesRef.current.reduce((acc, update) => {
-        // Convert paths to proper structure
-        Object.entries(update).forEach(([path, value]) => {
-          // Remove the 'games/gameId' prefix from paths
-          const cleanPath = path
-            .replace(`games/${id}/`, '')
-            .split('/')
-            .join('.');
-
-          acc[cleanPath] = value;
+      
+      // Properly structure updates to avoid dots in keys
+      const updates = {};
+      pendingUpdatesRef.current.forEach(updateObj => {
+        Object.entries(updateObj).forEach(([path, value]) => {
+          // Convert dot notation to proper Firebase path
+          const parts = path.split('.');
+          const cleanPath = parts.join('/');
+          // Remove games/id prefix if present
+          const finalPath = cleanPath.replace(`games/${id}/`, '');
+          updates[finalPath] = value;
         });
-        return acc;
-      }, {});
+      });
 
-      // Use update instead of set for atomic operations
       await update(gameRef, updates);
       pendingUpdatesRef.current = [];
+
     } catch (error) {
       console.error('Batch update failed:', error);
       setError('Failed to update game state. Please try again.');
@@ -443,14 +440,14 @@ const PlayGame = () => {
     if (!selectedOption || lockedAnswer || showAnswer || timeLeft <= 0) return;
 
     try {
-      // Structure the update without forward slashes in keys
+      // Structure updates with proper paths
       const update = {
-        [`players.${user.username}.answers.${currentQuestion.questionIndex}`]: {
+        [`players/${user.username}/answers/${currentQuestion.questionIndex}`]: {
           answer: selectedOption,
           answeredAt: Date.now(),
           isCorrect: selectedOption === currentQuestion.correctAnswer
         },
-        [`players.${user.username}.status`]: {
+        [`players/${user.username}/status`]: {
           lastActive: Date.now(),
           currentQuestion: currentQuestion.questionIndex
         }
@@ -465,8 +462,6 @@ const PlayGame = () => {
           batchTimeoutRef.current = null;
         }, BATCH_INTERVAL);
       }
-
-      // Rest of your code...
     } catch (error) {
       console.error('Error submitting answer:', error);
       setError('Failed to submit answer. Please try again.');
