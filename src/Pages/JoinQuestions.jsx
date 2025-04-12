@@ -10,21 +10,16 @@ import defaultQuestionImage from '../assets/default_img.jpg';
 import '../styles/JoinQuestions.css';
 
 const PRIZE_LEVELS = [
-  "₹1,000",
-  "₹2,000",
-  "₹3,000",
-  "₹5,000",
-  "₹10,000",
-  "₹20,000",
-  "₹40,000",
-  "₹80,000",
-  "₹1,60,000",
-  "₹3,20,000",
-  "₹6,40,000",
-  "₹12,50,000",
-  "₹25,00,000",
-  "₹50,00,000",
-  "₹1,00,00,000"
+  "1. सवाल",
+  "2. सवाल",
+  "3. सम्यक दर्शन",
+  "4. सवाल",
+  "5. सवाल",
+  "6. सम्यक ज्ञान",
+  "7. सवाल",
+  "8. सवाल",
+  "9. सवाल",
+  "10.सम्यक चारित्र-ज्ञानवान",
 ];
 
 const RestartSoundButton = ({ onClick }) => (
@@ -67,7 +62,6 @@ const JoinQuestions = () => {
   const [currentPrizeIndex, setCurrentPrizeIndex] = useState(0);
   const [lifelines, setLifelines] = useState({
     fiftyFifty: true,
-    phoneAFriend: true,
     askAudience: true
   });
   const [customTimerInput, setCustomTimerInput] = useState(15);
@@ -526,7 +520,6 @@ const JoinQuestions = () => {
           <div className="block lg:hidden mb-4">
             <div className="kbc-question-box lg:hidden p-3 shadow-glow">
               <div className="flex justify-around items-center gap-2">
-                {/* 50:50 Lifeline */}
                 <div className="relative">
                   <button
                     onClick={() => handleLifeline('fiftyFifty')}
@@ -544,25 +537,6 @@ const JoinQuestions = () => {
                   )}
                 </div>
 
-                {/* Phone a Friend Lifeline */}
-                <div className="relative">
-                  <button
-                    onClick={() => handleLifeline('phoneAFriend')}
-                    disabled={!lifelines.phoneAFriend}
-                    className={`kbc-button w-10 h-10 flex items-center justify-center text-xs ${
-                      !lifelines.phoneAFriend ? 'opacity-50 cursor-not-allowed' : ''
-                    }`}
-                  >
-                    📞
-                  </button>
-                  {!lifelines.phoneAFriend && (
-                    <div className="absolute inset-0 flex items-center justify-center">
-                      <span className="text-red-500 text-xl font-bold transform rotate-90">×</span>
-                    </div>
-                  )}
-                </div>
-
-                {/* Ask the Audience Lifeline */}
                 <div className="relative">
                   <button
                     onClick={() => handleLifeline('askAudience')}
@@ -737,22 +711,6 @@ const JoinQuestions = () => {
                   50:50
                 </button>
                 {!lifelines.fiftyFifty && (
-                  <div className="absolute inset-0 flex items-center justify-center">
-                    <span className="text-red-500 text-3xl font-bold transform rotate-90">×</span>
-                  </div>
-                )}
-              </div>
-              <div className="relative">
-                <button
-                  onClick={() => handleLifeline('phoneAFriend')}
-                  disabled={!lifelines.phoneAFriend}
-                  className={`kbc-button w-12 h-12 flex items-center justify-center text-xs ${
-                    !lifelines.phoneAFriend ? 'opacity-50 cursor-not-allowed' : ''
-                  }`}
-                >
-                  📞
-                </button>
-                {!lifelines.phoneAFriend && (
                   <div className="absolute inset-0 flex items-center justify-center">
                     <span className="text-red-500 text-3xl font-bold transform rotate-90">×</span>
                   </div>
