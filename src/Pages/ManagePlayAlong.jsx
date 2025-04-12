@@ -253,17 +253,19 @@ const ManagePlayAlong = () => {
 
   useEffect(() => {
     // Test Firebase connection
-    const testRef = ref(db, 'test');
+    const testRef = ref(db, `test/${Date.now()}`);
     set(testRef, {
       timestamp: Date.now(),
-      message: 'Connection test',
+      message: 'Connection test'
     })
       .then(() => {
         console.log('Firebase connection successful');
+        // Clean up test data
+        set(testRef, null);
       })
       .catch((error) => {
         console.error('Firebase connection failed:', error);
-        setError('Failed to connect to Firebase');
+        setError('Failed to connect to Firebase. Please check your connection.');
       });
   }, []);
 
