@@ -102,7 +102,7 @@ const QuestionImage = React.memo(({ imageUrl }) => {
   );
 });
 
-const ExitConfirmDialog = ({ isOpen, onClose, onConfirm, message }) => {
+const ExitConfirmDialog = ({ isOpen, onClose, onConfirm, message, isLoading }) => {
   if (!isOpen) return null;
   
   return (
@@ -116,14 +116,25 @@ const ExitConfirmDialog = ({ isOpen, onClose, onConfirm, message }) => {
           <button
             onClick={onClose}
             className="kbc-button1 w-full sm:w-auto order-2 sm:order-1"
+            disabled={isLoading}
           >
             Cancel
           </button>
           <button
             onClick={onConfirm}
-            className="kbc-button1 bg-red-600 hover:bg-red-700 w-full sm:w-auto order-1 sm:order-2"
+            className="kbc-button1 bg-red-600 hover:bg-red-700 w-full sm:w-auto order-1 sm:order-2 relative"
+            disabled={isLoading}
           >
-            Quit
+            {isLoading ? (
+              <>
+                <span className="opacity-0">Quit</span>
+                <div className="absolute inset-0 flex items-center justify-center">
+                  <div className="animate-spin rounded-full h-5 w-5 border-2 border-white"></div>
+                </div>
+              </>
+            ) : (
+              'Quit'
+            )}
           </button>
         </div>
       </div>
@@ -168,6 +179,7 @@ const PlayGame = () => {
   const pendingUpdatesRef = useRef([]);
   const batchTimeoutRef = useRef(null);
   const [showExitDialog, setShowExitDialog] = useState(false);
+  const [isExiting, setIsExiting] = useState(false);
 
   const processGameState = useCallback(async (state) => {
     if (!state || isNavigatingRef.current || !isInitialized) return;
@@ -467,6 +479,8 @@ const PlayGame = () => {
 
   const handleExitConfirm = async () => {
     try {
+      setIsExiting(true);
+
       if (user) {
         const userRef = ref(db, `games/${id}/players/${user.username}`);
         // Cancel any disconnect handlers
@@ -482,13 +496,14 @@ const PlayGame = () => {
       timeoutsRef.current.forEach(clearTimeout);
       timeoutsRef.current = [];
       
-      setShowExitDialog(false); // Add this line to ensure dialog closes
+      setShowExitDialog(false);
       
       // Navigate to dashboard
       navigate('/dashboard');
     } catch (error) {
       console.error('Exit failed:', error);
       setError('Failed to exit game. Please try again.');
+      setIsExiting(false);
     }
   };
 
@@ -545,13 +560,13 @@ const PlayGame = () => {
   if (isWaiting && isInitialized) {
     return (
       <div className="game-container min-h-screen flex flex-col relative">
-        <header className="game-header fixed top-0 left-0 right-0 z-20">
-          <div className="header-content">
+        <header className="game-header bg-kbc-dark-blue/90 backdrop-blur-sm fixed top-0 left-0 right-0 z-20 border-b border-kbc-gold/20">
+          <div className="header-content p-2 sm:p-4 flex items-center justify-between">
             <QuitButton onQuit={() => setShowExitDialog(true)} />
             <img
               src={kbcLogo}
               alt="KBC Logo"
-              className="h-8"
+              className="h-8 absolute left-1/2 transform -translate-x-1/2"
             />
           </div>
         </header>
@@ -719,6 +734,7 @@ const PlayGame = () => {
           "Are you sure you want to leave the waiting room?" : 
           "Are you sure you want to quit the game?"
         }
+        isLoading={isExiting}
       />
 
       {error && (
