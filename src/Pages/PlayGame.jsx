@@ -13,16 +13,17 @@ const getImageUrl = (imageUrl) => {
   if (imageUrl.startsWith('data:')) return imageUrl;
   
   try {
-    // For relative paths from backend, ensure consistent formatting
-    if (imageUrl.includes('uploads/questions/')) {
-      return `${API_URL}/${imageUrl.replace(/^\//, '')}`;
+    // Clean the imageUrl by removing any double slashes except after http(s)
+    const cleanUrl = imageUrl.replace(/([^:])\/+/g, '$1/');
+    
+    // Handle both cases - full URL and relative path
+    if (cleanUrl.includes('uploads/questions/')) {
+      return `${API_URL}/${cleanUrl.split('uploads/questions/')[1]}`;
     }
     
-    // Extract filename and construct proper URL
-    const filename = imageUrl.split('/').pop();
-    return `${API_URL}/uploads/questions/${filename}`;
+    return `${API_URL}/uploads/questions/${cleanUrl.split('/').pop()}`;
   } catch (error) {
-    console.warn('Error formatting image URL:', error);
+    console.error('Error formatting image URL:', error);
     return defaultQuestionImage;
   }
 };
@@ -59,16 +60,17 @@ const QuestionImage = React.memo(({ imageUrl }) => {
   const [imgSrc, setImgSrc] = useState(() => getImageUrl(imageUrl));
   const [hasError, setHasError] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
-
-  useEffect(() => {
-    setImgSrc(getImageUrl(imageUrl));
-    setHasError(false);
-    setIsLoading(true);
-  }, [imageUrl]);
+  const retryCount = useRef(0);
 
   const handleError = (e) => {
     console.error('Image load error for:', imgSrc);
-    if (imgSrc !== defaultQuestionImage) {
+    if (retryCount.current < 3 && imgSrc !== defaultQuestionImage) {
+      retryCount.current += 1;
+      // Retry with a slight delay
+      setTimeout(() => {
+        setImgSrc(`${imgSrc}?retry=${retryCount.current}`);
+      }, 1000);
+    } else {
       e.target.src = defaultQuestionImage;
       setHasError(true);
     }
@@ -89,7 +91,10 @@ const QuestionImage = React.memo(({ imageUrl }) => {
           isLoading ? 'opacity-0' : 'opacity-100'
         }`}
         onError={handleError}
-        onLoad={() => setIsLoading(false)}
+        onLoad={() => {
+          setIsLoading(false);
+          retryCount.current = 0;
+        }}
         crossOrigin="anonymous"
       />
     </div>
@@ -267,21 +272,24 @@ const PlayGame = () => {
     };
   }, [firebaseGameState, user, processGameState, isInitialized]);
 
-  // Add this effect for Firebase cleanup
   useEffect(() => {
     const userRef = user ? ref(db, `games/${id}/players/${user.username}`) : null;
     
     if (userRef) {
-      // Set up disconnect handler
-      onDisconnect(userRef).update({
-        isOnline: false,
-        leftAt: serverTimestamp()
+      // Set initial presence
+      set(userRef, {
+        isOnline: true,
+        joinedAt: serverTimestamp()
       }).catch(console.error);
+
+      // Set up disconnect handler
+      onDisconnect(userRef).remove().catch(console.error);
     }
 
     return () => {
       if (userRef) {
-        // Clear disconnect handler on cleanup
+        // Clean up on unmount
+        set(userRef, null).catch(console.error);
         onDisconnect(userRef).cancel().catch(console.error);
       }
     };
@@ -319,6 +327,13 @@ const PlayGame = () => {
       setIsWaiting(!firebaseGameState.isActive);
     }
   }, [firebaseGameState]);
+
+  useEffect(() => {
+    return () => {
+      // Clean up game token on unmount
+      localStorage.removeItem(`game_${id}_token`);
+    };
+  }, [id]);
 
   const handleOptionSelect = (option) => {
     if (!showAnswer && !lockedAnswer && timeLeft > 0 && showOptions) {
@@ -377,25 +392,45 @@ const PlayGame = () => {
     
     try {
       isNavigatingRef.current = true;
+      
+      // First try to clean up Firebase presence
       if (user) {
         const userRef = ref(db, `games/${id}/players/${user.username}`);
-        // Add try-catch specifically for Firebase update
         try {
-          await set(userRef, {
-            ...firebaseGameState?.players?.[user.username],
-            isOnline: false,
-            leftAt: Date.now()
-          });
+          // Force remove the user node instead of just setting offline
+          await set(userRef, null);
+          
+          // Also clean up any disconnect handlers
+          await onDisconnect(userRef).cancel();
         } catch (firebaseError) {
-          console.error('Firebase update failed:', firebaseError);
-          // Continue with navigation even if Firebase update fails
+          console.error('Firebase cleanup failed:', firebaseError);
+          // Continue with navigation even if Firebase cleanup fails
         }
       }
       
+      // Clear local storage
       localStorage.removeItem(`game_${id}_token`);
-      navigate('/dashboard'); // Remove timeout and navigate immediately
+      
+      // Update API if needed (optional)
+      try {
+        await fetch(`${API_URL}/api/game/${id}/leave`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json'
+          },
+          credentials: 'include',
+          body: JSON.stringify({
+            username: user?.username
+          })
+        });
+      } catch (apiError) {
+        console.error('API cleanup failed:', apiError);
+      }
+      
+      // Navigate immediately
+      navigate('/dashboard');
     } catch (err) {
-      console.error('Error updating player status:', err);
+      console.error('Error during exit:', err);
       isNavigatingRef.current = false;
       setError('Failed to quit game. Please try again.');
     }
