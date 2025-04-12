@@ -9,7 +9,6 @@ export const useFirebaseGameState = (gameId) => {
   const [isConnected, setIsConnected] = useState(true);
   const connectionRef = useRef(null);
 
-  // Set up real-time listener
   useEffect(() => {
     if (!gameId) return;
 
@@ -23,28 +22,26 @@ export const useFirebaseGameState = (gameId) => {
       setIsConnected(connected);
       
       if (connected) {
-        // Instead of trying to set on .info/connected, set presence in the game path
-        const presenceRef = ref(db, `games/${gameId}/presence`);
-        onDisconnect(presenceRef).set({
-          timestamp: serverTimestamp(),
-          status: 'offline'
-        });
+        // Create presence ref under the game path instead of .info
+        const presenceRef = ref(db, `games/${gameId}/presence/${Date.now()}`);
         
-        // Set current presence
+        // Set offline status on disconnect
+        onDisconnect(presenceRef).remove();
+        
+        // Set online status
         set(presenceRef, {
-          timestamp: serverTimestamp(),
-          status: 'online'
+          status: 'online',
+          timestamp: serverTimestamp()
         });
       }
     });
-    
+
     // Listen for real-time updates
     const gameUnsubscribe = onValue(gameRef, (snapshot) => {
       const data = snapshot.val();
-      // console.log('Firebase state update:', data);
       if (data) {
         setGameState(data);
-        setError(null); // Clear any previous errors
+        setError(null);
       }
       setIsInitialized(true);
     }, (error) => {
@@ -53,12 +50,12 @@ export const useFirebaseGameState = (gameId) => {
       setIsInitialized(true);
     });
 
-    // Cleanup listeners
     return () => {
       connectUnsubscribe();
+      gameUnsubscribe();
       // Clear any disconnect handlers
       if (gameRef) {
-        const presenceRef = ref(db, `games/${gameId}/presence`);
+        const presenceRef = ref(db, `games/${gameId}/presence/${Date.now()}`);
         onDisconnect(presenceRef).cancel();
       }
     };

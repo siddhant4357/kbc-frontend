@@ -379,22 +379,25 @@ const PlayGame = () => {
       isNavigatingRef.current = true;
       if (user) {
         const userRef = ref(db, `games/${id}/players/${user.username}`);
-        await set(userRef, {
-          ...firebaseGameState?.players?.[user.username],
-          isOnline: false,
-          leftAt: Date.now()
-        });
+        // Add try-catch specifically for Firebase update
+        try {
+          await set(userRef, {
+            ...firebaseGameState?.players?.[user.username],
+            isOnline: false,
+            leftAt: Date.now()
+          });
+        } catch (firebaseError) {
+          console.error('Firebase update failed:', firebaseError);
+          // Continue with navigation even if Firebase update fails
+        }
       }
       
       localStorage.removeItem(`game_${id}_token`);
-      // Add slight delay before navigation
-      const timeout = setTimeout(() => {
-        navigate('/dashboard');
-      }, 300);
-      timeoutsRef.current.push(timeout);
+      navigate('/dashboard'); // Remove timeout and navigate immediately
     } catch (err) {
       console.error('Error updating player status:', err);
       isNavigatingRef.current = false;
+      setError('Failed to quit game. Please try again.');
     }
   };
 
