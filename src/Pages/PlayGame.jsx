@@ -422,7 +422,8 @@ const PlayGame = () => {
   if (isWaiting && isInitialized) {
     return (
       <div className="game-container min-h-screen flex flex-col">
-        <header className="game-header">
+        {/* Header */}
+        <header className="game-header fixed top-0 left-0 right-0 z-20">
           <div className="header-content">
             <button
               onClick={handleExitGame}
@@ -438,24 +439,25 @@ const PlayGame = () => {
           </div>
         </header>
 
-        <div className="flex-1 flex items-center justify-center px-4">
-          <div className="kbc-card max-w-md w-full p-6 md:p-8 text-center">
+        {/* Center Content - Using absolute positioning to ensure perfect centering */}
+        <div className="fixed inset-0 flex items-center justify-center p-4 z-10">
+          <div className="kbc-card max-w-md w-full p-6 md:p-8 text-center animate-fadeIn">
             <div className="flex justify-center mb-6">
               <div className="relative">
                 <div className="absolute inset-0 bg-kbc-gold/20 rounded-full blur-xl animate-pulse"></div>
                 <img
                   src={kbcLogo}
                   alt="KBC Logo"
-                  className="w-16 h-16 md:w-20 md:h-20 rounded-full relative z-10 border-2 border-kbc-gold"
+                  className="w-14 h-14 md:w-16 md:h-16 rounded-full relative z-10 border-2 border-kbc-gold"
                 />
               </div>
             </div>
             
-            <h2 className="text-xl md:text-2xl text-kbc-gold font-bold mb-4">
+            <h2 className="text-lg md:text-xl text-kbc-gold font-bold mb-4">
               Waiting for Game to Start
             </h2>
             
-            <div className="flex justify-center mb-6">
+            <div className="flex justify-center mb-4">
               <div className="flex gap-2">
                 <span className="w-2 h-2 bg-kbc-gold rounded-full animate-bounce" style={{ animationDelay: '0s' }}></span>
                 <span className="w-2 h-2 bg-kbc-gold rounded-full animate-bounce" style={{ animationDelay: '0.2s' }}></span>
@@ -463,7 +465,7 @@ const PlayGame = () => {
               </div>
             </div>
             
-            <p className="text-gray-300 text-sm md:text-base">
+            <p className="text-gray-300 text-sm">
               Please stay on this screen. The game will begin automatically.
             </p>
           </div>
