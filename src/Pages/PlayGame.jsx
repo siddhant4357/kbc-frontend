@@ -559,13 +559,19 @@ const PlayGame = () => {
 
   if (isWaiting && isInitialized) {
     return (
-      <div className="game-container min-h-screen flex flex-col items-center justify-center relative">
-        {/* Add quit button at the top */}
-        <div className="absolute top-4 left-4">
-          <QuitButton onQuit={() => setShowExitDialog(true)} />
+      <div className="game-container min-h-screen flex flex-col items-center justify-center relative bg-gradient-to-b from-kbc-dark-blue to-kbc-purple">
+        {/* Quit button */}
+        <div className="absolute top-4 left-4 z-10">
+          <button
+            onClick={() => setShowExitDialog(true)}
+            className="kbc-button bg-red-600 hover:bg-red-700 text-xs h-8 w-14 shadow-glow"
+          >
+            QUIT
+          </button>
         </div>
 
-        <div className="kbc-card max-w-md w-full p-6 md:p-8 text-center animate-fadeIn">
+        {/* Waiting area content with lower z-index */}
+        <div className="kbc-card max-w-md w-full p-6 md:p-8 text-center animate-fadeIn z-0">
           <div className="flex justify-center mb-6">
             <div className="relative">
               <div className="absolute inset-0 bg-kbc-gold/20 rounded-full blur-xl animate-pulse"></div>
@@ -593,6 +599,15 @@ const PlayGame = () => {
             Please stay on this screen. The game will begin automatically.
           </p>
         </div>
+
+        {/* Exit dialog with highest z-index */}
+        <ExitConfirmDialog
+          isOpen={showExitDialog}
+          onClose={() => setShowExitDialog(false)}
+          onConfirm={handleExitConfirm}
+          message="Are you sure you want to leave the waiting room?"
+          isLoading={isExiting}
+        />
       </div>
     );
   }
