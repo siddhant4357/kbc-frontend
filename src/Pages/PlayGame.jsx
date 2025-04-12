@@ -559,47 +559,39 @@ const PlayGame = () => {
 
   if (isWaiting && isInitialized) {
     return (
-      <div className="game-container min-h-screen flex flex-col relative">
-        <header className="game-header bg-kbc-dark-blue/90 backdrop-blur-sm fixed top-0 left-0 right-0 z-20 border-b border-kbc-gold/20">
-          <div className="header-content p-2 sm:p-4 flex items-center justify-between">
-            <QuitButton onQuit={() => setShowExitDialog(true)} />
-            <img
-              src={kbcLogo}
-              alt="KBC Logo"
-              className="h-8 absolute left-1/2 transform -translate-x-1/2"
-            />
-          </div>
-        </header>
+      <div className="game-container min-h-screen flex flex-col items-center justify-center relative">
+        {/* Add quit button at the top */}
+        <div className="absolute top-4 left-4">
+          <QuitButton onQuit={() => setShowExitDialog(true)} />
+        </div>
 
-        <div className="fixed inset-0 flex items-center justify-center p-4 z-10">
-          <div className="kbc-card max-w-md w-full p-6 md:p-8 text-center animate-fadeIn">
-            <div className="flex justify-center mb-6">
-              <div className="relative">
-                <div className="absolute inset-0 bg-kbc-gold/20 rounded-full blur-xl animate-pulse"></div>
-                <img
-                  src={kbcLogo}
-                  alt="KBC Logo"
-                  className="w-14 h-14 md:w-16 md:h-16 rounded-full relative z-10 border-2 border-kbc-gold"
-                />
-              </div>
+        <div className="kbc-card max-w-md w-full p-6 md:p-8 text-center animate-fadeIn">
+          <div className="flex justify-center mb-6">
+            <div className="relative">
+              <div className="absolute inset-0 bg-kbc-gold/20 rounded-full blur-xl animate-pulse"></div>
+              <img
+                src={kbcLogo}
+                alt="KBC Logo"
+                className="w-14 h-14 md:w-16 md:h-16 rounded-full relative z-10 border-2 border-kbc-gold"
+              />
             </div>
-            
-            <h2 className="text-lg md:text-xl text-kbc-gold font-bold mb-4">
-              Waiting for Game to Start
-            </h2>
-            
-            <div className="flex justify-center mb-4">
-              <div className="flex gap-2">
-                <span className="w-2 h-2 bg-kbc-gold rounded-full animate-bounce" style={{ animationDelay: '0s' }}></span>
-                <span className="w-2 h-2 bg-kbc-gold rounded-full animate-bounce" style={{ animationDelay: '0.2s' }}></span>
-                <span className="w-2 h-2 bg-kbc-gold rounded-full animate-bounce" style={{ animationDelay: '0.4s' }}></span>
-              </div>
-            </div>
-            
-            <p className="text-gray-300 text-sm">
-              Please stay on this screen. The game will begin automatically.
-            </p>
           </div>
+          
+          <h2 className="text-lg md:text-xl text-kbc-gold font-bold mb-4">
+            Waiting for Game to Start
+          </h2>
+          
+          <div className="flex justify-center mb-4">
+            <div className="flex gap-2">
+              <span className="w-2 h-2 bg-kbc-gold rounded-full animate-bounce" style={{ animationDelay: '0s' }}></span>
+              <span className="w-2 h-2 bg-kbc-gold rounded-full animate-bounce" style={{ animationDelay: '0.2s' }}></span>
+              <span className="w-2 h-2 bg-kbc-gold rounded-full animate-bounce" style={{ animationDelay: '0.4s' }}></span>
+            </div>
+          </div>
+          
+          <p className="text-gray-300 text-sm">
+            Please stay on this screen. The game will begin automatically.
+          </p>
         </div>
       </div>
     );
