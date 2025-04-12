@@ -47,6 +47,9 @@ const Dashboard = () => {
         case "Join a Game":
           navigate('/join-game');
           break;
+        case "Manage Admins":
+          navigate('/manage-admins');
+          break;
         default:
           break;
       }
@@ -60,6 +63,7 @@ const Dashboard = () => {
         <DashboardCard title="Join a Game" icon="🎯" onCardClick={handleCardClick} />
         <DashboardCard title="Manage Users" icon="👥" onCardClick={handleCardClick} />
         <DashboardCard title="Leaderboard" icon="🏆" onCardClick={handleCardClick} />
+        <DashboardCard title="Manage Admins" icon="👑" onCardClick={handleCardClick} />
       </div>
     );
   };

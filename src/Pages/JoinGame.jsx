@@ -3,10 +3,14 @@ import { useNavigate } from 'react-router-dom';
 import BackButton from '../components/BackButton';
 import { API_URL } from '../utils/config';
 
-const JoinGame = () => {
-  // Add admin passcode constant - you can change this value
-  const ADMIN_PASSCODE = "1234"; 
+// Replace the single ADMIN_PASSCODE constant with an ADMIN_ACCOUNTS object
+const ADMIN_ACCOUNTS = {
+  'admin': '4321',
+  'superadmin': '5678',
+  // Add more admin accounts as needed
+};
 
+const JoinGame = () => {
   const [questionBanks, setQuestionBanks] = useState([]);
   const [selectedBank, setSelectedBank] = useState(null);
   const [bankPasscode, setBankPasscode] = useState('');
@@ -175,8 +179,20 @@ const JoinGame = () => {
   };
 
   useEffect(() => {
+    const user = JSON.parse(localStorage.getItem('user'));
+    if (!user) {
+      navigate('/login');
+      return;
+    }
+
+    // Check if user is an admin
+    if (!ADMIN_ACCOUNTS[user.username]) {
+      navigate('/dashboard');
+      return;
+    }
+
     fetchQuestionBanks();
-  }, []);
+  }, [navigate]);
 
   const fetchQuestionBanks = async () => {
     try {
@@ -199,8 +215,15 @@ const JoinGame = () => {
       return;
     }
 
-    // Verify admin passcode first
-    if (adminPasscode !== ADMIN_PASSCODE) {
+    // Get the current user
+    const user = JSON.parse(localStorage.getItem('user'));
+    if (!user) {
+      setError('Please log in first');
+      return;
+    }
+
+    // Check if user is an admin and verify their passcode
+    if (!ADMIN_ACCOUNTS[user.username] || adminPasscode !== ADMIN_ACCOUNTS[user.username]) {
       setError('Invalid admin passcode');
       return;
     }
@@ -216,18 +239,19 @@ const JoinGame = () => {
         credentials: 'include',
         body: JSON.stringify({
           questionBankId: selectedBank._id,
-          passcode: bankPasscode
+          passcode: bankPasscode,
+          adminUsername: user.username // Add this to track which admin started the game
         }),
       });
 
       if (response.ok) {
-        // Instead of navigating directly to join-questions
         navigate(`/game-rules/${selectedBank._id}`);
       } else {
         const data = await response.json();
         setError(data.message);
       }
     } catch (error) {
+      console.error('Join game error:', error);
       setError('Failed to join game');
     } finally {
       setIsSubmitting(false);
@@ -369,7 +393,9 @@ const JoinGame = () => {
             </div>
 
             <div style={styles.formGroup} className="form-group">
-              <label style={styles.label}>Admin Passcode</label>
+              <label style={styles.label}>
+                Admin Passcode ({JSON.parse(localStorage.getItem('user'))?.username || 'Unknown User'})
+              </label>
               <input
                 type="password"
                 inputMode="numeric"
@@ -379,7 +405,7 @@ const JoinGame = () => {
                 className="kbc-input"
                 pattern="\d{4}"
                 maxLength="4"
-                placeholder="Enter admin passcode"
+                placeholder="Enter your admin passcode"
                 required
                 onFocus={(e) => Object.assign(e.target.style, styles.inputFocus)}
                 onBlur={(e) => {

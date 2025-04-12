@@ -582,7 +582,45 @@ const PlayGame = () => {
           </button>
         </div>
 
-        {/* Rest of your waiting area content... */}
+          {/* Center content */}
+        <div className="flex-1 flex items-center justify-center p-4">
+          <div className="kbc-card max-w-md w-full p-6 md:p-8 text-center animate-fadeIn">
+            <div className="flex justify-center mb-6">
+              <div className="relative">
+                <img
+                  src={kbcLogo}
+                  alt="KBC Logo"
+                  className="w-14 h-14 md:w-16 md:h-16 rounded-full relative z-10 border-2 border-kbc-gold"
+                />
+              </div>
+            </div>
+            
+            <h2 className="text-lg md:text-xl text-kbc-gold font-bold mb-4">
+              Waiting for Game to Start
+            </h2>
+            
+            <div className="flex justify-center mb-4">
+              <div className="flex gap-2">
+                <span className="w-2 h-2 bg-kbc-gold rounded-full animate-bounce" style={{ animationDelay: '0s' }}></span>
+                <span className="w-2 h-2 bg-kbc-gold rounded-full animate-bounce" style={{ animationDelay: '0.2s' }}></span>
+                <span className="w-2 h-2 bg-kbc-gold rounded-full animate-bounce" style={{ animationDelay: '0.4s' }}></span>
+              </div>
+            </div>
+            
+            <p className="text-gray-300 text-sm">
+              Please stay on this screen. The game will begin automatically.
+            </p>
+          </div>
+        </div>
+
+        {/* Exit dialog with highest z-index */}
+        <ExitConfirmDialog
+          isOpen={showExitDialog}
+          onClose={() => setShowExitDialog(false)}
+          onConfirm={handleExitConfirm}
+          message="Are you sure you want to leave the waiting room?"
+          isLoading={isExiting}
+        />
       </div>
     );
   }
