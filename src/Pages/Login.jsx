@@ -68,6 +68,7 @@ const Login = () => {
             align-items: center;
             justify-content: center;
             font-family: 'Poppins', sans-serif;
+            flex-direction: column;
           }
 
           .login-card {
@@ -104,29 +105,73 @@ const Login = () => {
             display: flex;
             flex-direction: column;
             align-items: center;
-            margin-bottom: 2.5rem;
+            margin-bottom: 3rem;
+            position: relative;
           }
 
           .logo {
-            width: 7rem;
-            height: 7rem;
+            width: 120px;
+            height: 120px;
             border-radius: 50%;
             object-fit: cover;
             border: 3px solid #FFB800;
             box-shadow: 0 0 25px rgba(255, 184, 0, 0.4);
-            margin-bottom: 1.5rem;
+            margin-bottom: 2rem;
             animation: pulse 3s infinite;
+            position: relative;
+            z-index: 1;
+          }
+
+          /* Add a glow effect behind the logo */
+          .logo-container::before {
+            content: '';
+            position: absolute;
+            top: -10px;
+            left: 50%;
+            transform: translateX(-50%);
+            width: 140px;
+            height: 140px;
+            background: radial-gradient(circle, rgba(255, 184, 0, 0.2), transparent 70%);
+            border-radius: 50%;
+            z-index: 0;
+            animation: glow 3s infinite alternate;
+          }
+
+          @keyframes glow {
+            from {
+              transform: translateX(-50%) scale(0.9);
+              opacity: 0.5;
+            }
+            to {
+              transform: translateX(-50%) scale(1.1);
+              opacity: 0.8;
+            }
           }
 
           @keyframes pulse {
             0% {
+              transform: scale(1);
               box-shadow: 0 0 0 0 rgba(255, 184, 0, 0.7);
             }
-            70% {
-              box-shadow: 0 0 0 15px rgba(255, 184, 0, 0);
+            50% {
+              transform: scale(1.05);
+              box-shadow: 0 0 25px rgba(255, 184, 0, 0.5);
             }
             100% {
+              transform: scale(1);
               box-shadow: 0 0 0 0 rgba(255, 184, 0, 0);
+            }
+          }
+
+          @media (min-width: 640px) {
+            .logo {
+              width: 150px;
+              height: 150px;
+            }
+            
+            .logo-container::before {
+              width: 170px;
+              height: 170px;
             }
           }
 
@@ -288,11 +333,6 @@ const Login = () => {
               padding: 3rem;
             }
             
-            .logo {
-              width: 8rem;
-              height: 8rem;
-            }
-            
             .app-title {
               font-size: 2.25rem;
             }
@@ -307,6 +347,56 @@ const Login = () => {
               font-size: 2rem;
             }
           }
+
+          .footer {
+            position: fixed;
+            bottom: 1rem;
+            left: 0;
+            right: 0;
+            text-align: center;
+            color: rgba(255, 255, 255, 0.9);
+            font-size: 1rem;
+            padding: 1rem;
+            text-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
+            background: linear-gradient(135deg, rgba(11, 29, 120, 0.3), rgba(76, 29, 149, 0.3));
+            backdrop-filter: blur(8px);
+            border-top: 1px solid rgba(255, 184, 0, 0.1);
+            z-index: 10;
+          }
+
+          .footer .heart {
+            display: inline-block;
+            color: #ff4444;
+            animation: heartbeat 1.5s ease infinite;
+            margin: 0 0.3rem;
+            font-size: 1.1rem;
+          }
+
+          .footer .author {
+            font-weight: 600;
+            color: #FFB800;
+            margin-left: 0.3rem;
+          }
+
+          @keyframes heartbeat {
+            0% { transform: scale(1); }
+            50% { transform: scale(1.2); }
+            100% { transform: scale(1); }
+          }
+
+          /* Mobile responsive styles */
+          @media (max-width: 640px) {
+            .footer {
+              bottom: 0;
+              padding: 0.75rem;
+              font-size: 0.9rem;
+              padding-bottom: calc(0.75rem + env(safe-area-inset-bottom, 0px)); /* For iOS devices */
+            }
+            
+            .footer .heart {
+              font-size: 1rem;
+            }
+          }
         `}
       </style>
 
@@ -319,7 +409,7 @@ const Login = () => {
               className="logo"
             />
             <h1 className="app-title">
-              Welcome to KBC Quiz
+              Welcome to KBG Quiz
             </h1>
             <p className="app-subtitle">
               Sign in to continue your quiz journey
@@ -431,6 +521,9 @@ const Login = () => {
               )}
             </button>
           </form>
+        </div>
+        <div className="footer">
+          Made with <span className="heart">❤️</span> by <span className="author">Sid</span>
         </div>
       </div>
     </>
