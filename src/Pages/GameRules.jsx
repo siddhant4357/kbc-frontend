@@ -328,7 +328,7 @@ const InteractionPrompt = ({ onStart }) => {
   return (
     <div style={styles.overlay}>
       <div style={applyResponsiveStyles(styles.promptCard, isMobile)}>
-        <h2 style={styles.promptTitle}>Welcome to KBC</h2>
+        <h2 style={styles.promptTitle}>Welcome to KBG</h2>
         <p style={styles.promptText}>Click the button below to start your experience</p>
         <button 
           onClick={onStart}
@@ -484,7 +484,6 @@ const GameRules = () => {
       title: "Lifelines",
       items: [
         "50:50 - Removes two incorrect options",
-        "Phone a Friend - Ask your friend for help",
         "Ask the Audience - See what the audience thinks"
       ]
     },
@@ -559,7 +558,7 @@ const GameRules = () => {
           transition: 'all 1s ease',
         }}>
           <div style={applyResponsiveStyles(styles.card, isMobile)}>
-            <h1 style={applyResponsiveStyles(styles.title, isMobile)}>Welcome to KBC</h1>
+            <h1 style={applyResponsiveStyles(styles.title, isMobile)}>Welcome to KBG</h1>
             
             {rules.map((section, index) => (
               <div key={index} style={{ marginBottom: '1.5rem' }}>

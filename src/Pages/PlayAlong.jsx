@@ -8,6 +8,7 @@ const PlayAlong = () => {
   const [selectedBank, setSelectedBank] = useState(null);
   const [passcode, setPasscode] = useState('');
   const [error, setError] = useState('');
+  const [isLoading, setIsLoading] = useState(false);
   const navigate = useNavigate();
 
   const colors = {
@@ -144,6 +145,23 @@ const PlayAlong = () => {
       minWidth: '120px',
       width: '100%',
     },
+    buttonLoading: {
+      position: 'relative',
+      color: 'transparent',
+      pointerEvents: 'none'
+    },
+    loadingSpinner: {
+      position: 'absolute',
+      left: '50%',
+      top: '50%',
+      transform: 'translate(-50%, -50%)',
+      width: '1.5rem',
+      height: '1.5rem',
+      border: '2px solid rgba(255, 255, 255, 0.3)',
+      borderRadius: '50%',
+      borderTopColor: colors.light,
+      animation: 'spin 1s linear infinite'
+    }
   };
 
   const pollGameState = async (bankId) => {
@@ -180,6 +198,8 @@ const PlayAlong = () => {
       return;
     }
 
+    setIsLoading(true);
+
     try {
       const response = await fetch(`${API_URL}/api/game/join`, {
         method: 'POST',
@@ -205,6 +225,8 @@ const PlayAlong = () => {
     } catch (error) {
       console.error('Join game error:', error);
       setError('Failed to join game');
+    } finally {
+      setIsLoading(false);
     }
   };
 
@@ -219,6 +241,10 @@ const PlayAlong = () => {
           @keyframes fadeIn {
             from { opacity: 0; transform: translateY(-10px); }
             to { opacity: 1; transform: translateY(0); }
+          }
+          
+          @keyframes spin {
+            to { transform: translate(-50%, -50%) rotate(360deg); }
           }
           
           @media (max-width: 640px) {
@@ -306,9 +332,20 @@ const PlayAlong = () => {
           <div style={styles.buttonContainer}>
             <button
               type="submit"
-              style={styles.button}
+              style={{
+                ...styles.button,
+                ...(isLoading ? styles.buttonLoading : {})
+              }}
+              disabled={isLoading}
             >
-              Start Game
+              {isLoading ? (
+                <>
+                  <div style={styles.loadingSpinner}></div>
+                  <span>Starting Game...</span>
+                </>
+              ) : (
+                'Start Game'
+              )}
             </button>
           </div>
         </form>
