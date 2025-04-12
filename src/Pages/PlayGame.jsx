@@ -131,6 +131,17 @@ const ExitConfirmDialog = ({ isOpen, onClose, onConfirm, message }) => {
   );
 };
 
+const QuitButton = ({ onQuit }) => {
+  return (
+    <button
+      onClick={onQuit}
+      className="kbc-button bg-red-600 hover:bg-red-700 text-xs h-8 w-14"
+    >
+      QUIT
+    </button>
+  );
+};
+
 const PlayGame = () => {
   const { id } = useParams();
   const navigate = useNavigate();
@@ -535,7 +546,7 @@ const PlayGame = () => {
       <div className="game-container min-h-screen flex flex-col relative">
         <header className="game-header fixed top-0 left-0 right-0 z-20">
           <div className="header-content">
-            <QuitButton />
+            <QuitButton onQuit={() => setShowExitDialog(true)} />
             <img
               src={kbcLogo}
               alt="KBC Logo"
@@ -584,7 +595,7 @@ const PlayGame = () => {
         <div className="header-content">
           <div className="flex flex-wrap items-center justify-between gap-2 w-full">
             <div className="flex items-center gap-2">
-              <QuitButton />
+              <QuitButton onQuit={() => setShowExitDialog(true)} />
               <div className="hidden sm:block">
                 <p className="text-kbc-gold text-xs">Player</p>
                 <p className="text-white font-bold text-sm">
