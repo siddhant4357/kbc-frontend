@@ -330,7 +330,7 @@ const ManagePlayAlong = () => {
       await set(gameRef, gameData);
       
       setGameStarted(true);
-      console.log('Game started successfully');
+      // console.log('Game started successfully');
     } catch (err) {
       console.error('Error starting game:', err);
       setError('Failed to start game. Please check your permissions.');

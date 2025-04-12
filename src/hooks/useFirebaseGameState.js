@@ -34,7 +34,7 @@ export const useFirebaseGameState = (gameId) => {
     // Listen for real-time updates
     const gameUnsubscribe = onValue(gameRef, (snapshot) => {
       const data = snapshot.val();
-      console.log('Firebase state update:', data);
+      // console.log('Firebase state update:', data);
       if (data) {
         setGameState(data);
         setError(null); // Clear any previous errors

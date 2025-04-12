@@ -132,7 +132,7 @@ const PlayGame = () => {
   const processGameState = useCallback(async (state) => {
     if (!state || isNavigatingRef.current || !isInitialized) return;
 
-    console.log('Processing game state:', state); // Debug log
+    // console.log('Processing game state:', state); // Debug log
 
     // First handle active state
     if (state.isActive === true) {
@@ -257,7 +257,7 @@ const PlayGame = () => {
 
   useEffect(() => {
     if (firebaseGameState && user && !isNavigatingRef.current && isInitialized) {
-      console.log('Firebase state updated:', firebaseGameState);
+      // console.log('Firebase state updated:', firebaseGameState);
       processGameState(firebaseGameState).catch(console.error);
     }
 
@@ -322,19 +322,12 @@ const PlayGame = () => {
 
   const handleOptionSelect = (option) => {
     if (!showAnswer && !lockedAnswer && timeLeft > 0 && showOptions) {
-      console.log('Option selected:', option); // Debug log
       setSelectedOption(option);
     }
   };
 
   const handleLockAnswer = async () => {
     if (!selectedOption || lockedAnswer || showAnswer || timeLeft <= 0) {
-      console.log('Lock answer conditions not met:', {
-        selectedOption,
-        lockedAnswer,
-        showAnswer,
-        timeLeft
-      });
       return;
     }
 
@@ -369,7 +362,6 @@ const PlayGame = () => {
           throw new Error('Failed to update points');
         }
       }
-      console.log('Answer locked successfully');
     } catch (error) {
       console.error('Error submitting answer:', error);
       setError('Failed to submit answer. Please try again.');
@@ -422,12 +414,12 @@ const PlayGame = () => {
   if (isWaiting && isInitialized) {
     return (
       <div className="game-container min-h-screen flex flex-col">
-        {/* Header */}
+        {/* Header with Quit Button */}
         <header className="game-header fixed top-0 left-0 right-0 z-20">
           <div className="header-content">
             <button
               onClick={handleExitGame}
-              className="kbc-button bg-red-600 hover:bg-red-700 w-14 h-8 text-xs"
+              className="kbc-button bg-red-600 hover:bg-red-700 text-xs h-8 w-14"
             >
               QUIT
             </button>
@@ -439,7 +431,7 @@ const PlayGame = () => {
           </div>
         </header>
 
-        {/* Center Content - Using absolute positioning to ensure perfect centering */}
+        {/* Center Content */}
         <div className="fixed inset-0 flex items-center justify-center p-4 z-10">
           <div className="kbc-card max-w-md w-full p-6 md:p-8 text-center animate-fadeIn">
             <div className="flex justify-center mb-6">
@@ -470,6 +462,32 @@ const PlayGame = () => {
             </p>
           </div>
         </div>
+
+        {/* Add exit confirmation dialog here */}
+        {showExitConfirm && (
+          <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+            <div className="kbc-card w-full max-w-md p-4 sm:p-6">
+              <h2 className="text-xl font-bold text-kbc-gold mb-4">Confirm Exit</h2>
+              <p className="text-gray-300 mb-6">
+                Are you sure you want to quit the game?
+              </p>
+              <div className="flex flex-col sm:flex-row justify-end gap-3 sm:gap-4">
+                <button
+                  onClick={() => setShowExitConfirm(false)}
+                  className="kbc-button1 w-full sm:w-auto order-2 sm:order-1"
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={confirmExit}
+                  className="kbc-button1 bg-red-600 hover:bg-red-700 w-full sm:w-auto order-1 sm:order-2"
+                >
+                  Quit
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
       </div>
     );
   }
