@@ -155,7 +155,6 @@ const PlayGame = () => {
   const [selectedOption, setSelectedOption] = useState(null);
   const [lockedAnswer, setLockedAnswer] = useState(null);
   const [gameStopped, setGameStopped] = useState(false);
-  const [showExitConfirm, setShowExitConfirm] = useState(false);
   const [gameToken, setGameToken] = useState(() => localStorage.getItem(`game_${id}_token`));
   const [timeLeft, setTimeLeft] = useState(30);
   const [timerStartedAt, setTimerStartedAt] = useState(null);
@@ -482,6 +481,8 @@ const PlayGame = () => {
       // Clear any pending timeouts
       timeoutsRef.current.forEach(clearTimeout);
       timeoutsRef.current = [];
+      
+      setShowExitDialog(false); // Add this line to ensure dialog closes
       
       // Navigate to dashboard
       navigate('/dashboard');
