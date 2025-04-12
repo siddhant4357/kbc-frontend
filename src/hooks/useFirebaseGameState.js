@@ -21,13 +21,20 @@ export const useFirebaseGameState = (gameId) => {
     const connectUnsubscribe = onValue(connectedRef, (snap) => {
       const connected = snap.val() === true;
       setIsConnected(connected);
-      if (!connected) {
-        console.log('Disconnected from Firebase');
-      } else {
-        console.log('Connected to Firebase');
-        // Set up presence
-        const presenceRef = ref(db, `.info/connected`);
-        onDisconnect(presenceRef).set(serverTimestamp());
+      
+      if (connected) {
+        // Instead of trying to set on .info/connected, set presence in the game path
+        const presenceRef = ref(db, `games/${gameId}/presence`);
+        onDisconnect(presenceRef).set({
+          timestamp: serverTimestamp(),
+          status: 'offline'
+        });
+        
+        // Set current presence
+        set(presenceRef, {
+          timestamp: serverTimestamp(),
+          status: 'online'
+        });
       }
     });
     
@@ -48,8 +55,12 @@ export const useFirebaseGameState = (gameId) => {
 
     // Cleanup listeners
     return () => {
-      gameUnsubscribe();
       connectUnsubscribe();
+      // Clear any disconnect handlers
+      if (gameRef) {
+        const presenceRef = ref(db, `games/${gameId}/presence`);
+        onDisconnect(presenceRef).cancel();
+      }
     };
   }, [gameId]);
 
