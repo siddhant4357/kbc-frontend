@@ -3,12 +3,8 @@ import { useNavigate } from 'react-router-dom';
 import BackButton from '../components/BackButton';
 import { API_URL } from '../utils/config';
 
-// Replace the single ADMIN_PASSCODE constant with an ADMIN_ACCOUNTS object
-const ADMIN_ACCOUNTS = {
-  'admin': '4321',
-  'superadmin': '5678',
-  // Add more admin accounts as needed
-};
+// Replace ADMIN_ACCOUNTS with single admin check
+const ADMIN_PASSCODE = '4321';
 
 const JoinGame = () => {
   const [questionBanks, setQuestionBanks] = useState([]);
@@ -186,7 +182,7 @@ const JoinGame = () => {
     }
 
     // Check if user is an admin
-    if (!ADMIN_ACCOUNTS[user.username]) {
+    if (user.username !== 'admin') {
       navigate('/dashboard');
       return;
     }
@@ -215,16 +211,9 @@ const JoinGame = () => {
       return;
     }
 
-    // Get the current user
     const user = JSON.parse(localStorage.getItem('user'));
-    if (!user) {
-      setError('Please log in first');
-      return;
-    }
-
-    // Check if user is an admin and verify their passcode
-    if (!ADMIN_ACCOUNTS[user.username] || adminPasscode !== ADMIN_ACCOUNTS[user.username]) {
-      setError('Invalid admin passcode');
+    if (!user || user.username !== 'admin' || adminPasscode !== ADMIN_PASSCODE) {
+      setError('Invalid admin credentials');
       return;
     }
 
