@@ -480,30 +480,26 @@ const PlayGame = () => {
   const handleExitConfirm = async () => {
     try {
       setIsExiting(true);
+      setShowExitDialog(false);
 
+      // Remove user presence immediately
       if (user) {
         const userRef = ref(db, `games/${id}/players/${user.username}`);
-        // Cancel any disconnect handlers
-        await onDisconnect(userRef).cancel();
-        // Remove user from game
-        await set(userRef, null);
+        set(userRef, null).catch(console.error); // Don't await, let it happen in background
       }
       
       // Clear local storage
       localStorage.removeItem(`game_${id}_token`);
       
-      // Clear any pending timeouts
+      // Clear timeouts
       timeoutsRef.current.forEach(clearTimeout);
       timeoutsRef.current = [];
-      
-      setShowExitDialog(false);
-      
-      // Navigate to dashboard
+
+      // Navigate immediately
       navigate('/dashboard');
+      
     } catch (error) {
-      console.error('Exit failed:', error);
-      setError('Failed to exit game. Please try again.');
-      setIsExiting(false);
+      console.error('Exit cleanup failed:', error);
     }
   };
 

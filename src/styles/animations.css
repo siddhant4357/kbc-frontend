@@ -59,12 +59,26 @@
   100% { transform: scale(1); }
 }
 
+@keyframes shimmer {
+  0% { transform: translateX(-100%); }
+  100% { transform: translateX(100%); }
+}
+
+@keyframes ping {
+  75%, 100% {
+    transform: scale(2);
+    opacity: 0;
+  }
+}
+
 /* Animation Classes */
 .animate-float { animation: float 3s ease-in-out infinite; }
 .animate-fadeIn { animation: fadeIn 0.5s ease-out forwards; }
 .animate-slideIn { animation: slideIn 0.5s ease-out forwards; }
 .animate-slideUp { animation: slideUp 0.5s ease-out forwards; }
 .animate-slideInRight { animation: slideInRight 0.3s ease-out; }
+.animate-shimmer { animation: shimmer 2s infinite linear; }
+.animate-ping { animation: ping 2s cubic-bezier(0, 0, 0.2, 1) infinite; }
 
 .transition-all {
   transition-property: all;

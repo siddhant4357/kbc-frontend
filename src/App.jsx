@@ -19,7 +19,6 @@ import PlayAlong from './Pages/PlayAlong'; // Fix the casing here
 import JoinGame from './Pages/JoinGame';
 import JoinQuestions from './Pages/JoinQuestions';
 import GameRules from './Pages/GameRules';
-import ManageAdmins from './Pages/ManageAdmins';
 import ErrorBoundary from './components/ErrorBoundary';
 
 const App = () => {
@@ -102,12 +101,6 @@ const App = () => {
             <Route path="/leaderboard" element={
               <AdminRoute>
                 <Leaderboard />
-              </AdminRoute>
-            } />
-
-            <Route path="/manage-admins" element={
-              <AdminRoute>
-                <ManageAdmins />
               </AdminRoute>
             } />
           </Routes>
