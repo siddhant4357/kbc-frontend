@@ -1,104 +1,307 @@
-import React, { useState, useEffect } from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
-import io from 'socket.io-client';
-import { API_URL, SOCKET_URL } from '../utils/config';
-import themeAudio from '../assets/kbc_theme.wav';
-import questionTune from '../assets/question_tune.wav';
-import timerSound from '../assets/kbc_time.mp3';
-import correctAnswerSound from '../assets/kbc_correct_ans.wav';
-import wrongAnswerSound from '../assets/kbc_wrong_ans.wav';
-import timerEndSound from '../assets/kbc_timer_finish.mp4';
+import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
+import { useNavigate, useParams } from 'react-router-dom';
+import { API_URL } from '../utils/config';
 import defaultQuestionImage from '../assets/default_img.jpg';
-import { loadAudio, playWithFallback, stopAllSounds } from '../utils/audioUtils';
+import { useFirebaseGameState } from '../hooks/useFirebaseGameState';
+import { ref, set, onDisconnect, serverTimestamp, onValue, update } from 'firebase/database';
+import { db } from '../utils/firebase';
+import kbcLogo from '../assets/kbc-logo.jpg';
 
-// Update prize levels (from lowest to highest)
-const PRIZE_LEVELS = [
-  "₹1,000",
-  "₹2,000",
-  "₹3,000",
-  "₹5,000",
-  "₹10,000",
-  "₹20,000",
-  "₹40,000",
-  "₹80,000",
-  "₹1,60,000",
-  "₹3,20,000",
-  "₹6,40,000",
-  "₹12,50,000",
-  "₹25,00,000",
-  "₹50,00,000",
-  "₹1,00,00,000"
-].reverse(); // Reverse to show highest prize first
+import { debounce, throttle } from 'lodash';
+
+const BATCH_INTERVAL = 2000; // 2 seconds
+const MAX_RETRIES = 3;
+const RECONNECT_DELAY = 2000;
+
+const getImageUrl = (imageUrl) => {
+  if (!imageUrl || imageUrl === '') return defaultQuestionImage;
+  if (imageUrl.startsWith('http')) return imageUrl;
+  if (imageUrl.startsWith('data:')) return imageUrl;
+  
+  try {
+    const cleanUrl = imageUrl.replace(/([^:])\/+/g, '$1/');
+    if (cleanUrl.includes('uploads/questions/')) {
+      return `${API_URL}/${cleanUrl.split('uploads/questions/')[1]}`;
+    }
+    return `${API_URL}/uploads/questions/${cleanUrl.split('/').pop()}`;
+  } catch (error) {
+    console.error('Error formatting image URL:', error);
+    return defaultQuestionImage;
+  }
+};
+
+const ImageErrorBoundary = React.memo(({ children }) => {
+  const [hasError, setHasError] = useState(false);
+
+  useEffect(() => {
+    if (hasError) {
+      const timer = setTimeout(() => setHasError(false), 5000);
+      return () => clearTimeout(timer);
+    }
+  }, [hasError]);
+
+  if (hasError) {
+    return (
+      <div className="w-full h-full flex items-center justify-center bg-kbc-dark-blue/50 rounded-lg">
+        <div className="text-center">
+          <div className="text-kbc-gold text-sm mb-2">Unable to load image</div>
+          <img 
+            src={defaultQuestionImage}
+            alt="Default"
+            className="w-24 h-24 mx-auto opacity-50"
+          />
+        </div>
+      </div>
+    );
+  }
+
+  return children;
+});
+
+const QuestionImage = React.memo(({ imageUrl }) => {
+  const [imgSrc, setImgSrc] = useState(() => getImageUrl(imageUrl));
+  const [hasError, setHasError] = useState(false);
+  const [isLoading, setIsLoading] = useState(true);
+  const retryCount = useRef(0);
+
+  const handleError = (e) => {
+    console.error('Image load error for:', imgSrc);
+    if (retryCount.current < 3 && imgSrc !== defaultQuestionImage) {
+      retryCount.current += 1;
+      setTimeout(() => {
+        setImgSrc(`${imgSrc}?retry=${retryCount.current}`);
+      }, 1000);
+    } else {
+      e.target.src = defaultQuestionImage;
+      setHasError(true);
+    }
+    setIsLoading(false);
+  };
+
+  return (
+    <div className="relative w-full h-full">
+      {isLoading && !hasError && (
+        <div className="absolute inset-0 flex items-center justify-center bg-kbc-dark-blue/50 rounded-lg">
+          <div className="animate-spin rounded-full h-8 w-8 border-2 border-kbc-gold"></div>
+        </div>
+      )}
+      <img
+        src={imgSrc}
+        alt="Question"
+        className={`w-full h-full object-contain rounded-lg shadow-glow transition-opacity duration-300 ${
+          isLoading ? 'opacity-0' : 'opacity-100'
+        }`}
+        onError={handleError}
+        onLoad={() => {
+          setIsLoading(false);
+          retryCount.current = 0;
+        }}
+        crossOrigin="anonymous"
+      />
+    </div>
+  );
+});
+
+const ExitConfirmDialog = ({ isOpen, onClose, onConfirm, message, isLoading }) => {
+  if (!isOpen) return null;
+  
+  return (
+    <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+      <div className="kbc-card w-full max-w-md p-4 sm:p-6">
+        <h2 className="text-xl font-bold text-kbc-gold mb-4">Confirm Exit</h2>
+        <p className="text-gray-300 mb-6">
+          {message || "Are you sure you want to quit the game?"}
+        </p>
+        <div className="flex flex-col sm:flex-row justify-end gap-3 sm:gap-4">
+          <button
+            onClick={onClose}
+            className="kbc-button1 w-full sm:w-auto order-2 sm:order-1"
+            disabled={isLoading}
+          >
+            Cancel
+          </button>
+          <button
+            onClick={onConfirm}
+            className="kbc-button1 bg-red-600 hover:bg-red-700 w-full sm:w-auto order-1 sm:order-2 relative"
+            disabled={isLoading}
+          >
+            {isLoading ? (
+              <>
+                <span className="opacity-0">Quit</span>
+                <div className="absolute inset-0 flex items-center justify-center">
+                  <div className="animate-spin rounded-full h-5 w-5 border-2 border-white"></div>
+                </div>
+              </>
+            ) : (
+              'Quit'
+            )}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+};
+
+const QuitButton = ({ onQuit }) => {
+  return (
+    <button
+      onClick={onQuit}
+      className="kbc-button bg-red-600 hover:bg-red-700 text-xs h-8 w-14"
+    >
+      QUIT
+    </button>
+  );
+};
 
 const PlayGame = () => {
   const { id } = useParams();
   const navigate = useNavigate();
+  const user = JSON.parse(localStorage.getItem('user'));
+
+  const [gameState, setGameState] = useState(null);
+  const [error, setError] = useState('');
   const [currentQuestion, setCurrentQuestion] = useState(null);
+
+  useEffect(() => {
+    if (currentQuestion) {
+      // Reset answer states every time question changes
+      setSelectedOption(null);
+      setLockedAnswer(null);
+      setShowAnswer(false);
+    }
+  }, [currentQuestion?.questionIndex]);
+  
   const [showOptions, setShowOptions] = useState(false);
   const [showAnswer, setShowAnswer] = useState(false);
   const [selectedOption, setSelectedOption] = useState(null);
   const [lockedAnswer, setLockedAnswer] = useState(null);
-  const [socket, setSocket] = useState(null);
   const [gameStopped, setGameStopped] = useState(false);
-  const [showExitConfirm, setShowExitConfirm] = useState(false);
-  const [gameToken, setGameToken] = useState(localStorage.getItem(`game_${id}_token`));
+  const [gameToken, setGameToken] = useState(() => localStorage.getItem(`game_${id}_token`));
   const [timeLeft, setTimeLeft] = useState(30);
-  const [currentPrizeIndex, setCurrentPrizeIndex] = useState(PRIZE_LEVELS.length - 1);
-  const [showPrizeLadder, setShowPrizeLadder] = useState(false);
   const [timerStartedAt, setTimerStartedAt] = useState(null);
   const [timerDuration, setTimerDuration] = useState(15);
   const [isTimerExpired, setIsTimerExpired] = useState(false);
   const [isWaiting, setIsWaiting] = useState(true);
+  const { gameState: firebaseGameState, error: firebaseError, isInitialized, isConnected } = useFirebaseGameState(id);
+  const timeoutsRef = useRef([]);
+  const isNavigatingRef = useRef(false);
+  const [connectionAttempts, setConnectionAttempts] = useState(0);
+  const pendingUpdatesRef = useRef([]);
+  const batchTimeoutRef = useRef(null);
+  const [showExitDialog, setShowExitDialog] = useState(false);
+  const [isExiting, setIsExiting] = useState(false);
 
-  // Add audio states
-  const [themeSound] = useState(() => loadAudio(themeAudio));
-  const [questionSound] = useState(() => loadAudio(questionTune));
-  const [timerAudio] = useState(() => loadAudio(timerSound));
-  const [correctAudio] = useState(() => loadAudio(correctAnswerSound));
-  const [wrongAudio] = useState(() => loadAudio(wrongAnswerSound));
-  const [timerEndAudio] = useState(() => {
-    const audio = new Audio(timerEndSound);
-    audio.volume = 0.5;
-    return audio;
-  });
+  const processGameState = useCallback(async (state) => {
+    if (!state || isNavigatingRef.current || !isInitialized) return;
 
-  const [hasUserInteracted, setHasUserInteracted] = useState(false);
-  const [isSoundPaused, setIsSoundPaused] = useState(false);
-
-  // Add audio utility functions
-  const stopAllSounds = async () => {
-    [themeSound, questionSound, timerAudio, correctAudio, wrongAudio, timerEndAudio].forEach(audio => {
-      audio.pause();
-      audio.currentTime = 0;
-    });
-  };
-
-  // Handle user interaction for theme music
-  const handleStartExperience = async () => {
-    try {
-      await themeSound.play();
-      themeSound.loop = true;
-      setHasUserInteracted(true);
-    } catch (error) {
-      console.error("Error playing theme:", error);
-      setHasUserInteracted(true);
+    // Handle active state changes
+    if (state.isActive === true) {
+      setIsWaiting(false);
+    } else if (state.isActive === false && state.gameStopped) {
+      setGameStopped(true);
+      setCurrentQuestion(null);
+      setShowOptions(false);
+      setShowAnswer(false);
+      setSelectedOption(null);
+      setLockedAnswer(null);
+      setError('Game has been stopped by the admin');
+      localStorage.removeItem(`game_${id}_token`);
+      const timeout = setTimeout(() => navigate('/dashboard'), 2000);
+      timeoutsRef.current.push(timeout);
+      return;
+    } else if (state.isActive === false) {
+      setIsWaiting(true);
+      return;
     }
-  };
 
-  // Add restart sound handler
-  const handleRestartSound = async () => {
-    if (isWaiting && themeSound) {
-      themeSound.pause();
-      themeSound.currentTime = 0;
-      try {
-        await themeSound.play();
-        themeSound.loop = true;
-        setIsSoundPaused(false);
-      } catch (error) {
-        console.error("Error restarting sound:", error);
+    // Handle question changes
+    if (state.currentQuestion) {
+      const newQuestionIndex = parseInt(state.currentQuestion.questionIndex ?? 0);
+      const currentQuestionIndex = parseInt(currentQuestion?.questionIndex ?? -1);
+
+      if (newQuestionIndex !== currentQuestionIndex) {
+        setCurrentQuestion(state.currentQuestion);
+        // Reset states when question changes
+        setShowOptions(false);
+        setShowAnswer(false);
+        setSelectedOption(null);
+        setLockedAnswer(null); // <-- THIS LINE IS MISSING OR NOT FIRING CORRECTLY
+        setTimeLeft(state.timerDuration || 15);
+        setIsTimerExpired(false);
+      }
+      
+    }
+
+    // Handle options state
+    if ('showOptions' in state) {
+      const shouldShowOptions = Boolean(state.showOptions);
+      if (shouldShowOptions !== showOptions) {  // Only update if changed
+        setShowOptions(shouldShowOptions);
+        if (shouldShowOptions) {
+          setTimerStartedAt(state.timerStartedAt);
+          setTimerDuration(state.timerDuration || 15);
+          setTimeLeft(state.timerDuration || 15);
+          setIsTimerExpired(false);
+          // Don't reset selection states when showing options
+        }
       }
     }
-  };
+
+    // Handle answer reveal without resetting selection
+    if (state.showAnswer && !showAnswer) {
+      setShowAnswer(true);
+    }
+
+    // Handle game token updates
+    if (state.gameToken && state.gameToken !== gameToken) {
+      setGameToken(state.gameToken);
+      localStorage.setItem(`game_${id}_token`, state.gameToken);
+    }
+  }, [id, gameToken, gameStopped, navigate, currentQuestion, showOptions, showAnswer, isInitialized]);
+
+  const debouncedProcessGameState = useCallback(
+    debounce((state) => {
+      if (!state || isNavigatingRef.current || !isInitialized) return;
+      processGameState(state).catch(console.error);
+    }, 500),
+    [processGameState]
+  );
+
+  const throttledProcessGameState = useMemo(() => 
+    throttle((state) => {
+      if (!state || isNavigatingRef.current || !isInitialized) return;
+      processGameState(state).catch(console.error);
+    }, 1000), 
+    [processGameState, isInitialized]
+  );
+
+  const batchedFirebaseUpdate = useCallback(async () => {
+    if (pendingUpdatesRef.current.length === 0) return;
+
+    try {
+      const gameRef = ref(db, `games/${id}`);
+      
+      // Properly structure updates to avoid dots in keys
+      const updates = {};
+      pendingUpdatesRef.current.forEach(updateObj => {
+        Object.entries(updateObj).forEach(([path, value]) => {
+          // Convert dot notation to proper Firebase path
+          const parts = path.split('.');
+          const cleanPath = parts.join('/');
+          // Remove games/id prefix if present
+          const finalPath = cleanPath.replace(`games/${id}/`, '');
+          updates[finalPath] = value;
+        });
+      });
+
+      await update(gameRef, updates);
+      pendingUpdatesRef.current = [];
+
+    } catch (error) {
+      console.error('Batch update failed:', error);
+      setError('Failed to update game state. Please try again.');
+    }
+  }, [db, id]);
 
   const formatTime = (seconds) => {
     if (seconds < 0) return '00';
@@ -106,459 +309,408 @@ const PlayGame = () => {
   };
 
   useEffect(() => {
-    // Timer effect
-    if (timerStartedAt && showOptions) {
-      const interval = setInterval(() => {
+    if (!isConnected) {
+      setError('Lost connection to game server. Trying to reconnect...');
+    } else {
+      setError(null);
+    }
+  }, [isConnected]);
+
+  useEffect(() => {
+    if (!isConnected && isWaiting) {
+      setError('Lost connection to game server. You may need to rejoin.');
+    }
+  }, [isConnected, isWaiting]);
+
+  useEffect(() => {
+    if (!isConnected && connectionAttempts < MAX_RETRIES) {
+      const reconnectTimeout = setTimeout(() => {
+        setConnectionAttempts(prev => prev + 1);
+        window.location.reload();
+      }, RECONNECT_DELAY * Math.pow(2, connectionAttempts));
+
+      return () => clearTimeout(reconnectTimeout);
+    }
+  }, [isConnected, connectionAttempts]);
+
+  useEffect(() => {
+    let interval;
+    if (timerStartedAt && showOptions && !isTimerExpired && !lockedAnswer) {
+      interval = setInterval(() => {
         const now = new Date();
         const startTime = new Date(timerStartedAt);
         const elapsedSeconds = Math.floor((now - startTime) / 1000);
         const remainingSeconds = timerDuration - elapsedSeconds;
-        
-        setTimeLeft(Math.max(0, remainingSeconds));
-        
+
         if (remainingSeconds <= 0) {
+          setTimeLeft(0);
           setIsTimerExpired(true);
-          // Only clear selectedOption if it wasn't locked
           if (!lockedAnswer) {
-            setSelectedOption(null);  // This will remove the yellow selection
+            setSelectedOption(null);
           }
           clearInterval(interval);
+        } else {
+          setTimeLeft(remainingSeconds);
         }
       }, 1000);
-
-      return () => clearInterval(interval);
-    }
-  }, [timerStartedAt, timerDuration, showOptions, lockedAnswer]);
-
-  useEffect(() => {
-    const newSocket = io(SOCKET_URL);
-    
-    newSocket.emit('joinGame', { id });
-
-    newSocket.on('gameState', async (state) => {
-      if (state && state.isActive) {
-        await stopAllSounds(); // Stop theme music when game starts
-        setCurrentQuestion(state.currentQuestion);
-        setShowOptions(state.showOptions);
-        setShowAnswer(state.showAnswer);
-        setGameStopped(false);
-        setIsWaiting(false);
-      } else {
-        // Reset everything if game is not active
-        await stopAllSounds();
-        if (hasUserInteracted) {
-          themeSound.play().catch(console.error);
-        }
-        setCurrentQuestion(null);
-        setShowOptions(false);
-        setShowAnswer(false);
-        setSelectedOption(null);
-        setLockedAnswer(null);
-        setGameStopped(false);
-        setIsWaiting(true);
-      }
-    });
-
-    newSocket.on('questionUpdate', async (data) => {
-      await stopAllSounds();
-      questionSound.play().catch(console.error);
-      setCurrentQuestion({
-        ...data,
-        // Ensure questionIndex is a number and starts from 0
-        questionIndex: parseInt(data.questionIndex ?? 0)
-      });
-      setShowOptions(false);
-      setShowAnswer(false);
-      setSelectedOption(null);
-      setLockedAnswer(null);
-      setGameStopped(false);
-      
-      // Update prize index based on question index
-      const questionIndex = parseInt(data.questionIndex ?? 0);
-      const newPrizeIndex = PRIZE_LEVELS.length - 1 - questionIndex;
-      setCurrentPrizeIndex(newPrizeIndex);
-    });
-
-    newSocket.on('showOptions', async (data) => {
-      await stopAllSounds();
-      timerAudio.loop = true;
-      timerAudio.play().catch(console.error);
-      setShowOptions(true);
-      setTimerStartedAt(data.timerStartedAt);
-      setTimerDuration(data.timerDuration);
-      setIsTimerExpired(false);
-    });
-
-    newSocket.on('showAnswer', async () => {
-      try {
-        // First stop all sounds
-        await stopAllSounds();
-        
-        // Add a small delay
-        await new Promise(resolve => setTimeout(resolve, 100));
-        
-        // Make sure we have both currentQuestion and selectedOption
-        if (currentQuestion && selectedOption) {
-          // Play appropriate sound based on answer
-          if (selectedOption === currentQuestion.correctAnswer) {
-            correctAudio.currentTime = 0;
-            await correctAudio.play();
-          } else {
-            wrongAudio.currentTime = 0;
-            await wrongAudio.play();
-          }
-        }
-        
-        setShowAnswer(true);
-      } catch (error) {
-        console.error("Error playing answer sound:", error);
-        setShowAnswer(true);
-      }
-    });
-
-    newSocket.on('gameToken', (token) => {
-      setGameToken(token);
-      localStorage.setItem(`game_${id}_token`, token);
-    });
-
-    newSocket.on('gameStop', async () => {
-      // Stop all sounds when game stops
-      await stopAllSounds();
-      setGameStopped(true);
-      setCurrentQuestion(null);
-      setShowOptions(false);
-      setShowAnswer(false);
-      setSelectedOption(null);
-      setLockedAnswer(null);
-      // Add setTimeout for redirect
-      setTimeout(() => {
-        navigate('/dashboard');
-      }, 2000); // 2 second delay before redirect
-    });
-
-    newSocket.on('pointsUpdate', ({ isCorrect }) => {
-      // Empty handler - no feedback shown to user
-    });
-
-    // Request current game state on reconnection
-    if (gameToken) {
-      newSocket.emit('requestGameState', { id, gameToken });
     }
 
-    setSocket(newSocket);
-
     return () => {
-      stopAllSounds(); // Stop all sounds on unmount
-      newSocket.disconnect();
-      if (!gameToken) {
-        localStorage.removeItem(`game_${id}_token`);
+      if (interval) {
+        clearInterval(interval);
       }
     };
-  }, [id, navigate]);
+  }, [timerStartedAt, timerDuration, showOptions, lockedAnswer, isTimerExpired]);
 
   useEffect(() => {
-    const handleVisibilityChange = () => {
-      if (document.hidden) {
-        stopAllSounds();
-        setIsSoundPaused(true);
-      }
-    };
-
-    document.addEventListener('visibilitychange', handleVisibilityChange);
     return () => {
-      document.removeEventListener('visibilitychange', handleVisibilityChange);
+      timeoutsRef.current.forEach(timeout => clearTimeout(timeout));
+      timeoutsRef.current = [];
+      isNavigatingRef.current = false;
     };
   }, []);
 
-  // Add this useEffect for preloading sounds
   useEffect(() => {
-    const preloadSounds = async () => {
-      try {
-        await Promise.all([
-          correctAudio.load(),
-          wrongAudio.load()
-        ]);
-      } catch (error) {
-        console.error("Error preloading sounds:", error);
-      }
-    };
+    if (firebaseGameState && user && !isNavigatingRef.current && isInitialized) {
+      debouncedProcessGameState(firebaseGameState);
+    }
 
-    preloadSounds();
-  }, [correctAudio, wrongAudio]);
-
-  useEffect(() => {
-    const socket = createSocketConnection();
-    
-    let reconnectInterval;
-    
-    socket.on('disconnect', () => {
-      console.log('Disconnected from server');
-      // Show disconnection message to user
-      setError('Lost connection to server. Attempting to reconnect...');
-      
-      // Attempt to reconnect every 5 seconds
-      reconnectInterval = setInterval(() => {
-        socket.connect();
-      }, 5000);
-    });
-    
-    socket.on('connect', () => {
-      clearInterval(reconnectInterval);
-      setError('');
-      // Re-join game room
-      socket.emit('joinGame', { id });
-    });
-  
     return () => {
-      socket.disconnect();
-      clearInterval(reconnectInterval);
+      debouncedProcessGameState.cancel();
+    };
+  }, [firebaseGameState, user, debouncedProcessGameState, isInitialized]);
+
+  useEffect(() => {
+    const userRef = user ? ref(db, `games/${id}/players/${user.username}`) : null;
+    
+    if (userRef) {
+      const presenceData = {
+        isOnline: true,
+        joinedAt: serverTimestamp(),
+        lastActive: Date.now()
+      };
+
+      set(userRef, presenceData)
+        .catch(error => console.error('Presence update failed:', error));
+
+      onDisconnect(userRef)
+        .remove()
+        .catch(error => console.error('Disconnect handler failed:', error));
+
+      const presenceInterval = setInterval(() => {
+        set(ref(db, `games/${id}/players/${user.username}/lastActive`), Date.now())
+          .catch(error => console.error('Presence refresh failed:', error));
+      }, 30000);
+
+      return () => {
+        clearInterval(presenceInterval);
+        set(userRef, null).catch(console.error);
+        onDisconnect(userRef).cancel().catch(console.error);
+      };
+    }
+  }, [db, id, user]);
+
+  useEffect(() => {
+    const connectedRef = ref(db, '.info/connected');
+    const unsubscribe = onValue(connectedRef, (snap) => {
+      if (snap.val() === true) {
+        console.log('Connected to Firebase');
+      } else {
+        console.log('Disconnected from Firebase');
+        setError('Lost connection to game server');
+      }
+    });
+
+    return () => {
+      unsubscribe();
+    };
+  }, []);
+
+  useEffect(() => {
+    if (firebaseGameState) {
+      setShowOptions(firebaseGameState.showOptions || false);
+      setShowAnswer(firebaseGameState.showAnswer || false);
+      if (firebaseGameState.currentQuestion) {
+        setCurrentQuestion(firebaseGameState.currentQuestion);
+      }
+      if (firebaseGameState.timerStartedAt && firebaseGameState.timerDuration) {
+        setTimerStartedAt(firebaseGameState.timerStartedAt);
+        setTimerDuration(firebaseGameState.timerDuration);
+      }
+      setIsWaiting(!firebaseGameState.isActive);
+    }
+  }, [firebaseGameState]);
+
+  useEffect(() => {
+    return () => {
+      localStorage.removeItem(`game_${id}_token`);
     };
   }, [id]);
 
-  const handleOptionSelect = (option) => {
-    // Allow selecting options if answer isn't locked and answer isn't shown
-    if (!showAnswer && !lockedAnswer) {
+  const handleOptionSelect = useCallback((option) => {
+    if (!showAnswer && !lockedAnswer && timeLeft > 0) {
       setSelectedOption(option);
     }
+  }, [showAnswer, lockedAnswer, timeLeft]);
+
+  const handleLockAnswer = useCallback(async () => {
+    if (!selectedOption || showAnswer || timeLeft <= 0) return;
+
+    try {
+      const updates = {
+        [`players/${user.username}/answers/${currentQuestion.questionIndex}`]: {
+          answer: selectedOption,
+          answeredAt: Date.now(),
+          isCorrect: selectedOption === currentQuestion.correctAnswer
+        },
+        [`players/${user.username}/status`]: {
+          lastActive: Date.now(),
+          currentQuestion: currentQuestion.questionIndex
+        }
+      };
+
+      setLockedAnswer(selectedOption);
+      pendingUpdatesRef.current.push(updates);
+      await batchedFirebaseUpdate();
+
+    } catch (error) {
+      console.error('Error submitting answer:', error);
+      setError('Failed to submit answer. Please try again.');
+      setLockedAnswer(null);
+    }
+  }, [selectedOption, showAnswer, timeLeft, currentQuestion, user, batchedFirebaseUpdate]);
+
+  const handleExit = () => {
+    setShowExitDialog(true);
   };
 
-  const handleLockAnswer = () => {
-    // Only allow locking answer if:
-    // 1. An option is selected
-    // 2. Answer isn't already locked
-    // 3. Answer isn't shown
-    // 4. Timer hasn't expired
-    if (selectedOption && !lockedAnswer && !showAnswer && !isTimerExpired) {
-      setLockedAnswer(selectedOption);
-      const user = JSON.parse(localStorage.getItem('user'));
-      socket.emit('answerLocked', { 
-        questionBankId: id, 
-        answer: selectedOption,
-        username: user.username
-      });
+  const handleExitConfirm = async () => {
+    try {
+      setIsExiting(true);
+      setShowExitDialog(false);
+
+      // Remove user presence immediately
+      if (user) {
+        const userRef = ref(db, `games/${id}/players/${user.username}`);
+        set(userRef, null).catch(console.error); // Don't await, let it happen in background
+      }
+      
+      // Clear local storage
+      localStorage.removeItem(`game_${id}_token`);
+      
+      // Clear timeouts
+      timeoutsRef.current.forEach(clearTimeout);
+      timeoutsRef.current = [];
+
+      // Navigate immediately
+      navigate('/dashboard');
+      
+    } catch (error) {
+      console.error('Exit cleanup failed:', error);
     }
   };
 
-  const handleExitGame = () => {
-    setShowExitConfirm(true);
+  const retryOperation = async (operation, maxRetries = 3) => {
+    for (let i = 0; i < maxRetries; i++) {
+      try {
+        return await operation();
+      } catch (error) {
+        if (i === maxRetries - 1) throw error;
+        await new Promise(resolve => setTimeout(resolve, Math.pow(2, i) * 1000));
+      }
+    }
   };
 
   const confirmExit = async () => {
-    // Stop all sounds before disconnecting
-    await stopAllSounds();
-    socket.disconnect();
-    localStorage.removeItem(`game_${id}_token`);
-    navigate('/dashboard');
+    if (isNavigatingRef.current) return;
+    
+    try {
+      isNavigatingRef.current = true;
+      
+      if (user) {
+        await retryOperation(async () => {
+          const userRef = ref(db, `games/${id}/players/${user.username}`);
+          await onDisconnect(userRef).cancel();
+          await set(userRef, null);
+        });
+      }
+      
+      localStorage.removeItem(`game_${id}_token`);
+      timeoutsRef.current.forEach(timeout => clearTimeout(timeout));
+      timeoutsRef.current = [];
+      
+      navigate('/dashboard');
+    } catch (err) {
+      console.error('Error during exit:', err);
+      isNavigatingRef.current = false;
+      setError('Failed to quit game. Please try again.');
+    }
   };
 
-  // Add waiting screen before the main game UI
-  if (isWaiting) {
+  if (!isInitialized) {
     return (
-      <div className="min-h-screen bg-gradient-to-b from-kbc-dark-blue to-kbc-purple flex items-center justify-center">
-        {!hasUserInteracted ? (
-          <div className="fixed inset-0 bg-black/80 flex items-center justify-center z-50">
-            <div className="kbc-card p-8 text-center max-w-md mx-4">
-              <h2 className="text-2xl text-kbc-gold mb-4">Welcome to KBC</h2>
-              <p className="text-white mb-6">Click the button below to start your experience</p>
-              <button 
-                onClick={handleStartExperience}
-                className="kbc-button1 animate-pulse"
-              >
-                Start Experience
-              </button>
-            </div>
-          </div>
-        ) : (
-          <>
-            {/* Add header with exit button */}
-            <header className="fixed top-0 left-0 right-0 flex justify-between items-center p-3 bg-kbc-dark-blue/80 backdrop-blur-[4px] z-10">
-              <button 
-                onClick={handleExitGame}
-                className="kbc-button bg-red-600 hover:bg-red-700 w-10 h-8 text-xs"
-              >
-                QUIT
-              </button>
-              <img 
-                src="/src/assets/kbc-logo.png" 
-                alt="KBC Logo" 
-                className="h-8"
-              />
-            </header>
+      <div className="game-container overflow-hidden">
+        <div className="kbc-card p-8 text-center mt-20 mx-4">
+          <div className="animate-spin rounded-full h-12 w-12 border-4 border-kbc-gold mx-auto mb-4"></div>
+          <h2 className="text-xl text-kbc-gold font-bold">
+            Connecting to game...
+          </h2>
+        </div>
+      </div>
+    );
+  }
 
-            <div className="kbc-card p-8 text-center animate-pulse">
-              <img 
-                src="/src/assets/kbc-logo.png" 
-                alt="KBC Logo" 
-                className="w-24 h-24 mx-auto mb-6"
-              />
-              <h2 className="text-2xl text-kbc-gold font-bold mb-4">
-                Waiting for Admin to Start the Game
-              </h2>
-              <p className="text-gray-300 mb-6">
-                Please stay on this screen. The game will begin automatically.
-              </p>
-            </div>
-
-            {/* Exit Confirmation Modal */}
-            {showExitConfirm && (
-              <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4">
-                <div className="kbc-card w-full max-w-md p-4 sm:p-6">
-                  <h2 className="text-xl font-bold text-kbc-gold mb-4">Confirm Exit</h2>
-                  <p className="text-gray-300 mb-6">
-                    Are you sure you want to leave the game?
-                  </p>
-                  <div className="flex flex-col sm:flex-row justify-end gap-3 sm:gap-4">
-                    <button
-                      onClick={() => setShowExitConfirm(false)}
-                      className="kbc-button1 w-full sm:w-auto order-2 sm:order-1"
-                    >
-                      Cancel
-                    </button>
-                    <button
-                      onClick={confirmExit}
-                      className="kbc-button1 bg-red-600 hover:bg-red-700 w-full sm:w-auto order-1 sm:order-2"
-                    >
-                      Exit Game
-                    </button>
-                  </div>
-                </div>
-              </div>
-            )}
-          </>
-        )}
-
-        {isSoundPaused && (
+  if (isWaiting && isInitialized) {
+    return (
+      <div className="game-container min-h-screen flex flex-col relative bg-gradient-to-b from-kbc-dark-blue to-kbc-purple">
+        {/* Quit button with loading state */}
+        <div className="absolute top-4 left-4 z-50">
           <button
-            onClick={handleRestartSound}
-            className="fixed bottom-4 right-4 kbc-button w-12 h-12 flex items-center justify-center text-xl rounded-full shadow-glow z-50"
-            title="Restart Sound"
+            onClick={() => setShowExitDialog(true)}
+            className="kbc-button1 bg-red-600 hover:bg-red-700 flex items-center justify-center gap-2 px-4 py-2 text-sm font-semibold shadow-glow transition-all duration-300 ease-in-out min-w-[100px]"
+            disabled={isExiting}
           >
-            🔄
+            <span>🚪</span>
+            {isExiting ? (
+              <div className="flex items-center gap-2">
+                <span>Quitting</span>
+                <div className="animate-spin rounded-full h-4 w-4 border-2 border-white"></div>
+              </div>
+            ) : (
+              <>
+                <span className="hidden sm:inline">Quit Game</span>
+                <span className="sm:hidden">Quit</span>
+              </>
+            )}
           </button>
-        )}
+        </div>
+
+          {/* Center content */}
+        <div className="flex-1 flex items-center justify-center p-4">
+          <div className="kbc-card max-w-md w-full p-6 md:p-8 text-center animate-fadeIn">
+            <div className="flex justify-center mb-6">
+              <div className="relative">
+                <img
+                  src={kbcLogo}
+                  alt="KBC Logo"
+                  className="w-14 h-14 md:w-16 md:h-16 rounded-full relative z-10 border-2 border-kbc-gold"
+                />
+              </div>
+            </div>
+            
+            <h2 className="text-lg md:text-xl text-kbc-gold font-bold mb-4">
+              Waiting for Game to Start
+            </h2>
+            
+            <div className="flex justify-center mb-4">
+              <div className="flex gap-2">
+                <span className="w-2 h-2 bg-kbc-gold rounded-full animate-bounce" style={{ animationDelay: '0s' }}></span>
+                <span className="w-2 h-2 bg-kbc-gold rounded-full animate-bounce" style={{ animationDelay: '0.2s' }}></span>
+                <span className="w-2 h-2 bg-kbc-gold rounded-full animate-bounce" style={{ animationDelay: '0.4s' }}></span>
+              </div>
+            </div>
+            
+            <p className="text-gray-300 text-sm">
+              Please stay on this screen. The game will begin automatically.
+            </p>
+          </div>
+        </div>
+
+        {/* Exit dialog with highest z-index */}
+        <ExitConfirmDialog
+          isOpen={showExitDialog}
+          onClose={() => setShowExitDialog(false)}
+          onConfirm={handleExitConfirm}
+          message="Are you sure you want to leave the waiting room?"
+          isLoading={isExiting}
+        />
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-b from-kbc-dark-blue to-kbc-purple">
-      {/* Header with better responsiveness for mobile */}
-      <header className="fixed top-0 left-0 right-0 bg-kbc-dark-blue/90 backdrop-blur-sm z-10 p-2 sm:p-4">
-        <div className="flex flex-wrap items-center justify-between gap-2 w-full">
-          {/* Left section: Quit button and player info */}
-          <div className="flex items-center gap-2">
-            <button
-              onClick={handleExitGame}
-              className="kbc-button bg-red-600 hover:bg-red-700 text-xs h-8 w-14 sm:px-4"
-            >
-              QUIT
-            </button>
-            <div className="hidden sm:block">
-              <p className="text-kbc-gold text-xs">Player</p>
-              <p className="text-white font-bold text-sm">
-                {JSON.parse(localStorage.getItem('user'))?.username}
-              </p>
+    <div className="game-container overflow-hidden">
+      <header className="game-header">
+        <div className="header-content">
+          <div className="flex flex-wrap items-center justify-between gap-2 w-full">
+            <div className="flex items-center gap-2">
+              <QuitButton onQuit={() => setShowExitDialog(true)} />
+              <div className="hidden sm:block">
+                <p className="text-kbc-gold text-xs">Player</p>
+                <p className="text-white font-bold text-sm">
+                  {JSON.parse(localStorage.getItem('user'))?.username}
+                </p>
+              </div>
             </div>
-          </div>
-          
-          {/* Center section: Timer display - with fixed positioning for mobile */}
-          <div className="flex items-center justify-center absolute left-1/2 transform -translate-x-1/2">
-            <div className="relative w-12 h-12 sm:w-16 right-15 sm:h-16">
-              <svg className="w-full h-full transform -rotate-90">
-                <circle
-                  cx="50%"
-                  cy="50%"
-                  r="45%"
-                  stroke="currentColor"
-                  strokeWidth="4"
-                  fill="transparent"
-                  className="text-kbc-gold"
-                  strokeDasharray={`${(timeLeft / timerDuration) * 176} 176`}
-                />
-              </svg>
-              <span className="absolute inset-0 flex items-center justify-center text-base sm:text-xl text-kbc-gold">
-                {formatTime(timeLeft)}
-              </span>
+
+            <div className="flex justify-center absolute left-1/2 transform -translate-x-1/2">
+              <div className="relative w-10 h-10 sm:w-12 sm:h-12">
+                <svg className="w-full h-full transform -rotate-90" viewBox="0 0 100 100">
+                  <circle
+                    cx="50"
+                    cy="50"
+                    r="45"
+                    fill="transparent"
+                    stroke="rgba(255, 184, 0, 0.2)"
+                    strokeWidth="8"
+                  />
+                  <circle
+                    cx="50"
+                    cy="50"
+                    r="45"
+                    fill="transparent"
+                    stroke="var(--kbc-gold)"
+                    strokeWidth="8"
+                    strokeLinecap="round"
+                    strokeDasharray={`${2 * Math.PI * 45}`}
+                    strokeDashoffset={`${(1 - timeLeft / timerDuration) * 2 * Math.PI * 45}`}
+                    style={{
+                      transition: 'stroke-dashoffset 1s linear'
+                    }}
+                  />
+                </svg>
+                <span className="absolute inset-0 flex items-center justify-center text-sm sm:text-base font-bold text-kbc-gold">
+                  {formatTime(timeLeft)}
+                </span>
+              </div>
             </div>
-          </div>
-          
-          {/* Right section: Username for mobile */}
-          <div className="block sm:hidden text-right">
-            <p className="text-white font-bold text-sm">
-              {JSON.parse(localStorage.getItem('user'))?.username}
-            </p>
           </div>
         </div>
       </header>
 
-      {/* Main game area - adjusted padding for mobile */}
-      <div className="container mx-auto pt-16 sm:pt-24 px-2 sm:px-4 flex flex-col lg:flex-row min-h-screen pb-6">
-        {/* Question Box */}
-        <div className="flex-1 flex flex-col justify-between min-h-[calc(100vh-8rem)] lg:pr-80 order-2 lg:order-1">
-          {/* Mobile Prize Bar - Only visible on mobile/tablet devices, hidden on laptops/desktops */}
-          <div className="block lg:hidden flex flex-col space-y-3 mb-4">
-            <div className="kbc-question-box lg:hidden p-3 shadow-glow">
-              <div className="flex justify-between items-center">
-                <div>
-                  <p className="text-xs text-kbc-gold">Current Prize</p>
-                  <p className="text-lg font-bold text-white">{PRIZE_LEVELS[currentPrizeIndex]}</p>
-                </div>
-              </div>
-            </div>
-          </div>
-
-          <div className="flex-grow" />
-          
-          {/* Question container with image support */}
+      <div className="container mx-auto pt-16 sm:pt-20 px-2 sm:px-4 flex flex-col lg:flex-row min-h-screen">
+        <div className="flex-1 flex flex-col order-2 lg:order-1 pb-4">
           {currentQuestion && (
             <>
-              {/* Image container - with dynamic height based on options visibility */}
-              <div className="mb-4 flex justify-center transition-all duration-300">
+              <div className="question-image mb-4 flex justify-center transition-all duration-300">
                 <div className={`relative w-full max-w-xl ${
                   showOptions || (selectedOption && !lockedAnswer) 
-                    ? 'h-32 sm:h-40 lg:h-66' // Smaller height when options are shown
-                    : 'h-48 sm:h-64 lg:h-88' // Larger height when only question is shown
+                    ? 'h-32 sm:h-40 lg:h-66'
+                    : 'h-48 sm:h-64 lg:h-88'
                 }`}>
-                  <img
-                    src={currentQuestion.imageUrl 
-                      ? `http://localhost:4000${currentQuestion.imageUrl}` 
-                      : defaultQuestionImage}
-                    alt="Question"
-                    className="w-full h-full object-contain rounded-lg shadow-glow"
-                    onError={(e) => {
-                      // If the user-provided image fails to load, fall back to default
-                      if (e.target.src !== defaultQuestionImage) {
-                        console.warn('Error loading image, falling back to default');
-                        e.target.src = defaultQuestionImage;
-                      } else {
-                        // If even the default fails, hide the image
-                        e.target.style.display = 'none';
-                        console.error('Error loading default image');
-                      }
-                    }}
-                  />
+                  <ImageErrorBoundary>
+                    <QuestionImage imageUrl={currentQuestion.imageUrl} />
+                  </ImageErrorBoundary>
                 </div>
               </div>
 
-              {/* Question box */}
-              <div className="kbc-question-box p-4 sm:p-8 shadow-glow mb-6 max-w-3xl mx-auto w-full animate-fadeIn">
-                <h2 className="text-2xl text-kbc-gold mb-6">
-                  Question {(parseInt(currentQuestion.questionIndex ?? 0) + 1)} 
+              <div className="kbc-question-box p-4 sm:p-6 shadow-glow mb-4 max-w-3xl mx-auto w-full">
+                <h2 className="text-xl text-kbc-gold mb-3">
+                  Question {(parseInt(currentQuestion.questionIndex ?? 0) + 1)}
                 </h2>
-                <p className="text-white text-xl">{currentQuestion.question}</p>
+                <p className="text-white text-lg mb-3">{currentQuestion.question}</p>
               </div>
             </>
           )}
 
-          {/* Options container - now with connector lines */}
           {showOptions && currentQuestion && (
-            <div className="max-w-3xl mx-auto w-full mb-8 relative">
+            <div className="options-grid max-w-3xl mx-auto w-full mb-8 relative">
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 {currentQuestion.options.map((option, index) => (
                   <button
                     key={index}
                     onClick={() => handleOptionSelect(option)}
-                    className={`kbc-option shadow-glow position-relative ${
+                    className={`kbc-option ${
                       selectedOption === option ? 'selected' : ''
                     } ${
                       showAnswer && option === currentQuestion.correctAnswer ? 'correct' : ''
@@ -567,33 +719,18 @@ const PlayGame = () => {
                       option !== currentQuestion.correctAnswer ? 'incorrect' : ''
                     }`}
                     disabled={lockedAnswer || showAnswer || timeLeft === 0}
+                    style={{ cursor: 'pointer' }} // Add this to ensure clickable appearance
                   >
                     <span className="option-letter">
                       {String.fromCharCode(65 + index)}
                     </span>
                     <span className="option-text">{option}</span>
-                    
-                    {/* Show check/cross marks when answer is revealed
-                    {showAnswer && (
-                      <span className="absolute right-2 top-1/2 -translate-y-1/2 text-xl">
-                        {option === currentQuestion.correctAnswer ? '✓' : 
-                         selectedOption === option ? '✗' : ''}
-                      </span>
-                    )}
-                     */}
-                    {/* Connector lines */}
-                    <div className={`absolute ${index % 2 === 0 ? 'left-0' : 'right-0'} top-1/2 
-                      ${index % 2 === 0 ? 'w-[50vw] right-full bg-gradient-to-l' : 'w-[50vw] left-full bg-gradient-to-r'} 
-                      h-0.5 from-kbc-gold to-transparent transform 
-                      ${index % 2 === 0 ? '-translate-x-4' : 'translate-x-4'}`}>
-                    </div>
                   </button>
                 ))}
               </div>
             </div>
           )}
 
-          {/* Lock Answer Button */}
           {selectedOption && !lockedAnswer && !showAnswer && timeLeft > 0 && (
             <div className="text-center max-w-3xl mx-auto w-full mb-8">
               <button
@@ -605,61 +742,28 @@ const PlayGame = () => {
             </div>
           )}
         </div>
+      </div>
 
-        {/* Desktop Prize Ladder - Hide on mobile - Styled like JoinQuestions.jsx */}
-        <div className="hidden lg:block w-80 ml-6 fixed right-8 top-24 order-1 lg:order-2">
-          <div className="kbc-question-box p-3 shadow-glow relative">
-            {/* Add connector line from question to prize ladder */}
-            <div className="absolute left-0 top-1/2 w-8 h-0.5 bg-gradient-to-l from-kbc-gold to-transparent transform -translate-x-8"></div>
-            
-            {/* Divider */}
-            <hr className="my-2 border-kbc-gold/30" />
-            
-            {/* Prize Ladder - with updated styling similar to JoinQuestions.jsx */}
-            <h3 className="text-kbc-gold text-base font-bold text-center mb-2">Prize Ladder</h3>
-            <div className="space-y-0.5 text-sm overflow-y-auto max-h-[calc(100vh-14rem)]">
-              {PRIZE_LEVELS.map((prize, index) => (
-                <div
-                  key={prize}
-                  className={`py-1 px-2 rounded-sm transition-all text-center ${
-                    index === currentPrizeIndex
-                      ? 'bg-kbc-gold text-kbc-dark-blue font-bold shadow-glow'
-                      : index < currentPrizeIndex 
-                        ? 'text-white bg-kbc-blue/20'
-                        : 'text-kbc-gold'
-                  }`}
-                >
-                  {prize}
-                </div>
-              ))}
-            </div>
-          </div>
+      <div className="lg:hidden fixed bottom-0 left-0 right-0 bg-kbc-dark-blue/90 backdrop-blur-sm p-2">
+        <div className="text-center">
+          <span className="text-kbc-gold">Made with ❤️ by Sid</span>
         </div>
       </div>
 
-      {/* Exit Confirmation Modal - Fixed structure */}
-      {showExitConfirm && (
-        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4">
-          <div className="kbc-card w-full max-w-md p-4 sm:p-6">
-            <h2 className="text-xl font-bold text-kbc-gold mb-4">Confirm Exit</h2>
-            <p className="text-gray-300 mb-6">
-              Are you sure you want to quit the game?
-            </p>
-            <div className="flex flex-col sm:flex-row justify-end gap-3 sm:gap-4">
-              <button
-                onClick={() => setShowExitConfirm(false)}
-                className="kbc-button1 w-full sm:w-auto order-2 sm:order-1"
-              >
-                Cancel
-              </button>
-              <button
-                onClick={confirmExit}
-                className="kbc-button1 bg-red-600 hover:bg-red-700 w-full sm:w-auto order-1 sm:order-2"
-              >
-                Quit
-              </button>
-            </div>
-          </div>
+      <ExitConfirmDialog
+        isOpen={showExitDialog}
+        onClose={() => setShowExitDialog(false)}
+        onConfirm={handleExitConfirm}
+        message={isWaiting ? 
+          "Are you sure you want to leave the waiting room?" : 
+          "Are you sure you want to quit the game?"
+        }
+        isLoading={isExiting}
+      />
+
+      {error && (
+        <div className="fixed bottom-4 left-1/2 transform -translate-x-1/2 bg-red-600 text-white px-4 py-2 rounded shadow-lg z-50 animate-pulse">
+          {error}
         </div>
       )}
     </div>
