@@ -15,15 +15,14 @@ const RECONNECT_DELAY = 2000;
 
 const getImageUrl = (imageUrl) => {
   if (!imageUrl || imageUrl === '') return defaultQuestionImage;
-  if (imageUrl.startsWith('http')) return imageUrl;
-  if (imageUrl.startsWith('data:')) return imageUrl;
-  
+  if (imageUrl.startsWith('http') || imageUrl.startsWith('data:')) return imageUrl;
+
   try {
     const cleanUrl = imageUrl.replace(/([^:])\/+/g, '$1/');
     if (cleanUrl.includes('uploads/questions/')) {
-      return `${API_URL}/${cleanUrl.split('uploads/questions/')[1]}`;
+      return `${API_URL}/uploads/questions/${cleanUrl.split('uploads/questions/')[1]}`;
     }
-    return `${API_URL}/uploads/questions/${cleanUrl.split('/').pop()}`;
+    return `${API_URL}/${cleanUrl}`;
   } catch (error) {
     console.error('Error formatting image URL:', error);
     return defaultQuestionImage;
@@ -444,6 +443,20 @@ const PlayGame = () => {
       localStorage.removeItem(`game_${id}_token`);
     };
   }, [id]);
+
+  useEffect(() => {
+    // Start a periodic batch update
+    batchTimeoutRef.current = setInterval(() => {
+      batchedFirebaseUpdate();
+    }, BATCH_INTERVAL);
+
+    return () => {
+      // Clear the interval when the component unmounts
+      if (batchTimeoutRef.current) {
+        clearInterval(batchTimeoutRef.current);
+      }
+    };
+  }, [batchedFirebaseUpdate]);
 
   const handleOptionSelect = useCallback((option) => {
     if (!showAnswer && !lockedAnswer && timeLeft > 0) {

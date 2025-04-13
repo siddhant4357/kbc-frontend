@@ -215,27 +215,24 @@ const Leaderboard = () => {
   }, [navigate]);
 
   useEffect(() => {
+    const fetchLeaderboard = async () => {
+      try {
+        const response = await fetch(`${API_URL}/api/leaderboard`, {
+          credentials: 'include',
+        });
+        if (!response.ok) {
+          throw new Error('Failed to fetch leaderboard');
+        }
+        const data = await response.json();
+        setLeaderboard(data);
+      } catch (error) {
+        console.error('Error fetching leaderboard:', error);
+        setError('Failed to load leaderboard data');
+      }
+    };
+
     fetchLeaderboard();
   }, []);
-
-  const fetchLeaderboard = async () => {
-    setLoading(true);
-    try {
-      const response = await fetch(`${API_URL}/api/leaderboard`, {
-        credentials: 'include'
-      });
-      if (!response.ok) {
-        throw new Error('Failed to fetch leaderboard');
-      }
-      const data = await response.json();
-      setLeaderboard(data);
-    } catch (error) {
-      console.error('Error fetching leaderboard:', error);
-      setError('Failed to load leaderboard data');
-    } finally {
-      setLoading(false);
-    }
-  };
 
   const handleClearLeaderboard = async () => {
     try {

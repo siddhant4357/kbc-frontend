@@ -468,22 +468,39 @@ const PlayGame = () => {
     if (!selectedOption || showAnswer || timeLeft <= 0) return;
 
     try {
+      const isCorrect = selectedOption === currentQuestion.correctAnswer;
       const updates = {
         [`players/${user.username}/answers/${currentQuestion.questionIndex}`]: {
           answer: selectedOption,
           answeredAt: Date.now(),
-          isCorrect: selectedOption === currentQuestion.correctAnswer
+          isCorrect,
         },
         [`players/${user.username}/status`]: {
           lastActive: Date.now(),
-          currentQuestion: currentQuestion.questionIndex
-        }
+          currentQuestion: currentQuestion.questionIndex,
+        },
       };
 
       setLockedAnswer(selectedOption);
       pendingUpdatesRef.current.push(updates);
-      await batchedFirebaseUpdate();
 
+      // If the answer is correct, update the score
+      if (isCorrect) {
+        await fetch(`${API_URL}/api/leaderboard/update`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          credentials: 'include',
+          body: JSON.stringify({
+            username: user.username,
+            points: 10, // Add 10 points for a correct answer
+            isCorrect: true,
+          }),
+        });
+      }
+
+      await batchedFirebaseUpdate();
     } catch (error) {
       console.error('Error submitting answer:', error);
       setError('Failed to submit answer. Please try again.');
