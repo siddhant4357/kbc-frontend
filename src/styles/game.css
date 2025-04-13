@@ -1,6 +1,6 @@
 /* Question Box
  */
-.kbc-question-box {
+ .kbc-question-box {
   background: linear-gradient(to right, rgba(6, 7, 89, 0.8), rgba(10, 57, 114, 0.8));
   border-radius: 0.5rem;
   border: 2px solid rgba(255, 184, 0, 0.3);
@@ -30,36 +30,29 @@
 .kbc-option {
   position: relative;
   background: linear-gradient(135deg, var(--kbc-dark-blue), var(--kbc-blue));
-  -webkit-clip-path: polygon(
-    10% 0,
-    90% 0,
-    100% 50%,
-    90% 100%,
-    10% 100%,
-    0 50%
-  );
-  clip-path: polygon(
-    10% 0,
-    90% 0,
-    100% 50%,
-    90% 100%,
-    10% 100%,
-    0 50%
-  );
   border: 1px solid var(--kbc-light-blue);
   box-shadow: 0 0 15px rgba(28, 63, 170, 0.2),
               inset 0 0 10px rgba(28, 63, 170, 0.2);
   padding: 1rem 1rem 1rem 4rem;
   color: var(--kbc-light);
   transition: all 0.3s ease;
+  cursor: pointer;
   min-height: 3.5rem;
   display: flex;
   align-items: center;
   justify-content: start;
   text-align: left;
+  pointer-events: auto; /* Ensure clickable */
+  user-select: none; /* Prevent text selection */
 }
 
-.kbc-option:hover:not(:disabled) {
+.kbc-option:disabled {
+  opacity: 0.7;
+  cursor: not-allowed;
+  pointer-events: none;
+}
+
+.kbc-option:not(:disabled):hover {
   transform: translateY(-2px);
   box-shadow: 0 0 20px rgba(255, 184, 0, 0.3);
 }
