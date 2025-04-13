@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import BackButton from '../components/BackButton';
 import { API_URL } from '../utils/config';
 import { useFirebaseGameState } from '../hooks/useFirebaseGameState';
-import { ref, set, update, serverTimestamp, onValue, onDisconnect } from 'firebase/database';
+import { ref, set } from 'firebase/database';
 import { db } from '../utils/firebase';
 
 const ManagePlayAlong = () => {
@@ -16,7 +16,6 @@ const ManagePlayAlong = () => {
   const [timerDuration, setTimerDuration] = useState(15);
   const [pollInterval, setPollInterval] = useState(null);
   const [error, setError] = useState(null);
-  const [isAdmin, setIsAdmin] = useState(false);
   const navigate = useNavigate();
   const { gameState, updateGameState } = useFirebaseGameState(selectedBank?._id);
 
@@ -248,13 +247,33 @@ const ManagePlayAlong = () => {
       navigate('/dashboard');
       return;
     }
-    setIsAdmin(true);
+
+    fetchQuestionBanks();
   }, [navigate]);
 
   useEffect(() => {
+    // Test Firebase connection
+    const testRef = ref(db, `test/${Date.now()}`);
+    set(testRef, {
+      timestamp: Date.now(),
+      message: 'Connection test'
+    })
+      .then(() => {
+        console.log('Firebase connection successful');
+        // Clean up test data
+        set(testRef, null);
+      })
+      .catch((error) => {
+        console.error('Firebase connection failed:', error);
+        setError('Failed to connect to Firebase. Please check your connection.');
+      });
+  }, []);
+
+  useEffect(() => {
     if (error) {
-      const timer = setTimeout(() => setError(null), 3000); // Clear error after 3 seconds
-      return () => clearTimeout(timer);
+      // Show error message to user
+      console.error('Game error:', error);
+      setTimeout(() => setError(null), 5000); // Clear error after 5 seconds
     }
   }, [error]);
 
@@ -281,105 +300,90 @@ const ManagePlayAlong = () => {
   };
 
   const startGame = async () => {
+    if (!selectedBank) return;
+
     try {
-      if (!selectedBank?._id) {
-        setError('Please select a question bank first');
+      const user = JSON.parse(localStorage.getItem('user'));
+      if (!user?.isAdmin) {
+        setError('Only admins can start the game');
         return;
       }
 
-      if (!isAdmin) {
-        setError('Only administrators can start games');
-        return;
-      }
-
-      const gameRef = ref(db, `games/${selectedBank._id}`);
-      await set(gameRef, {
+      const gameData = {
         isActive: true,
+        admin: user.username,
+        gameToken: Date.now().toString(),
         currentQuestion: {
           ...selectedBank.questions[0],
-          questionIndex: 0
+          questionIndex: 0,
+          imageUrl: selectedBank.questions[0].imageUrl || '',
         },
         showOptions: false,
         showAnswer: false,
         timerStartedAt: null,
         timerDuration: parseInt(timerDuration),
-        startedAt: serverTimestamp(),
-        createdBy: JSON.parse(localStorage.getItem('user')).username
-      });
+        players: {},
+        startedAt: Date.now(),
+        questionBankId: selectedBank._id,
+      };
+
+      // Update Firebase
+      const gameRef = ref(db, `games/${selectedBank._id}`);
+      await set(gameRef, gameData);
+      
       setGameStarted(true);
-    } catch (error) {
-      console.error('Error starting game:', error);
-      if (error.code === 'PERMISSION_DENIED') {
-        setError('You do not have permission to start games. Please check your admin status.');
-      } else {
-        setError('Failed to start game. Please check your connection and try again.');
-      }
+      // console.log('Game started successfully');
+    } catch (err) {
+      console.error('Error starting game:', err);
+      setError('Failed to start game. Please check your permissions.');
+    }
+  };
+
+  const showNextQuestion = async () => {
+    if (gameStarted && currentQuestionIndex < selectedBank.questions.length - 1) {
+      const nextIndex = currentQuestionIndex + 1;
+      await updateGameState({
+        currentQuestion: {
+          ...selectedBank.questions[nextIndex],
+          questionIndex: nextIndex,
+        },
+        showOptions: false,
+        showAnswer: false,
+        timerStartedAt: null,
+      });
+      setCurrentQuestionIndex(nextIndex);
     }
   };
 
   const showOptions = async () => {
-    if (!selectedBank?._id || !gameStarted) {
-      setError('Game must be started first');
-      return;
-    }
+    if (!gameStarted) return;
 
     try {
-      const gameRef = ref(db, `games/${selectedBank._id}`);
-      await update(gameRef, {
+      await updateGameState({
         showOptions: true,
-        timerStartedAt: serverTimestamp(),
-        timerDuration: parseInt(timerDuration)
+        timerStartedAt: Date.now(),
+        timerDuration: parseInt(timerDuration),
+        updatedAt: Date.now(),
       });
-    } catch (error) {
-      console.error('Error showing options:', error);
+      console.log('Options shown successfully');
+    } catch (err) {
+      console.error('Error showing options:', err);
       setError('Failed to show options. Please try again.');
     }
   };
 
   const showAnswer = async () => {
-    if (!selectedBank?._id || !gameStarted) {
-      setError('Game must be started first');
-      return;
-    }
+    if (!gameStarted) return;
 
     try {
-      const gameRef = ref(db, `games/${selectedBank._id}`);
-      await update(gameRef, {
-        showAnswer: true
+      await updateGameState({
+        showAnswer: true,
+        updatedAt: Date.now(),
       });
-    } catch (error) {
-      console.error('Error showing answer:', error);
+      console.log('Answer shown successfully');
+    } catch (err) {
+      console.error('Error showing answer:', err);
       setError('Failed to show answer. Please try again.');
-    }
-  };
-
-  const nextQuestion = async () => {
-    if (!selectedBank?._id || !gameStarted) {
-      setError('Game must be started first');
-      return;
-    }
-
-    try {
-      const nextIndex = currentQuestionIndex + 1;
-      if (nextIndex >= selectedBank.questions.length) {
-        setError('No more questions available');
-        return;
-      }
-
-      const gameRef = ref(db, `games/${selectedBank._id}`);
-      await update(gameRef, {
-        currentQuestion: {
-          ...selectedBank.questions[nextIndex],
-          questionIndex: nextIndex
-        },
-        showOptions: false,
-        showAnswer: false,
-        timerStartedAt: null
-      });
-      setCurrentQuestionIndex(nextIndex);
-    } catch (error) {
-      console.error('Error moving to next question:', error);
-      setError('Failed to move to next question. Please try again.');
     }
   };
 
@@ -406,60 +410,6 @@ const ManagePlayAlong = () => {
     setIsButtonPressed(buttonName);
     setTimeout(() => setIsButtonPressed(''), 200);
   };
-
-  useEffect(() => {
-    return () => {
-      if (selectedBank?._id) {
-        const presenceRef = ref(db, `games/${selectedBank._id}/presence/${Date.now()}`);
-        // Cancel any pending onDisconnect operations
-        onDisconnect(presenceRef).cancel();
-        // Clear the presence data
-        set(presenceRef, null);
-      }
-    };
-  }, [selectedBank?._id]);
-
-  useEffect(() => {
-    if (!selectedBank?._id || !isAdmin) return;
-
-    const connectedRef = ref(db, '.info/connected');
-    const presenceRef = ref(db, `games/${selectedBank._id}/presence/${Date.now()}`);
-
-    const handlePresenceError = (error) => {
-      console.error('Presence update failed:', error);
-      if (error.code === 'PERMISSION_DENIED') {
-        setError('Lost admin privileges. Please re-login.');
-        navigate('/dashboard');
-      }
-    };
-
-    try {
-      set(presenceRef, {
-        online: true,
-        isAdmin: true,
-        timestamp: serverTimestamp()
-      }).catch(handlePresenceError);
-
-      onValue(connectedRef, (snap) => {
-        if (snap.val() === true) {
-          // When we disconnect, remove this device
-          onDisconnect(presenceRef).remove();
-          // Set the presence data
-          set(presenceRef, {
-            online: true,
-            isAdmin: true,
-            timestamp: serverTimestamp()
-          }).catch(handlePresenceError);
-        }
-      });
-
-      return () => {
-        set(presenceRef, null).catch(console.error);
-      };
-    } catch (error) {
-      handlePresenceError(error);
-    }
-  }, [selectedBank?._id, isAdmin, navigate]);
 
   useEffect(() => {
     return () => {
@@ -667,7 +617,7 @@ const ManagePlayAlong = () => {
                       <button
                         onClick={() => {
                           handleButtonPress('next');
-                          nextQuestion();
+                          showNextQuestion();
                         }}
                         disabled={currentQuestionIndex === selectedBank.questions.length - 1}
                         style={{

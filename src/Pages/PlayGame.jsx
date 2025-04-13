@@ -4,7 +4,7 @@ import { API_URL } from '../utils/config';
 import defaultQuestionImage from '../assets/default_img.jpg';
 import { useFirebaseGameState } from '../hooks/useFirebaseGameState';
 import { ref, set, onDisconnect, serverTimestamp, onValue, update } from 'firebase/database';
-import { db, auth, signInAnonymously } from '../utils/firebase';
+import { db } from '../utils/firebase';
 import kbcLogo from '../assets/kbc-logo.jpg';
 
 import { debounce, throttle } from 'lodash';
@@ -153,17 +153,6 @@ const QuitButton = ({ onQuit }) => {
   );
 };
 
-const ConnectionStatus = ({ status }) => (
-  <div className={`fixed top-4 right-4 px-3 py-1 rounded-full ${
-    status === 'connected' ? 'bg-green-500' : 'bg-red-500'
-  } text-white text-sm flex items-center gap-2`}>
-    <div className={`w-2 h-2 rounded-full ${
-      status === 'connected' ? 'bg-green-300' : 'bg-red-300'
-    } animate-pulse`} />
-    {status === 'connected' ? 'Connected' : 'Reconnecting...'}
-  </div>
-);
-
 const PlayGame = () => {
   const { id } = useParams();
   const navigate = useNavigate();
@@ -191,73 +180,67 @@ const PlayGame = () => {
   const batchTimeoutRef = useRef(null);
   const [showExitDialog, setShowExitDialog] = useState(false);
   const [isExiting, setIsExiting] = useState(false);
-  const [isLoading, setIsLoading] = useState(true);
-  const [connectionStatus, setConnectionStatus] = useState('connecting');
-
-  useEffect(() => {
-    const initializeAuth = async () => {
-      try {
-        await signInAnonymously();
-      } catch (error) {
-        console.error('Auth error:', error);
-        setError('Authentication failed');
-      }
-    };
-    
-    initializeAuth();
-  }, []);
-
-  useEffect(() => {
-    // Clear states when a new question arrives
-    if (currentQuestion) {
-      setSelectedOption(null);
-      setLockedAnswer(null);
-    }
-  }, [currentQuestion?.questionIndex]);
-
-  useEffect(() => {
-    return () => {
-        setSelectedOption(null);
-        setLockedAnswer(null);
-        setShowOptions(false);
-        setShowAnswer(false);
-        setTimeLeft(15);
-        setIsTimerExpired(false);
-    };
-  }, [currentQuestion?.questionIndex]);
 
   const processGameState = useCallback(async (state) => {
     if (!state || isNavigatingRef.current || !isInitialized) return;
 
-    // Reset states when new question arrives
-    if (state.currentQuestion && 
-        (!currentQuestion || state.currentQuestion.questionIndex !== currentQuestion.questionIndex)) {
-        setCurrentQuestion(state.currentQuestion);
-        setSelectedOption(null);
-        setLockedAnswer(null);
-        setShowOptions(false);
-        setShowAnswer(false);
-        setTimeLeft(state.timerDuration || 15);
-        setIsTimerExpired(false);
+    if (state.isActive === true) {
+      setIsWaiting(false);
+    } else if (state.isActive === false && state.gameStopped) {
+      setGameStopped(true);
+      setCurrentQuestion(null);
+      setShowOptions(false);
+      setShowAnswer(false);
+      setSelectedOption(null);
+      setLockedAnswer(null);
+      setError('Game has been stopped by the admin');
+      localStorage.removeItem(`game_${id}_token`);
+      const timeout = setTimeout(() => {
+        navigate('/dashboard');
+      }, 2000);
+      timeoutsRef.current.push(timeout);
+      return;
+    } else if (state.isActive === false) {
+      setIsWaiting(true);
+      return;
     }
 
-    // Handle options display
-    if (state.showOptions && !state.showAnswer) {
-        setShowOptions(true);
+    if (state.currentQuestion) {
+      const newQuestionIndex = parseInt(state.currentQuestion.questionIndex ?? 0);
+      const currentQuestionIndex = parseInt(currentQuestion?.questionIndex ?? -1);
+
+      if (newQuestionIndex !== currentQuestionIndex) {
+        setCurrentQuestion(state.currentQuestion);
+        setShowOptions(false);
+        setShowAnswer(false);
         setSelectedOption(null);
         setLockedAnswer(null);
-        setShowAnswer(false);
+        setTimeLeft(state.timerDuration || 15);
+        setIsTimerExpired(false);
+      }
+    }
+
+    if (state.showOptions !== showOptions) {
+      setShowOptions(state.showOptions);
+      if (state.showOptions) {
         setTimerStartedAt(state.timerStartedAt);
         setTimerDuration(state.timerDuration || 15);
         setTimeLeft(state.timerDuration || 15);
         setIsTimerExpired(false);
+        setSelectedOption(null);
+        setLockedAnswer(null);
+      }
     }
 
-    // Handle answer display
-    if (state.showAnswer) {
-        setShowAnswer(true);
+    if (state.showAnswer && !showAnswer) {
+      setShowAnswer(true);
     }
-}, [currentQuestion, isInitialized]);
+
+    if (state.gameToken && state.gameToken !== gameToken) {
+      setGameToken(state.gameToken);
+      localStorage.setItem(`game_${id}_token`, state.gameToken);
+    }
+  }, [id, gameToken, gameStopped, navigate, currentQuestion, showOptions, showAnswer, isInitialized]);
 
   const debouncedProcessGameState = useCallback(
     debounce((state) => {
@@ -427,15 +410,6 @@ const PlayGame = () => {
   }, []);
 
   useEffect(() => {
-    const connectedRef = ref(db, '.info/connected');
-    return onValue(connectedRef, (snap) => {
-      const connected = snap.val() === true;
-      setConnectionStatus(connected ? 'connected' : 'disconnected');
-      setIsLoading(false);
-    });
-  }, [db]);
-
-  useEffect(() => {
     if (firebaseGameState) {
       setShowOptions(firebaseGameState.showOptions || false);
       setShowAnswer(firebaseGameState.showAnswer || false);
@@ -452,126 +426,45 @@ const PlayGame = () => {
 
   useEffect(() => {
     return () => {
-      setSelectedOption(null);
-      setLockedAnswer(null);
-      setShowOptions(false);
-      setShowAnswer(false);
-      setTimeLeft(15);
-      setIsTimerExpired(false);
       localStorage.removeItem(`game_${id}_token`);
     };
   }, [id]);
-
-  useEffect(() => {
-    if (!id) return;
-
-    const gameRef = ref(db, `games/${id}`);
-    const unsubscribe = onValue(gameRef, (snapshot) => {
-      const data = snapshot.val();
-      if (!data) return;
-
-      setGameState(data);
-      setCurrentQuestion(data.currentQuestion || null);
-      setShowOptions(data.showOptions || false);
-      setShowAnswer(data.showAnswer || false);
-      
-      if (data.timerStartedAt && data.timerDuration) {
-        setTimerStartedAt(data.timerStartedAt);
-        setTimerDuration(data.timerDuration);
-      }
-      
-      setIsWaiting(!data.isActive);
-    });
-
-    return () => unsubscribe();
-  }, [id]);
-
-  useEffect(() => {
-    if (!id || !user) return;
-
-    const playerRef = ref(db, `games/${id}/players/${user.username}`);
-    
-    // Update player presence
-    set(playerRef, {
-      isOnline: true,
-      joinedAt: serverTimestamp(),
-      lastActive: Date.now()
-    });
-
-    // Remove player data when disconnected
-    onDisconnect(playerRef).remove();
-
-    // Update last active timestamp periodically
-    const interval = setInterval(() => {
-      update(playerRef, {
-        lastActive: Date.now()
-      });
-    }, 30000);
-
-    return () => {
-      clearInterval(interval);
-      set(playerRef, null);
-    };
-  }, [id, user]);
-
-  useEffect(() => {
-    const cleanupRefs = [];
-    
-    // Store all Firebase refs that need cleanup
-    if (user && id) {
-      const presenceRef = ref(db, `games/${id}/players/${user.username}/presence`);
-      const userRef = ref(db, `games/${id}/players/${user.username}`);
-      
-      cleanupRefs.push({ ref: presenceRef, onDisconnect: true });
-      cleanupRefs.push({ ref: userRef });
-    }
-
-    return () => {
-      // Clean up all references and listeners
-      cleanupRefs.forEach(({ ref, onDisconnect }) => {
-        if (onDisconnect) {
-          onDisconnect(ref).cancel();
-        }
-        set(ref, null);
-      });
-
-      // Clear all intervals and timeouts
-      timeoutsRef.current.forEach(clearTimeout);
-      timeoutsRef.current = [];
-      
-      // Reset all states
-      setSelectedOption(null);
-      setLockedAnswer(null);
-      setShowOptions(false);
-      setShowAnswer(false);
-      setTimeLeft(15);
-      setIsTimerExpired(false);
-      
-      // Clear local storage
-      localStorage.removeItem(`game_${id}_token`);
-    };
-  }, [id, user]);
 
   const handleOptionSelect = (option) => {
-    if (!showAnswer && !lockedAnswer && showOptions) {
+    if (!showAnswer && !lockedAnswer && timeLeft > 0 && showOptions) {
       setSelectedOption(option);
     }
   };
 
   const handleLockAnswer = async () => {
-    if (!selectedOption || lockedAnswer || !currentQuestion) return;
+    if (!selectedOption || lockedAnswer || showAnswer || timeLeft <= 0) return;
 
     try {
-      const answerRef = ref(db, `games/${id}/players/${user.username}/answers/${currentQuestion.questionIndex}`);
-      await set(answerRef, {
-        answer: selectedOption,
-        isCorrect: selectedOption === currentQuestion.correctAnswer,
-        timestamp: serverTimestamp()
-      });
+      // Structure updates with proper paths
+      const update = {
+        [`players/${user.username}/answers/${currentQuestion.questionIndex}`]: {
+          answer: selectedOption,
+          answeredAt: Date.now(),
+          isCorrect: selectedOption === currentQuestion.correctAnswer
+        },
+        [`players/${user.username}/status`]: {
+          lastActive: Date.now(),
+          currentQuestion: currentQuestion.questionIndex
+        }
+      };
+
+      pendingUpdatesRef.current.push(update);
       setLockedAnswer(selectedOption);
+
+      if (!batchTimeoutRef.current) {
+        batchTimeoutRef.current = setTimeout(() => {
+          batchedFirebaseUpdate();
+          batchTimeoutRef.current = null;
+        }, BATCH_INTERVAL);
+      }
     } catch (error) {
       console.error('Error submitting answer:', error);
-      setError('Failed to submit answer');
+      setError('Failed to submit answer. Please try again.');
     }
   };
 
@@ -739,7 +632,7 @@ const PlayGame = () => {
             </div>
 
             <div className="flex justify-center absolute left-1/2 transform -translate-x-1/2">
-              <div className="relative w-8 h-8 sm:w-10 sm:h-10"> {/* Reduced from w-10 h-10 sm:w-12 sm:h-12 */}
+              <div className="relative w-10 h-10 sm:w-12 sm:h-12">
                 <svg className="w-full h-full transform -rotate-90" viewBox="0 0 100 100">
                   <circle
                     cx="50"
@@ -764,7 +657,7 @@ const PlayGame = () => {
                     }}
                   />
                 </svg>
-                <span className="absolute inset-0 flex items-center justify-center text-xs sm:text-sm font-bold text-kbc-gold">
+                <span className="absolute inset-0 flex items-center justify-center text-sm sm:text-base font-bold text-kbc-gold">
                   {formatTime(timeLeft)}
                 </span>
               </div>
@@ -773,7 +666,7 @@ const PlayGame = () => {
         </div>
       </header>
 
-      <div className="container mx-auto pt-12 px-2 sm:px-4 flex flex-col lg:flex-row min-h-screen">
+      <div className="container mx-auto pt-16 sm:pt-20 px-2 sm:px-4 flex flex-col lg:flex-row min-h-screen">
         <div className="flex-1 flex flex-col order-2 lg:order-1 pb-4">
           {currentQuestion && (
             <>
@@ -854,8 +747,6 @@ const PlayGame = () => {
         }
         isLoading={isExiting}
       />
-
-      {connectionStatus !== 'connected' && <ConnectionStatus status={connectionStatus} />}
 
       {error && (
         <div className="fixed bottom-4 left-1/2 transform -translate-x-1/2 bg-red-600 text-white px-4 py-2 rounded shadow-lg z-50 animate-pulse">

@@ -1,36 +1,37 @@
 import { defineConfig } from 'vite';
 import react from '@vitejs/plugin-react';
+import tailwindcss from '@tailwindcss/vite'
 
 export default defineConfig({
-  plugins: [react()],
-  define: {
-    'process.env': '{}',
-    'process.browser': true,
-    'process.version': '"0.0.0"',
-    'process.platform': '"browser"',
-    global: 'globalThis'
-  },
-  resolve: {
-    alias: {
-      '@': '/src',
-      'process': 'process/browser'
-    }
-  },
+  plugins: [react(),
+    tailwindcss(),
+  ],
   build: {
-    commonjsOptions: {
-      transformMixedEsModules: true
-    }
-  },
-  optimizeDeps: {
-    esbuildOptions: {
-      define: {
-        global: 'globalThis'
+    outDir: 'dist',
+    sourcemap: false,
+    rollupOptions: {
+      output: {
+        manualChunks: {
+          vendor: ['react', 'react-dom', 'react-router-dom', 'socket.io-client'],
+          firebase: ['@firebase/app', '@firebase/database']
+        }
       }
     }
   },
-  server: {
-    watch: {
-      usePolling: true
+  optimizeDeps: {
+    include: [
+      'react', 
+      'react-dom', 
+      'react-router-dom', 
+      '@firebase/app', 
+      '@firebase/database',
+      'socket.io-client'
+    ]
+  },
+  resolve: {
+    alias: {
+      'firebase/app': '@firebase/app',
+      'firebase/database': '@firebase/database'
     }
   }
 });

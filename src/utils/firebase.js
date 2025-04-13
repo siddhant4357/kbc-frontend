@@ -1,7 +1,6 @@
 // Import the functions you need from the SDKs you need
 import { initializeApp } from 'firebase/app';
-import { getDatabase, connectDatabaseEmulator } from 'firebase/database';
-import { getAuth, connectAuthEmulator, signInAnonymously as firebaseSignInAnonymously } from 'firebase/auth';
+import { getDatabase } from '@firebase/database';
 
 // Your web app's Firebase configuration
 const firebaseConfig = {
@@ -16,15 +15,18 @@ const firebaseConfig = {
 
 // Initialize Firebase
 const app = initializeApp(firebaseConfig);
-const auth = getAuth(app);
-const db = getDatabase(app);
+export const db = getDatabase(app);
 
-// Helper function for anonymous sign in
-export const signInAnonymously = () => firebaseSignInAnonymously(auth);
-
-if (import.meta.env.DEV) {
-  connectDatabaseEmulator(db, 'localhost', 9000);
-  connectAuthEmulator(auth, 'http://localhost:9099');
-}
-
-export { db, auth };
+// Add this to your firebase.js file
+export const handleFirebaseError = (error) => {
+  console.error('Firebase Error:', error);
+  // Add specific error handling based on error codes
+  switch (error.code) {
+    case 'PERMISSION_DENIED':
+      return 'Permission denied. Please check your access rights.';
+    case 'NETWORK_ERROR':
+      return 'Network error. Please check your connection.';
+    default:
+      return 'An error occurred. Please try again.';
+  }
+};

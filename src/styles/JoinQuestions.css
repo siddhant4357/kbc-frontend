@@ -114,19 +114,19 @@ body {
   top: 0;
   left: 0;
   right: 0;
-  height: 40px; /* Reduced from 56px */
   background: linear-gradient(135deg, var(--kbc-dark-blue), var(--kbc-purple));
   backdrop-filter: blur(10px);
-  z-index: 40;
-  padding: 0.25rem 0.5rem; /* Reduced padding */
-  border-bottom: 1px solid rgba(255, 184, 0, 0.2);
+  z-index: 10;
+  padding: 0.5rem;
 }
 
 .header-content {
-  max-width: 1200px;
-  margin: 0 auto;
-  height: 100%;
   display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+  width: 100%;
 }
 
 /* Timer and control styles */
@@ -150,11 +150,6 @@ body {
   border-radius: 0.25rem;
 }
 
-.timer-container {
-  transform: scale(0.9);
-  transform-origin: center;
-}
-
 /* Question area styles */
 .question-container {
   padding-top: 5rem;
@@ -171,10 +166,9 @@ body {
 .question-image {
   width: 100%;
   max-width: 400px;
-  margin: 1rem auto 2rem;
+  margin: 0 auto 2rem;
   height: 180px;
   transition: all 0.3s ease-in-out;
-  padding-top: 0.5rem;
 }
 
 .question-image {
@@ -414,7 +408,6 @@ body {
   width: 100%;
   margin-left: auto;
   margin-right: auto;
-  padding-top: 56px; /* Match header height */
 }
 
 .mx-auto {
@@ -1442,20 +1435,5 @@ body {
 @supports (padding: max(0px)) {
   .fixed.bottom-0 {
     padding-bottom: max(0.75rem, env(safe-area-inset-bottom));
-  }
-}
-
-/* Responsive adjustments */
-@media (max-width: 640px) {
-  .game-header {
-    height: 40px;
-  }
-  
-  .container {
-    padding-top: 40px;
-  }
-  
-  .question-image {
-    margin-top: 0.5rem;
   }
 }
