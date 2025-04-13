@@ -217,17 +217,22 @@ const Leaderboard = () => {
   useEffect(() => {
     const fetchLeaderboard = async () => {
       try {
+        setLoading(true);
         const response = await fetch(`${API_URL}/api/leaderboard`, {
           credentials: 'include',
         });
+        
         if (!response.ok) {
           throw new Error('Failed to fetch leaderboard');
         }
+        
         const data = await response.json();
         setLeaderboard(data);
       } catch (error) {
         console.error('Error fetching leaderboard:', error);
         setError('Failed to load leaderboard data');
+      } finally {
+        setLoading(false);
       }
     };
 

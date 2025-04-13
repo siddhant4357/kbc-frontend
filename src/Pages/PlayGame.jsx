@@ -484,20 +484,31 @@ const PlayGame = () => {
       setLockedAnswer(selectedOption);
       pendingUpdatesRef.current.push(updates);
 
-      // If the answer is correct, update the score
+      // Update score if answer is correct
       if (isCorrect) {
-        await fetch(`${API_URL}/api/leaderboard/update`, {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-          },
-          credentials: 'include',
-          body: JSON.stringify({
-            username: user.username,
-            points: 10, // Add 10 points for a correct answer
-            isCorrect: true,
-          }),
-        });
+        try {
+          const response = await fetch(`${API_URL}/api/leaderboard/update`, {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+            },
+            credentials: 'include',
+            body: JSON.stringify({
+              username: user.username,
+              points: 10,
+              isCorrect: true,
+              totalAttempts: 1
+            }),
+          });
+
+          if (!response.ok) {
+            throw new Error('Failed to update score');
+          }
+          
+          console.log('Score updated successfully');
+        } catch (error) {
+          console.error('Error updating score:', error);
+        }
       }
 
       await batchedFirebaseUpdate();
