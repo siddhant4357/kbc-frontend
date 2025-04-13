@@ -181,6 +181,14 @@ const PlayGame = () => {
   const [showExitDialog, setShowExitDialog] = useState(false);
   const [isExiting, setIsExiting] = useState(false);
 
+  useEffect(() => {
+    // Clear states when a new question arrives
+    if (currentQuestion) {
+      setSelectedOption(null);
+      setLockedAnswer(null);
+    }
+  }, [currentQuestion?.questionIndex]);
+
   const processGameState = useCallback(async (state) => {
     if (!state || isNavigatingRef.current || !isInitialized) return;
 
@@ -409,32 +417,31 @@ const PlayGame = () => {
   }, [id]);
 
   const handleOptionSelect = (option) => {
-    // Remove unnecessary conditions and simplify
-    if (showOptions && !showAnswer && !lockedAnswer && timeLeft > 0) {
+    if (!showAnswer && !lockedAnswer && showOptions) {
       setSelectedOption(option);
     }
   };
 
   const handleLockAnswer = async () => {
-    if (!selectedOption || lockedAnswer || showAnswer || timeLeft <= 0) return;
+    if (!selectedOption || lockedAnswer || !currentQuestion) return;
 
     try {
       const questionIndex = currentQuestion.questionIndex;
-      const update = {
-        [`players/${user.username}/answers/${questionIndex}`]: {
-          answer: selectedOption,
-          answeredAt: Date.now(),
-          isCorrect: selectedOption === currentQuestion.correctAnswer
-        },
-        [`players/${user.username}/status`]: {
-          lastActive: Date.now(),
-          currentQuestion: questionIndex
-        }
+      const answerData = {
+        answer: selectedOption,
+        answeredAt: Date.now(),
+        isCorrect: selectedOption === currentQuestion.correctAnswer
       };
 
-      // Update Firebase immediately instead of batching
-      const gameRef = ref(db, `games/${id}`);
-      await update(gameRef, update);
+      const gameRef = ref(db, `games/${id}/players/${user.username}/answers/${questionIndex}`);
+      await set(gameRef, answerData);
+
+      // Update player status
+      const statusRef = ref(db, `games/${id}/players/${user.username}/status`);
+      await set(statusRef, {
+        lastActive: Date.now(),
+        currentQuestion: questionIndex
+      });
 
       setLockedAnswer(selectedOption);
     } catch (error) {
