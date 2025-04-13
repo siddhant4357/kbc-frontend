@@ -20,7 +20,7 @@ const getImageUrl = (imageUrl) => {
   try {
     const cleanUrl = imageUrl.replace(/([^:])\/+/g, '$1/');
     if (cleanUrl.includes('uploads/questions/')) {
-      return `${API_URL}/uploads/questions/${cleanUrl.split('uploads/questions/')[1]}`;
+      return `${API_URL}${cleanUrl}`;
     }
     return `${API_URL}/${cleanUrl}`;
   } catch (error) {
@@ -76,6 +76,10 @@ const QuestionImage = React.memo(({ imageUrl }) => {
     }
     setIsLoading(false);
   };
+
+  useEffect(() => {
+    console.log('Image source:', imgSrc);
+  }, [imgSrc]);
 
   return (
     <div className="relative w-full h-full">
