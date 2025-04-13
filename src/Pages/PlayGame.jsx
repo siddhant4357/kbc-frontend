@@ -184,6 +184,7 @@ const PlayGame = () => {
   const processGameState = useCallback(async (state) => {
     if (!state || isNavigatingRef.current || !isInitialized) return;
 
+    // Handle active state changes
     if (state.isActive === true) {
       setIsWaiting(false);
     } else if (state.isActive === false && state.gameStopped) {
@@ -205,6 +206,7 @@ const PlayGame = () => {
       return;
     }
 
+    // Handle question changes
     if (state.currentQuestion) {
       const newQuestionIndex = parseInt(state.currentQuestion.questionIndex ?? 0);
       const currentQuestionIndex = parseInt(currentQuestion?.questionIndex ?? -1);
@@ -220,7 +222,8 @@ const PlayGame = () => {
       }
     }
 
-    if (state.showOptions !== showOptions) {
+    // Handle options state changes - Modified this part
+    if (state.showOptions !== undefined) { // Changed condition
       setShowOptions(state.showOptions);
       if (state.showOptions) {
         setTimerStartedAt(state.timerStartedAt);
@@ -229,13 +232,20 @@ const PlayGame = () => {
         setIsTimerExpired(false);
         setSelectedOption(null);
         setLockedAnswer(null);
+        setShowAnswer(false); // Add this line
+      } else {
+        // Reset states when options are hidden
+        setSelectedOption(null);
+        setLockedAnswer(null);
       }
     }
 
+    // Handle answer reveal
     if (state.showAnswer && !showAnswer) {
       setShowAnswer(true);
     }
 
+    // Handle game token updates
     if (state.gameToken && state.gameToken !== gameToken) {
       setGameToken(state.gameToken);
       localStorage.setItem(`game_${id}_token`, state.gameToken);

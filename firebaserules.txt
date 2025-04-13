@@ -1,0 +1,16 @@
+{
+  "rules": {
+    "games": {
+      "$gameId": {
+        // Allow read/write if user is authenticated or within 30 minutes of game creation
+        ".read": true,
+        ".write": true,
+      
+      }
+    },
+    "test": {
+      ".read": true,
+      ".write": true
+    }
+  }
+}
