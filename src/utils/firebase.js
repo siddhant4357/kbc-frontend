@@ -1,6 +1,7 @@
 // Import the functions you need from the SDKs you need
 import { initializeApp } from 'firebase/app';
 import { getDatabase, connectDatabaseEmulator } from 'firebase/database';
+import { getAuth, connectAuthEmulator } from 'firebase/auth';
 
 // Your web app's Firebase configuration
 const firebaseConfig = {
@@ -13,23 +14,24 @@ const firebaseConfig = {
   appId: import.meta.env.VITE_FIREBASE_APP_ID
 };
 
-// Initialize Firebase
-const app = initializeApp(firebaseConfig);
+// Initialize Firebase with error handling
+try {
+  const app = initializeApp(firebaseConfig);
+  const auth = getAuth(app);
+  const db = getDatabase(app);
 
-// Initialize Realtime Database and get a reference to the service
-export const db = getDatabase(app);
-
-// Connect to emulator if in development
-if (import.meta.env.DEV) {
-  try {
+  // Connect to emulators if in development
+  if (import.meta.env.DEV) {
     connectDatabaseEmulator(db, 'localhost', 9000);
-  } catch (e) {
-    console.error('Failed to connect to emulator:', e);
+    connectAuthEmulator(auth, 'http://localhost:9099');
   }
+
+} catch (error) {
+  console.error('Error initializing Firebase:', error);
+  throw error;
 }
 
-// Export the app instance if needed elsewhere
-export default app;
+export { db, auth };
 
 // Add this to your firebase.js file
 export const handleFirebaseError = (error) => {

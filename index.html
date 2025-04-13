@@ -15,7 +15,17 @@
     <script>
       window.global = window;
       window.process = {
-        env: { NODE_ENV: 'production' }
+        env: { NODE_ENV: 'production' },
+        version: '',
+        on: function() {},
+        addListener: function() {},
+        once: function() {},
+        off: function() {},
+        removeListener: function() {},
+        removeAllListeners: function() {},
+        emit: function() {},
+        prependListener: function() {},
+        prependOnceListener: function() {}
       };
     </script>
   </head>

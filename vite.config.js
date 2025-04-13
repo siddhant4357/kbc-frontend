@@ -5,11 +5,19 @@ export default defineConfig({
   plugins: [react()],
   define: {
     'process.env': {},
+    global: 'window',
   },
   resolve: {
     alias: {
       '@': '/src',
     },
+  },
+  optimizeDeps: {
+    esbuildOptions: {
+      define: {
+        global: 'globalThis'
+      }
+    }
   },
   build: {
     rollupOptions: {
