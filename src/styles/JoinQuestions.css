@@ -192,22 +192,45 @@ body {
   width: 100%;
   max-width: 800px;
   margin: 0 auto 2rem;
+  position: relative;
+  z-index: 2; /* Ensure options are clickable */
+}
+
+.grid-cols-1 {
+  gap: 1rem;
+}
+
+/* Clear any floating issues */
+.grid {
+  display: grid;
+  grid-template-columns: 1fr;
 }
 
 /* Option buttons - Updated styles */
 
 /* Base option style */
 .kbc-option {
+  position: relative;
+  width: 100%;
   background: linear-gradient(135deg, var(--kbc-dark-blue), var(--kbc-purple));
   border: 2px solid var(--kbc-light-blue);
-  position: relative;
+  padding: 0.75rem 0.75rem 0.75rem 3.5rem;
+  color: var(--kbc-light);
+  font-size: 1rem;
   transition: all 0.3s ease;
+  cursor: pointer;
+  text-align: left;
+  min-height: 54px;
+  display: flex;
+  align-items: center;
+  z-index: 1; /* Add this to ensure clickability */
 }
 
 /* Hover state - only when not selected and not disabled */
-.kbc-option:hover:not(.selected):not(:disabled) {
-  background: linear-gradient(135deg, var(--kbc-blue), var(--kbc-dark-blue));
-  box-shadow: 0 4px 12px rgba(28, 63, 170, 0.3);
+.kbc-option:hover:not(:disabled) {
+  background: linear-gradient(135deg, rgba(38, 81, 219, 0.9), rgba(28, 63, 170, 1));
+  transform: translateY(-2px);
+  box-shadow: 0 0 15px rgba(255, 184, 0, 0.3);
 }
 
 /* Selected state */
@@ -216,9 +239,8 @@ body {
   border-color: var(--kbc-gold);
   color: var(--kbc-dark-blue);
   font-weight: bold;
-  box-shadow: 0 0 20px rgba(255, 184, 0, 0.4), 
-              inset 0 0 15px rgba(255, 184, 0, 0.4);
   transform: translateY(-2px);
+  box-shadow: 0 0 20px rgba(255, 184, 0, 0.4);
 }
 
 /* Correct answer state */
@@ -239,8 +261,9 @@ body {
 
 /* Disabled state */
 .kbc-option:disabled {
-  cursor: not-allowed;
   opacity: 0.7;
+  cursor: not-allowed;
+  pointer-events: none;
 }
 
 /* Option letter style */
@@ -948,7 +971,7 @@ body {
   }
 
   .sm\:grid-cols-2 {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
+    grid-template-columns: repeat(2, 1fr);
   }
 
   .sm\:p-4 {
