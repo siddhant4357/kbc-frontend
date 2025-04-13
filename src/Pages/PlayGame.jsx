@@ -184,45 +184,19 @@ const PlayGame = () => {
   const processGameState = useCallback(async (state) => {
     if (!state || isNavigatingRef.current || !isInitialized) return;
 
-    if (state.isActive === true) {
-      setIsWaiting(false);
-    } else if (state.isActive === false && state.gameStopped) {
-      setGameStopped(true);
-      setCurrentQuestion(null);
-      setShowOptions(false);
-      setShowAnswer(false);
+    // Reset states when new question arrives
+    if (state.currentQuestion && 
+        (!currentQuestion || state.currentQuestion.questionIndex !== currentQuestion.questionIndex)) {
+      setCurrentQuestion(state.currentQuestion);
       setSelectedOption(null);
       setLockedAnswer(null);
-      setError('Game has been stopped by the admin');
-      localStorage.removeItem(`game_${id}_token`);
-      const timeout = setTimeout(() => {
-        navigate('/dashboard');
-      }, 2000);
-      timeoutsRef.current.push(timeout);
-      return;
-    } else if (state.isActive === false) {
-      setIsWaiting(true);
-      return;
+      setShowOptions(false);
+      setShowAnswer(false);
+      setTimeLeft(state.timerDuration || 15);
+      setIsTimerExpired(false);
     }
 
-    if (state.currentQuestion) {
-      const newQuestionIndex = parseInt(state.currentQuestion.questionIndex ?? 0);
-      const currentQuestionIndex = parseInt(currentQuestion?.questionIndex ?? -1);
-
-      if (newQuestionIndex !== currentQuestionIndex) {
-        // Reset all states when new question arrives
-        setCurrentQuestion(state.currentQuestion);
-        setShowOptions(false);
-        setShowAnswer(false);
-        setSelectedOption(null);
-        setLockedAnswer(null);
-        setTimeLeft(state.timerDuration || 15);
-        setIsTimerExpired(false);
-        setTimerStartedAt(null);
-      }
-    }
-
-    // Ensure options can be selected when showOptions is true
+    // Handle options display
     if (state.showOptions) {
       setShowOptions(true);
       setSelectedOption(null);
@@ -234,15 +208,11 @@ const PlayGame = () => {
       setIsTimerExpired(false);
     }
 
-    if (state.showAnswer && !showAnswer) {
+    // Handle answer display
+    if (state.showAnswer) {
       setShowAnswer(true);
     }
-
-    if (state.gameToken && state.gameToken !== gameToken) {
-      setGameToken(state.gameToken);
-      localStorage.setItem(`game_${id}_token`, state.gameToken);
-    }
-  }, [id, gameToken, gameStopped, navigate, currentQuestion, showOptions, showAnswer, isInitialized]);
+  }, [currentQuestion, isInitialized]);
 
   const debouncedProcessGameState = useCallback(
     debounce((state) => {
@@ -428,6 +398,12 @@ const PlayGame = () => {
 
   useEffect(() => {
     return () => {
+      setSelectedOption(null);
+      setLockedAnswer(null);
+      setShowOptions(false);
+      setShowAnswer(false);
+      setTimeLeft(15);
+      setIsTimerExpired(false);
       localStorage.removeItem(`game_${id}_token`);
     };
   }, [id]);
@@ -443,28 +419,24 @@ const PlayGame = () => {
     if (!selectedOption || lockedAnswer || showAnswer || timeLeft <= 0) return;
 
     try {
-      // Structure updates with proper paths
+      const questionIndex = currentQuestion.questionIndex;
       const update = {
-        [`players/${user.username}/answers/${currentQuestion.questionIndex}`]: {
+        [`players/${user.username}/answers/${questionIndex}`]: {
           answer: selectedOption,
           answeredAt: Date.now(),
           isCorrect: selectedOption === currentQuestion.correctAnswer
         },
         [`players/${user.username}/status`]: {
           lastActive: Date.now(),
-          currentQuestion: currentQuestion.questionIndex
+          currentQuestion: questionIndex
         }
       };
 
-      pendingUpdatesRef.current.push(update);
-      setLockedAnswer(selectedOption);
+      // Update Firebase immediately instead of batching
+      const gameRef = ref(db, `games/${id}`);
+      await update(gameRef, update);
 
-      if (!batchTimeoutRef.current) {
-        batchTimeoutRef.current = setTimeout(() => {
-          batchedFirebaseUpdate();
-          batchTimeoutRef.current = null;
-        }, BATCH_INTERVAL);
-      }
+      setLockedAnswer(selectedOption);
     } catch (error) {
       console.error('Error submitting answer:', error);
       setError('Failed to submit answer. Please try again.');
