@@ -161,6 +161,16 @@ const PlayGame = () => {
   const [gameState, setGameState] = useState(null);
   const [error, setError] = useState('');
   const [currentQuestion, setCurrentQuestion] = useState(null);
+
+  useEffect(() => {
+    if (currentQuestion) {
+      // Reset answer states every time question changes
+      setSelectedOption(null);
+      setLockedAnswer(null);
+      setShowAnswer(false);
+    }
+  }, [currentQuestion?.questionIndex]);
+  
   const [showOptions, setShowOptions] = useState(false);
   const [showAnswer, setShowAnswer] = useState(false);
   const [selectedOption, setSelectedOption] = useState(null);
@@ -215,10 +225,11 @@ const PlayGame = () => {
         setShowOptions(false);
         setShowAnswer(false);
         setSelectedOption(null);
-        setLockedAnswer(null);
+        setLockedAnswer(null); // <-- THIS LINE IS MISSING OR NOT FIRING CORRECTLY
         setTimeLeft(state.timerDuration || 15);
         setIsTimerExpired(false);
       }
+      
     }
 
     // Handle options state
