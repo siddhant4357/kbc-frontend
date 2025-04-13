@@ -189,38 +189,49 @@ const PlayGame = () => {
     }
   }, [currentQuestion?.questionIndex]);
 
+  useEffect(() => {
+    return () => {
+        setSelectedOption(null);
+        setLockedAnswer(null);
+        setShowOptions(false);
+        setShowAnswer(false);
+        setTimeLeft(15);
+        setIsTimerExpired(false);
+    };
+  }, [currentQuestion?.questionIndex]);
+
   const processGameState = useCallback(async (state) => {
     if (!state || isNavigatingRef.current || !isInitialized) return;
 
     // Reset states when new question arrives
     if (state.currentQuestion && 
         (!currentQuestion || state.currentQuestion.questionIndex !== currentQuestion.questionIndex)) {
-      setCurrentQuestion(state.currentQuestion);
-      setSelectedOption(null);
-      setLockedAnswer(null);
-      setShowOptions(false);
-      setShowAnswer(false);
-      setTimeLeft(state.timerDuration || 15);
-      setIsTimerExpired(false);
+        setCurrentQuestion(state.currentQuestion);
+        setSelectedOption(null);
+        setLockedAnswer(null);
+        setShowOptions(false);
+        setShowAnswer(false);
+        setTimeLeft(state.timerDuration || 15);
+        setIsTimerExpired(false);
     }
 
     // Handle options display
-    if (state.showOptions) {
-      setShowOptions(true);
-      setSelectedOption(null);
-      setLockedAnswer(null);
-      setShowAnswer(false);
-      setTimerStartedAt(state.timerStartedAt);
-      setTimerDuration(state.timerDuration || 15);
-      setTimeLeft(state.timerDuration || 15);
-      setIsTimerExpired(false);
+    if (state.showOptions && !state.showAnswer) {
+        setShowOptions(true);
+        setSelectedOption(null);
+        setLockedAnswer(null);
+        setShowAnswer(false);
+        setTimerStartedAt(state.timerStartedAt);
+        setTimerDuration(state.timerDuration || 15);
+        setTimeLeft(state.timerDuration || 15);
+        setIsTimerExpired(false);
     }
 
     // Handle answer display
     if (state.showAnswer) {
-      setShowAnswer(true);
+        setShowAnswer(true);
     }
-  }, [currentQuestion, isInitialized]);
+}, [currentQuestion, isInitialized]);
 
   const debouncedProcessGameState = useCallback(
     debounce((state) => {
@@ -426,27 +437,28 @@ const PlayGame = () => {
     if (!selectedOption || lockedAnswer || !currentQuestion) return;
 
     try {
-      const questionIndex = currentQuestion.questionIndex;
-      const answerData = {
-        answer: selectedOption,
-        answeredAt: Date.now(),
-        isCorrect: selectedOption === currentQuestion.correctAnswer
-      };
+        const questionIndex = currentQuestion.questionIndex;
+        const answerData = {
+            answer: selectedOption,
+            answeredAt: Date.now(),
+            isCorrect: selectedOption === currentQuestion.correctAnswer
+        };
 
-      const gameRef = ref(db, `games/${id}/players/${user.username}/answers/${questionIndex}`);
-      await set(gameRef, answerData);
+        // Update answer in Firebase
+        const gameRef = ref(db, `games/${id}/players/${user.username}/answers/${questionIndex}`);
+        await set(gameRef, answerData);
 
-      // Update player status
-      const statusRef = ref(db, `games/${id}/players/${user.username}/status`);
-      await set(statusRef, {
-        lastActive: Date.now(),
-        currentQuestion: questionIndex
-      });
+        // Update player status
+        const statusRef = ref(db, `games/${id}/players/${user.username}/status`);
+        await set(statusRef, {
+            lastActive: Date.now(),
+            currentQuestion: questionIndex
+        });
 
-      setLockedAnswer(selectedOption);
+        setLockedAnswer(selectedOption);
     } catch (error) {
-      console.error('Error submitting answer:', error);
-      setError('Failed to submit answer. Please try again.');
+        console.error('Error submitting answer:', error);
+        setError('Failed to submit answer. Please try again.');
     }
   };
 
