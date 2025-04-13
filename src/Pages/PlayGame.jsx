@@ -18,7 +18,11 @@ const getImageUrl = (imageUrl) => {
   if (imageUrl.startsWith('http') || imageUrl.startsWith('data:')) return imageUrl;
 
   try {
-    const cleanUrl = imageUrl.replace(/([^:])\/+/g, '$1/');
+    // This is the fix - always format URLs consistently
+    // Replace multiple slashes with a single slash (except in http://)
+    const cleanUrl = imageUrl.replace(/([^:]\/)\/+/g, "$1");
+    
+    // Always use this format, similar to JoinQuestions.jsx
     if (cleanUrl.includes('uploads/questions/')) {
       return `${API_URL}${cleanUrl}`;
     }
