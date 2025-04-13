@@ -4,7 +4,7 @@ import { API_URL } from '../utils/config';
 import defaultQuestionImage from '../assets/default_img.jpg';
 import { useFirebaseGameState } from '../hooks/useFirebaseGameState';
 import { ref, set, onDisconnect, serverTimestamp, onValue, update } from 'firebase/database';
-import { db } from '../utils/firebase';
+import { db, auth } from '../utils/firebase';
 import kbcLogo from '../assets/kbc-logo.jpg';
 
 import { debounce, throttle } from 'lodash';
@@ -193,6 +193,20 @@ const PlayGame = () => {
   const [isExiting, setIsExiting] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
   const [connectionStatus, setConnectionStatus] = useState('connecting');
+
+  useEffect(() => {
+    // Sign in anonymously when component mounts
+    const signInAnonymously = async () => {
+      try {
+        await auth.signInAnonymously();
+      } catch (error) {
+        console.error('Auth error:', error);
+        setError('Authentication failed');
+      }
+    };
+    
+    signInAnonymously();
+  }, []);
 
   useEffect(() => {
     // Clear states when a new question arrives
