@@ -164,9 +164,9 @@ const PlayGame = () => {
 
   useEffect(() => {
     if (currentQuestion) {
-      // Reset answer states every time question changes
+      // Reset answer states every time the question changes
       setSelectedOption(null);
-      setLockedAnswer(null);
+      setLockedAnswer(null); // Ensure lockedAnswer is reset
       setShowAnswer(false);
     }
   }, [currentQuestion?.questionIndex]);
@@ -203,7 +203,7 @@ const PlayGame = () => {
       setShowOptions(false);
       setShowAnswer(false);
       setSelectedOption(null);
-      setLockedAnswer(null);
+      setLockedAnswer(null); // Reset lockedAnswer when the game stops
       setError('Game has been stopped by the admin');
       localStorage.removeItem(`game_${id}_token`);
       const timeout = setTimeout(() => navigate('/dashboard'), 2000);
@@ -225,24 +225,22 @@ const PlayGame = () => {
         setShowOptions(false);
         setShowAnswer(false);
         setSelectedOption(null);
-        setLockedAnswer(null); // <-- THIS LINE IS MISSING OR NOT FIRING CORRECTLY
+        setLockedAnswer(null); // Ensure lockedAnswer is reset
         setTimeLeft(state.timerDuration || 15);
         setIsTimerExpired(false);
       }
-      
     }
 
     // Handle options state
     if ('showOptions' in state) {
       const shouldShowOptions = Boolean(state.showOptions);
-      if (shouldShowOptions !== showOptions) {  // Only update if changed
+      if (shouldShowOptions !== showOptions) {
         setShowOptions(shouldShowOptions);
         if (shouldShowOptions) {
           setTimerStartedAt(state.timerStartedAt);
           setTimerDuration(state.timerDuration || 15);
           setTimeLeft(state.timerDuration || 15);
           setIsTimerExpired(false);
-          // Don't reset selection states when showing options
         }
       }
     }
