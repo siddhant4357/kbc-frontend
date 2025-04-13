@@ -7,25 +7,23 @@
     <link rel="icon" href="/kbc-favicon.svg" type="image/svg+xml" />
     <title>KBG Quiz Game</title>
     <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700&display=swap" rel="stylesheet">
-    <!-- Add core-js and regenerator-runtime for older browsers -->
-    <script src="https://unpkg.com/core-js-bundle@3.x/minified.js"></script>
-    <script src="https://unpkg.com/regenerator-runtime@0.x/runtime.js"></script>
-    <!-- Use meta environment variables -->
-    <link rel="preconnect" href="%VITE_API_URL%" />
     <script>
       window.global = window;
-      window.process = {
-        env: { NODE_ENV: 'production' },
-        version: '',
-        on: function() {},
-        addListener: function() {},
-        once: function() {},
-        off: function() {},
-        removeListener: function() {},
-        removeAllListeners: function() {},
-        emit: function() {},
-        prependListener: function() {},
-        prependOnceListener: function() {}
+      var process = {
+        env: {},
+        browser: true,
+        version: '0.0.0',
+        platform: 'browser',
+        nextTick: function(fn) { setTimeout(fn, 0); },
+        on: function() { return process; },
+        addListener: function() { return process; },
+        once: function() { return process; },
+        off: function() { return process; },
+        removeListener: function() { return process; },
+        removeAllListeners: function() { return process; },
+        emit: function() { return process; },
+        prependListener: function() { return process; },
+        prependOnceListener: function() { return process; }
       };
     </script>
   </head>

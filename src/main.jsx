@@ -1,3 +1,4 @@
+import './utils/polyfills';  // Add this line at the top
 import React from 'react';
 import ReactDOM from 'react-dom/client';
 import App from './App';

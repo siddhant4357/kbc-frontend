@@ -5,7 +5,11 @@ export default defineConfig({
   plugins: [react()],
   define: {
     'process.env': {},
-    global: 'window',
+    'process.browser': true,
+    'process.version': '"0.0.0"',
+    'process.platform': '"browser"',
+    'process.on': '(() => {})',
+    global: 'globalThis'
   },
   resolve: {
     alias: {
@@ -18,14 +22,5 @@ export default defineConfig({
         global: 'globalThis'
       }
     }
-  },
-  build: {
-    rollupOptions: {
-      output: {
-        manualChunks: {
-          vendor: ['react', 'react-dom', 'firebase/app', 'firebase/database'],
-        },
-      },
-    },
-  },
+  }
 });
