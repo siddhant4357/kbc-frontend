@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import io from 'socket.io-client';
-import { API_URL, SOCKET_URL } from '../utils/config';
+import { db } from '../utils/firebase';
+import { ref, onValue, set } from 'firebase/database';
 import themeAudio from '../assets/kbc_theme.wav';
 import questionTune from '../assets/question_tune.wav';
 import timerSound from '../assets/kbc_time.mp3';
@@ -9,7 +9,7 @@ import correctAnswerSound from '../assets/kbc_correct_ans.wav';
 import wrongAnswerSound from '../assets/kbc_wrong_ans.wav';
 import timerEndSound from '../assets/kbc_timer_finish.mp4';
 import defaultQuestionImage from '../assets/default_img.jpg';
-import { loadAudio, playWithFallback, stopAllSounds } from '../utils/audioUtils';
+import { loadAudio } from '../utils/audioUtils';
 
 // Update prize levels (from lowest to highest)
 const PRIZE_LEVELS = [
@@ -38,7 +38,6 @@ const PlayGame = () => {
   const [showAnswer, setShowAnswer] = useState(false);
   const [selectedOption, setSelectedOption] = useState(null);
   const [lockedAnswer, setLockedAnswer] = useState(null);
-  const [socket, setSocket] = useState(null);
   const [gameStopped, setGameStopped] = useState(false);
   const [showExitConfirm, setShowExitConfirm] = useState(false);
   const [gameToken, setGameToken] = useState(localStorage.getItem(`game_${id}_token`));
@@ -49,6 +48,7 @@ const PlayGame = () => {
   const [timerDuration, setTimerDuration] = useState(15);
   const [isTimerExpired, setIsTimerExpired] = useState(false);
   const [isWaiting, setIsWaiting] = useState(true);
+  const [error, setError] = useState(null);
 
   // Add audio states
   const [themeSound] = useState(() => loadAudio(themeAudio));
@@ -131,20 +131,40 @@ const PlayGame = () => {
   }, [timerStartedAt, timerDuration, showOptions, lockedAnswer]);
 
   useEffect(() => {
-    const newSocket = io(SOCKET_URL);
-    
-    newSocket.emit('joinGame', { id });
+    if (!id) return;
 
-    newSocket.on('gameState', async (state) => {
-      if (state && state.isActive) {
-        await stopAllSounds(); // Stop theme music when game starts
+    const gameRef = ref(db, `games/${id}`);
+    const connectedRef = ref(db, '.info/connected');
+
+    // Listen for connection state
+    const connectUnsubscribe = onValue(connectedRef, (snap) => {
+      if (snap.val() === false) {
+        setError('Lost connection to game server');
+      } else {
+        setError(null);
+      }
+    });
+
+    // Listen for game state changes
+    const gameUnsubscribe = onValue(gameRef, async (snapshot) => {
+      const state = snapshot.val();
+      
+      if (!state) return;
+
+      if (state.isActive) {
+        await stopAllSounds();
         setCurrentQuestion(state.currentQuestion);
         setShowOptions(state.showOptions);
         setShowAnswer(state.showAnswer);
         setGameStopped(false);
         setIsWaiting(false);
+
+        // Handle timer state
+        if (state.timerStartedAt && state.timerDuration) {
+          setTimerStartedAt(state.timerStartedAt);
+          setTimerDuration(state.timerDuration);
+        }
       } else {
-        // Reset everything if game is not active
         await stopAllSounds();
         if (hasUserInteracted) {
           themeSound.play().catch(console.error);
@@ -157,104 +177,24 @@ const PlayGame = () => {
         setGameStopped(false);
         setIsWaiting(true);
       }
-    });
 
-    newSocket.on('questionUpdate', async (data) => {
-      await stopAllSounds();
-      questionSound.play().catch(console.error);
-      setCurrentQuestion({
-        ...data,
-        // Ensure questionIndex is a number and starts from 0
-        questionIndex: parseInt(data.questionIndex ?? 0)
-      });
-      setShowOptions(false);
-      setShowAnswer(false);
-      setSelectedOption(null);
-      setLockedAnswer(null);
-      setGameStopped(false);
-      
-      // Update prize index based on question index
-      const questionIndex = parseInt(data.questionIndex ?? 0);
-      const newPrizeIndex = PRIZE_LEVELS.length - 1 - questionIndex;
-      setCurrentPrizeIndex(newPrizeIndex);
-    });
-
-    newSocket.on('showOptions', async (data) => {
-      await stopAllSounds();
-      timerAudio.loop = true;
-      timerAudio.play().catch(console.error);
-      setShowOptions(true);
-      setTimerStartedAt(data.timerStartedAt);
-      setTimerDuration(data.timerDuration);
-      setIsTimerExpired(false);
-    });
-
-    newSocket.on('showAnswer', async () => {
-      try {
-        // First stop all sounds
+      // Handle sounds based on state changes
+      if (state.showOptions && !showOptions) {
         await stopAllSounds();
-        
-        // Add a small delay
-        await new Promise(resolve => setTimeout(resolve, 100));
-        
-        // Make sure we have both currentQuestion and selectedOption
-        if (currentQuestion && selectedOption) {
-          // Play appropriate sound based on answer
-          if (selectedOption === currentQuestion.correctAnswer) {
-            correctAudio.currentTime = 0;
-            await correctAudio.play();
-          } else {
-            wrongAudio.currentTime = 0;
-            await wrongAudio.play();
-          }
-        }
-        
-        setShowAnswer(true);
-      } catch (error) {
-        console.error("Error playing answer sound:", error);
-        setShowAnswer(true);
+        timerAudio.loop = true;
+        timerAudio.play().catch(console.error);
+      }
+
+      if (state.showAnswer && !showAnswer) {
+        await handleAnswerReveal(state);
       }
     });
-
-    newSocket.on('gameToken', (token) => {
-      setGameToken(token);
-      localStorage.setItem(`game_${id}_token`, token);
-    });
-
-    newSocket.on('gameStop', async () => {
-      // Stop all sounds when game stops
-      await stopAllSounds();
-      setGameStopped(true);
-      setCurrentQuestion(null);
-      setShowOptions(false);
-      setShowAnswer(false);
-      setSelectedOption(null);
-      setLockedAnswer(null);
-      // Add setTimeout for redirect
-      setTimeout(() => {
-        navigate('/dashboard');
-      }, 2000); // 2 second delay before redirect
-    });
-
-    newSocket.on('pointsUpdate', ({ isCorrect }) => {
-      // Empty handler - no feedback shown to user
-    });
-
-    // Request current game state on reconnection
-    if (gameToken) {
-      newSocket.emit('requestGameState', { id, gameToken });
-    }
-
-    setSocket(newSocket);
 
     return () => {
-      stopAllSounds(); // Stop all sounds on unmount
-      newSocket.disconnect();
-      if (!gameToken) {
-        localStorage.removeItem(`game_${id}_token`);
-      }
+      connectUnsubscribe();
+      gameUnsubscribe();
     };
-  }, [id, navigate]);
+  }, [id, hasUserInteracted, showOptions, showAnswer]);
 
   useEffect(() => {
     const handleVisibilityChange = () => {
@@ -286,35 +226,6 @@ const PlayGame = () => {
     preloadSounds();
   }, [correctAudio, wrongAudio]);
 
-  useEffect(() => {
-    const socket = createSocketConnection();
-    
-    let reconnectInterval;
-    
-    socket.on('disconnect', () => {
-      console.log('Disconnected from server');
-      // Show disconnection message to user
-      setError('Lost connection to server. Attempting to reconnect...');
-      
-      // Attempt to reconnect every 5 seconds
-      reconnectInterval = setInterval(() => {
-        socket.connect();
-      }, 5000);
-    });
-    
-    socket.on('connect', () => {
-      clearInterval(reconnectInterval);
-      setError('');
-      // Re-join game room
-      socket.emit('joinGame', { id });
-    });
-  
-    return () => {
-      socket.disconnect();
-      clearInterval(reconnectInterval);
-    };
-  }, [id]);
-
   const handleOptionSelect = (option) => {
     // Allow selecting options if answer isn't locked and answer isn't shown
     if (!showAnswer && !lockedAnswer) {
@@ -322,20 +233,51 @@ const PlayGame = () => {
     }
   };
 
-  const handleLockAnswer = () => {
-    // Only allow locking answer if:
-    // 1. An option is selected
-    // 2. Answer isn't already locked
-    // 3. Answer isn't shown
-    // 4. Timer hasn't expired
-    if (selectedOption && !lockedAnswer && !showAnswer && !isTimerExpired) {
-      setLockedAnswer(selectedOption);
+  const handleLockAnswer = async () => {
+    if (!selectedOption || showAnswer || timeLeft <= 0) return;
+
+    try {
       const user = JSON.parse(localStorage.getItem('user'));
-      socket.emit('answerLocked', { 
-        questionBankId: id, 
+      if (!user) return;
+
+      const answerData = {
         answer: selectedOption,
-        username: user.username
+        answeredAt: Date.now(),
+        isCorrect: selectedOption === currentQuestion.correctAnswer
+      };
+
+      await set(ref(db, `games/${id}/players/${user.username}/answers/${currentQuestion.questionIndex}`), answerData);
+      await set(ref(db, `games/${id}/players/${user.username}/status`), {
+        lastActive: Date.now(),
+        currentQuestion: currentQuestion.questionIndex
       });
+
+      setLockedAnswer(selectedOption);
+    } catch (error) {
+      console.error('Error submitting answer:', error);
+      setError('Failed to submit answer. Please try again.');
+    }
+  };
+
+  const handleAnswerReveal = async (state) => {
+    try {
+      await stopAllSounds();
+      await new Promise(resolve => setTimeout(resolve, 100));
+      
+      if (currentQuestion && selectedOption) {
+        if (selectedOption === currentQuestion.correctAnswer) {
+          correctAudio.currentTime = 0;
+          await correctAudio.play();
+        } else {
+          wrongAudio.currentTime = 0;
+          await wrongAudio.play();
+        }
+      }
+      
+      setShowAnswer(true);
+    } catch (error) {
+      console.error("Error playing answer sound:", error);
+      setShowAnswer(true);
     }
   };
 
@@ -346,7 +288,6 @@ const PlayGame = () => {
   const confirmExit = async () => {
     // Stop all sounds before disconnecting
     await stopAllSounds();
-    socket.disconnect();
     localStorage.removeItem(`game_${id}_token`);
     navigate('/dashboard');
   };
