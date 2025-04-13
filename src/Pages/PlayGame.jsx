@@ -164,9 +164,9 @@ const PlayGame = () => {
 
   useEffect(() => {
     if (currentQuestion) {
-      // Reset answer states every time question changes
+      // Reset answer states every time the question changes
       setSelectedOption(null);
-      setLockedAnswer(null);
+      setLockedAnswer(null); // Ensure lockedAnswer is reset
       setShowAnswer(false);
     }
   }, [currentQuestion?.questionIndex]);
@@ -203,7 +203,7 @@ const PlayGame = () => {
       setShowOptions(false);
       setShowAnswer(false);
       setSelectedOption(null);
-      setLockedAnswer(null);
+      setLockedAnswer(null); // Reset lockedAnswer when the game stops
       setError('Game has been stopped by the admin');
       localStorage.removeItem(`game_${id}_token`);
       const timeout = setTimeout(() => navigate('/dashboard'), 2000);
@@ -221,31 +221,31 @@ const PlayGame = () => {
 
       if (newQuestionIndex !== currentQuestionIndex) {
         setCurrentQuestion(state.currentQuestion);
+        // Reset states when question changes
         setShowOptions(false);
         setShowAnswer(false);
         setSelectedOption(null);
-        setLockedAnswer(null);
+        setLockedAnswer(null); // Ensure lockedAnswer is reset
         setTimeLeft(state.timerDuration || 15);
         setIsTimerExpired(false);
-        setTimerStartedAt(null);
       }
     }
 
-    // Handle options state independently
+    // Handle options state
     if ('showOptions' in state) {
-      setShowOptions(state.showOptions);
-      if (state.showOptions) {
-        setTimerStartedAt(state.timerStartedAt);
-        setTimerDuration(state.timerDuration || 15);
-        setTimeLeft(state.timerDuration || 15);
-        setIsTimerExpired(false);
-        // Don't reset selection states when showing options
-        setSelectedOption(null);
-        setLockedAnswer(null);
+      const shouldShowOptions = Boolean(state.showOptions);
+      if (shouldShowOptions !== showOptions) {
+        setShowOptions(shouldShowOptions);
+        if (shouldShowOptions) {
+          setTimerStartedAt(state.timerStartedAt);
+          setTimerDuration(state.timerDuration || 15);
+          setTimeLeft(state.timerDuration || 15);
+          setIsTimerExpired(false);
+        }
       }
     }
 
-    // Handle answer reveal
+    // Handle answer reveal without resetting selection
     if (state.showAnswer && !showAnswer) {
       setShowAnswer(true);
     }
