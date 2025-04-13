@@ -211,13 +211,16 @@ const PlayGame = () => {
 
       if (newQuestionIndex !== currentQuestionIndex) {
         setCurrentQuestion(state.currentQuestion);
-        setShowOptions(false);
-        setShowAnswer(false);
-        setSelectedOption(null); // Reset selected option
-        setLockedAnswer(null);  // Reset locked answer
-        setTimeLeft(state.timerDuration || 15);
-        setIsTimerExpired(false);
-        setTimerStartedAt(null);
+        // Only reset options and selections if the question is actually changing
+        if (newQuestionIndex !== currentQuestionIndex) {
+          setShowOptions(false);
+          setShowAnswer(false);
+          setSelectedOption(null);
+          setLockedAnswer(null);
+          setTimeLeft(state.timerDuration || 15);
+          setIsTimerExpired(false);
+          setTimerStartedAt(null);
+        }
       }
     }
 
@@ -327,7 +330,7 @@ const PlayGame = () => {
 
   useEffect(() => {
     let interval;
-    if (timerStartedAt && showOptions && !isTimerExpired) {
+    if (timerStartedAt && showOptions && !isTimerExpired && !lockedAnswer) {
       interval = setInterval(() => {
         const now = new Date();
         const startTime = new Date(timerStartedAt);
@@ -440,7 +443,7 @@ const PlayGame = () => {
   }, [id]);
 
   const handleOptionSelect = (option) => {
-    if (showOptions && !showAnswer && !lockedAnswer && timeLeft > 0) {
+    if (!showAnswer && !lockedAnswer && timeLeft > 0) {
       setSelectedOption(option);
     }
   };
@@ -453,26 +456,33 @@ const PlayGame = () => {
         [`players/${user.username}/answers/${currentQuestion.questionIndex}`]: {
           answer: selectedOption,
           answeredAt: Date.now(),
-          isCorrect: selectedOption === currentQuestion.correctAnswer
+          isCorrect: selectedOption === currentQuestion.correctAnswer,
+          questionId: currentQuestion.id // Add this to track which question
         },
         [`players/${user.username}/status`]: {
           lastActive: Date.now(),
-          currentQuestion: currentQuestion.questionIndex
+          currentQuestion: currentQuestion.questionIndex,
+          lastAnswered: currentQuestion.questionIndex // Add this to track progress
         }
       };
 
-      pendingUpdatesRef.current.push(update);
+      // Set local state first for immediate feedback
       setLockedAnswer(selectedOption);
+      pendingUpdatesRef.current.push(update);
 
-      if (!batchTimeoutRef.current) {
-        batchTimeoutRef.current = setTimeout(() => {
-          batchedFirebaseUpdate();
-          batchTimeoutRef.current = null;
-        }, BATCH_INTERVAL);
+      // Trigger immediate batch update
+      await batchedFirebaseUpdate();
+      
+      // Clear batch timeout if it exists
+      if (batchTimeoutRef.current) {
+        clearTimeout(batchTimeoutRef.current);
+        batchTimeoutRef.current = null;
       }
     } catch (error) {
       console.error('Error submitting answer:', error);
       setError('Failed to submit answer. Please try again.');
+      // Revert local state on error
+      setLockedAnswer(null);
     }
   };
 
