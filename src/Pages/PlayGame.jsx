@@ -211,10 +211,12 @@ const PlayGame = () => {
 
       if (newQuestionIndex !== currentQuestionIndex) {
         setCurrentQuestion(state.currentQuestion);
-        // Reset states for new question
-        setSelectedOption(null);
-        setLockedAnswer(null);
+        setShowOptions(false);
         setShowAnswer(false);
+        setSelectedOption(null); // Reset selection for new question
+        setLockedAnswer(null);
+        setTimeLeft(state.timerDuration || 15);
+        setIsTimerExpired(false);
       }
     }
 
@@ -228,6 +230,7 @@ const PlayGame = () => {
         setTimerDuration(state.timerDuration || 15);
         setTimeLeft(state.timerDuration || 15);
         setIsTimerExpired(false);
+        // Don't reset selection states when showing options
       }
     }
 
@@ -431,17 +434,17 @@ const PlayGame = () => {
     };
   }, [id]);
 
-  const handleOptionSelect = (option) => {
+  const handleOptionSelect = useCallback((option) => {
     if (!showAnswer && !lockedAnswer && timeLeft > 0) {
       setSelectedOption(option);
     }
-  };
+  }, [showAnswer, lockedAnswer, timeLeft]);
 
-  const handleLockAnswer = async () => {
+  const handleLockAnswer = useCallback(async () => {
     if (!selectedOption || showAnswer || timeLeft <= 0) return;
 
     try {
-      const update = {
+      const updates = {
         [`players/${user.username}/answers/${currentQuestion.questionIndex}`]: {
           answer: selectedOption,
           answeredAt: Date.now(),
@@ -449,30 +452,20 @@ const PlayGame = () => {
         },
         [`players/${user.username}/status`]: {
           lastActive: Date.now(),
-          currentQuestion: currentQuestion.questionIndex,
-          lastAnswered: currentQuestion.questionIndex
+          currentQuestion: currentQuestion.questionIndex
         }
       };
 
-      // Set local state first for immediate feedback
       setLockedAnswer(selectedOption);
-      pendingUpdatesRef.current.push(update);
-
-      // Trigger immediate batch update
+      pendingUpdatesRef.current.push(updates);
       await batchedFirebaseUpdate();
-      
-      // Clear batch timeout if it exists
-      if (batchTimeoutRef.current) {
-        clearTimeout(batchTimeoutRef.current);
-        batchTimeoutRef.current = null;
-      }
+
     } catch (error) {
       console.error('Error submitting answer:', error);
       setError('Failed to submit answer. Please try again.');
-      // Revert local state on error
       setLockedAnswer(null);
     }
-  };
+  }, [selectedOption, showAnswer, timeLeft, currentQuestion, user, batchedFirebaseUpdate]);
 
   const handleExit = () => {
     setShowExitDialog(true);
