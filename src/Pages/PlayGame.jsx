@@ -153,6 +153,17 @@ const QuitButton = ({ onQuit }) => {
   );
 };
 
+const ConnectionStatus = ({ status }) => (
+  <div className={`fixed top-4 right-4 px-3 py-1 rounded-full ${
+    status === 'connected' ? 'bg-green-500' : 'bg-red-500'
+  } text-white text-sm flex items-center gap-2`}>
+    <div className={`w-2 h-2 rounded-full ${
+      status === 'connected' ? 'bg-green-300' : 'bg-red-300'
+    } animate-pulse`} />
+    {status === 'connected' ? 'Connected' : 'Reconnecting...'}
+  </div>
+);
+
 const PlayGame = () => {
   const { id } = useParams();
   const navigate = useNavigate();
@@ -180,6 +191,8 @@ const PlayGame = () => {
   const batchTimeoutRef = useRef(null);
   const [showExitDialog, setShowExitDialog] = useState(false);
   const [isExiting, setIsExiting] = useState(false);
+  const [isLoading, setIsLoading] = useState(true);
+  const [connectionStatus, setConnectionStatus] = useState('connecting');
 
   useEffect(() => {
     // Clear states when a new question arrives
@@ -401,6 +414,15 @@ const PlayGame = () => {
   }, []);
 
   useEffect(() => {
+    const connectedRef = ref(db, '.info/connected');
+    return onValue(connectedRef, (snap) => {
+      const connected = snap.val() === true;
+      setConnectionStatus(connected ? 'connected' : 'disconnected');
+      setIsLoading(false);
+    });
+  }, [db]);
+
+  useEffect(() => {
     if (firebaseGameState) {
       setShowOptions(firebaseGameState.showOptions || false);
       setShowAnswer(firebaseGameState.showAnswer || false);
@@ -427,6 +449,96 @@ const PlayGame = () => {
     };
   }, [id]);
 
+  useEffect(() => {
+    if (!id) return;
+
+    const gameRef = ref(db, `games/${id}`);
+    const unsubscribe = onValue(gameRef, (snapshot) => {
+      const data = snapshot.val();
+      if (!data) return;
+
+      setGameState(data);
+      setCurrentQuestion(data.currentQuestion || null);
+      setShowOptions(data.showOptions || false);
+      setShowAnswer(data.showAnswer || false);
+      
+      if (data.timerStartedAt && data.timerDuration) {
+        setTimerStartedAt(data.timerStartedAt);
+        setTimerDuration(data.timerDuration);
+      }
+      
+      setIsWaiting(!data.isActive);
+    });
+
+    return () => unsubscribe();
+  }, [id]);
+
+  useEffect(() => {
+    if (!id || !user) return;
+
+    const playerRef = ref(db, `games/${id}/players/${user.username}`);
+    
+    // Update player presence
+    set(playerRef, {
+      isOnline: true,
+      joinedAt: serverTimestamp(),
+      lastActive: Date.now()
+    });
+
+    // Remove player data when disconnected
+    onDisconnect(playerRef).remove();
+
+    // Update last active timestamp periodically
+    const interval = setInterval(() => {
+      update(playerRef, {
+        lastActive: Date.now()
+      });
+    }, 30000);
+
+    return () => {
+      clearInterval(interval);
+      set(playerRef, null);
+    };
+  }, [id, user]);
+
+  useEffect(() => {
+    const cleanupRefs = [];
+    
+    // Store all Firebase refs that need cleanup
+    if (user && id) {
+      const presenceRef = ref(db, `games/${id}/players/${user.username}/presence`);
+      const userRef = ref(db, `games/${id}/players/${user.username}`);
+      
+      cleanupRefs.push({ ref: presenceRef, onDisconnect: true });
+      cleanupRefs.push({ ref: userRef });
+    }
+
+    return () => {
+      // Clean up all references and listeners
+      cleanupRefs.forEach(({ ref, onDisconnect }) => {
+        if (onDisconnect) {
+          onDisconnect(ref).cancel();
+        }
+        set(ref, null);
+      });
+
+      // Clear all intervals and timeouts
+      timeoutsRef.current.forEach(clearTimeout);
+      timeoutsRef.current = [];
+      
+      // Reset all states
+      setSelectedOption(null);
+      setLockedAnswer(null);
+      setShowOptions(false);
+      setShowAnswer(false);
+      setTimeLeft(15);
+      setIsTimerExpired(false);
+      
+      // Clear local storage
+      localStorage.removeItem(`game_${id}_token`);
+    };
+  }, [id, user]);
+
   const handleOptionSelect = (option) => {
     if (!showAnswer && !lockedAnswer && showOptions) {
       setSelectedOption(option);
@@ -437,28 +549,16 @@ const PlayGame = () => {
     if (!selectedOption || lockedAnswer || !currentQuestion) return;
 
     try {
-        const questionIndex = currentQuestion.questionIndex;
-        const answerData = {
-            answer: selectedOption,
-            answeredAt: Date.now(),
-            isCorrect: selectedOption === currentQuestion.correctAnswer
-        };
-
-        // Update answer in Firebase
-        const gameRef = ref(db, `games/${id}/players/${user.username}/answers/${questionIndex}`);
-        await set(gameRef, answerData);
-
-        // Update player status
-        const statusRef = ref(db, `games/${id}/players/${user.username}/status`);
-        await set(statusRef, {
-            lastActive: Date.now(),
-            currentQuestion: questionIndex
-        });
-
-        setLockedAnswer(selectedOption);
+      const answerRef = ref(db, `games/${id}/players/${user.username}/answers/${currentQuestion.questionIndex}`);
+      await set(answerRef, {
+        answer: selectedOption,
+        isCorrect: selectedOption === currentQuestion.correctAnswer,
+        timestamp: serverTimestamp()
+      });
+      setLockedAnswer(selectedOption);
     } catch (error) {
-        console.error('Error submitting answer:', error);
-        setError('Failed to submit answer. Please try again.');
+      console.error('Error submitting answer:', error);
+      setError('Failed to submit answer');
     }
   };
 
@@ -741,6 +841,8 @@ const PlayGame = () => {
         }
         isLoading={isExiting}
       />
+
+      {connectionStatus !== 'connected' && <ConnectionStatus status={connectionStatus} />}
 
       {error && (
         <div className="fixed bottom-4 left-1/2 transform -translate-x-1/2 bg-red-600 text-white px-4 py-2 rounded shadow-lg z-50 animate-pulse">

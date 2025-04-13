@@ -2,6 +2,19 @@ import { useState, useEffect, useCallback, useRef } from 'react';
 import { ref, onValue, set, onDisconnect, serverTimestamp } from 'firebase/database';
 import { db } from '../utils/firebase';
 
+const handleFirebaseError = (error) => {
+  switch (error.code) {
+    case 'PERMISSION_DENIED':
+      return 'You do not have permission to access this game.';
+    case 'NETWORK_ERROR':
+      return 'Network error. Please check your connection.';
+    case 'DATABASE_UNAVAILABLE':
+      return 'Game server is currently unavailable.';
+    default:
+      return 'An unexpected error occurred. Please try again.';
+  }
+};
+
 export const useFirebaseGameState = (gameId) => {
   const [gameState, setGameState] = useState(null);
   const [error, setError] = useState(null);
@@ -46,7 +59,7 @@ export const useFirebaseGameState = (gameId) => {
       setIsInitialized(true);
     }, (error) => {
       console.error('Firebase error:', error);
-      setError('Error connecting to game');
+      setError(handleFirebaseError(error));
       setIsInitialized(true);
     });
 
@@ -58,6 +71,28 @@ export const useFirebaseGameState = (gameId) => {
         const presenceRef = ref(db, `games/${gameId}/presence/${Date.now()}`);
         onDisconnect(presenceRef).cancel();
       }
+    };
+  }, [gameId]);
+
+  useEffect(() => {
+    if (!gameId) return;
+
+    const cleanup = () => {
+      if (connectionRef.current) {
+        // Clear all listeners
+        connectionRef.current.off();
+        // Clear presence
+        const presenceRef = ref(db, `games/${gameId}/presence/${Date.now()}`);
+        onDisconnect(presenceRef).cancel();
+        set(presenceRef, null);
+      }
+    };
+
+    process.on('beforeExit', cleanup);
+    
+    return () => {
+      cleanup();
+      process.off('beforeExit', cleanup);
     };
   }, [gameId]);
 

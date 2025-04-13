@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import BackButton from '../components/BackButton';
 import { API_URL } from '../utils/config';
 import { useFirebaseGameState } from '../hooks/useFirebaseGameState';
-import { ref, set } from 'firebase/database';
+import { ref, set, update, serverTimestamp } from 'firebase/database';
 import { db } from '../utils/firebase';
 
 const ManagePlayAlong = () => {
@@ -300,90 +300,69 @@ const ManagePlayAlong = () => {
   };
 
   const startGame = async () => {
-    if (!selectedBank) return;
-
     try {
-      const user = JSON.parse(localStorage.getItem('user'));
-      if (!user?.isAdmin) {
-        setError('Only admins can start the game');
-        return;
-      }
-
-      const gameData = {
+      const gameRef = ref(db, `games/${selectedBank._id}`);
+      await set(gameRef, {
         isActive: true,
-        admin: user.username,
-        gameToken: Date.now().toString(),
         currentQuestion: {
           ...selectedBank.questions[0],
-          questionIndex: 0,
-          imageUrl: selectedBank.questions[0].imageUrl || '',
+          questionIndex: 0
         },
         showOptions: false,
         showAnswer: false,
         timerStartedAt: null,
         timerDuration: parseInt(timerDuration),
-        players: {},
-        startedAt: Date.now(),
-        questionBankId: selectedBank._id,
-      };
-
-      // Update Firebase
-      const gameRef = ref(db, `games/${selectedBank._id}`);
-      await set(gameRef, gameData);
-      
-      setGameStarted(true);
-      // console.log('Game started successfully');
-    } catch (err) {
-      console.error('Error starting game:', err);
-      setError('Failed to start game. Please check your permissions.');
-    }
-  };
-
-  const showNextQuestion = async () => {
-    if (gameStarted && currentQuestionIndex < selectedBank.questions.length - 1) {
-      const nextIndex = currentQuestionIndex + 1;
-      await updateGameState({
-        currentQuestion: {
-          ...selectedBank.questions[nextIndex],
-          questionIndex: nextIndex,
-        },
-        showOptions: false,
-        showAnswer: false,
-        timerStartedAt: null,
+        startedAt: serverTimestamp()
       });
-      setCurrentQuestionIndex(nextIndex);
+    } catch (error) {
+      console.error('Error starting game:', error);
+      setError('Failed to start game');
     }
   };
 
   const showOptions = async () => {
-    if (!gameStarted) return;
-
     try {
-      await updateGameState({
+      const gameRef = ref(db, `games/${selectedBank._id}`);
+      await update(gameRef, {
         showOptions: true,
-        timerStartedAt: Date.now(),
-        timerDuration: parseInt(timerDuration),
-        updatedAt: Date.now(),
+        timerStartedAt: serverTimestamp(),
+        timerDuration: parseInt(timerDuration)
       });
-      console.log('Options shown successfully');
-    } catch (err) {
-      console.error('Error showing options:', err);
-      setError('Failed to show options. Please try again.');
+    } catch (error) {
+      console.error('Error showing options:', error);
+      setError('Failed to show options');
     }
   };
 
   const showAnswer = async () => {
-    if (!gameStarted) return;
-
     try {
-      await updateGameState({
-        showAnswer: true,
-        updatedAt: Date.now(),
+      const gameRef = ref(db, `games/${selectedBank._id}`);
+      await update(gameRef, {
+        showAnswer: true
       });
-      console.log('Answer shown successfully');
-    } catch (err) {
-      console.error('Error showing answer:', err);
-      setError('Failed to show answer. Please try again.');
+    } catch (error) {
+      console.error('Error showing answer:', error);
+      setError('Failed to show answer');
+    }
+  };
+
+  const nextQuestion = async () => {
+    try {
+      const nextIndex = currentQuestionIndex + 1;
+      const gameRef = ref(db, `games/${selectedBank._id}`);
+      await update(gameRef, {
+        currentQuestion: {
+          ...selectedBank.questions[nextIndex],
+          questionIndex: nextIndex
+        },
+        showOptions: false,
+        showAnswer: false,
+        timerStartedAt: null
+      });
+      setCurrentQuestionIndex(nextIndex);
+    } catch (error) {
+      console.error('Error moving to next question:', error);
+      setError('Failed to move to next question');
     }
   };
 
@@ -617,7 +596,7 @@ const ManagePlayAlong = () => {
                       <button
                         onClick={() => {
                           handleButtonPress('next');
-                          showNextQuestion();
+                          nextQuestion();
                         }}
                         disabled={currentQuestionIndex === selectedBank.questions.length - 1}
                         style={{
