@@ -1,7 +1,7 @@
 // Import the functions you need from the SDKs you need
 import { initializeApp } from 'firebase/app';
 import { getDatabase, connectDatabaseEmulator } from 'firebase/database';
-import { getAuth, connectAuthEmulator } from 'firebase/auth';
+import { getAuth, connectAuthEmulator, signInAnonymously as firebaseSignInAnonymously } from 'firebase/auth';
 
 // Your web app's Firebase configuration
 const firebaseConfig = {
@@ -14,35 +14,17 @@ const firebaseConfig = {
   appId: import.meta.env.VITE_FIREBASE_APP_ID
 };
 
-let db;
-let auth;
+// Initialize Firebase
+const app = initializeApp(firebaseConfig);
+const auth = getAuth(app);
+const db = getDatabase(app);
 
-// Initialize Firebase with error handling
-try {
-  const app = initializeApp(firebaseConfig);
-  auth = getAuth(app);
-  db = getDatabase(app);
+// Helper function for anonymous sign in
+export const signInAnonymously = () => firebaseSignInAnonymously(auth);
 
-  // Connect to emulators if in development
-  if (import.meta.env.DEV) {
-    connectDatabaseEmulator(db, 'localhost', 9000);
-    connectAuthEmulator(auth, 'http://localhost:9099');
-  }
-} catch (error) {
-  console.error('Error initializing Firebase:', error);
-  throw error;
+if (import.meta.env.DEV) {
+  connectDatabaseEmulator(db, 'localhost', 9000);
+  connectAuthEmulator(auth, 'http://localhost:9099');
 }
 
 export { db, auth };
-
-export const handleFirebaseError = (error) => {
-  console.error('Firebase Error:', error);
-  switch (error.code) {
-    case 'PERMISSION_DENIED':
-      return 'Permission denied. Please check your access rights.';
-    case 'NETWORK_ERROR':
-      return 'Network error. Please check your connection.';
-    default:
-      return 'An error occurred. Please try again.';
-  }
-};
