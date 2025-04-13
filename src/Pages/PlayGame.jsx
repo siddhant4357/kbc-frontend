@@ -15,17 +15,22 @@ const RECONNECT_DELAY = 2000;
 
 const getImageUrl = (imageUrl) => {
   if (!imageUrl || imageUrl === '') return defaultQuestionImage;
-  if (imageUrl.startsWith('http') || imageUrl.startsWith('data:')) return imageUrl;
 
   try {
-    // This is the fix - always format URLs consistently
-    // Replace multiple slashes with a single slash (except in http://)
+    // Ensure the URL is properly formatted
     const cleanUrl = imageUrl.replace(/([^:]\/)\/+/g, "$1");
-    
-    // Always use this format, similar to JoinQuestions.jsx
-    if (cleanUrl.includes('uploads/questions/')) {
+
+    // Handle absolute URLs (e.g., starting with http or https)
+    if (cleanUrl.startsWith('http') || cleanUrl.startsWith('data:')) {
+      return cleanUrl;
+    }
+
+    // Handle relative paths (e.g., uploads/questions/)
+    if (cleanUrl.startsWith('/uploads/questions/')) {
       return `${API_URL}${cleanUrl}`;
     }
+
+    // Fallback for other cases
     return `${API_URL}/${cleanUrl}`;
   } catch (error) {
     console.error('Error formatting image URL:', error);
