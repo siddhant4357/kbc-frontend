@@ -114,20 +114,20 @@ body {
   top: 0;
   left: 0;
   right: 0;
+  height: 56px; /* Reduced fixed height */
   background: linear-gradient(135deg, var(--kbc-dark-blue), var(--kbc-purple));
   backdrop-filter: blur(10px);
-  z-index: 10;
+  z-index: 40;
   padding: 0.5rem;
-  height: 48px; /* Fixed height */
+  border-bottom: 1px solid rgba(255, 184, 0, 0.2);
 }
 
 .header-content {
+  max-width: 1200px;
+  margin: 0 auto;
+  height: 100%;
   display: flex;
-  flex-wrap: wrap;
   align-items: center;
-  justify-content: space-between;
-  gap: 0.5rem;
-  width: 100%;
 }
 
 /* Timer and control styles */
@@ -415,7 +415,7 @@ body {
   width: 100%;
   margin-left: auto;
   margin-right: auto;
-  padding-top: 48px; /* Match header height */
+  padding-top: 56px; /* Match header height */
 }
 
 .mx-auto {
