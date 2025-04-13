@@ -187,7 +187,7 @@ body {
   box-shadow: 0 0 15px rgba(255, 184, 0, 0.2);
 }
 
-/* Options grid */
+/* Options grid container */
 .options-grid {
   width: 100%;
   max-width: 800px;
@@ -196,19 +196,7 @@ body {
   z-index: 2; /* Ensure options are clickable */
 }
 
-.grid-cols-1 {
-  gap: 1rem;
-}
-
-/* Clear any floating issues */
-.grid {
-  display: grid;
-  grid-template-columns: 1fr;
-}
-
-/* Option buttons - Updated styles */
-
-/* Base option style */
+/* Option button base styles */
 .kbc-option {
   position: relative;
   width: 100%;
@@ -224,10 +212,12 @@ body {
   display: flex;
   align-items: center;
   z-index: 1; /* Add this to ensure clickability */
+  pointer-events: auto;
+  user-select: none;
 }
 
 /* Hover state - only when not selected and not disabled */
-.kbc-option:hover:not(:disabled) {
+.kbc-option:not(:disabled):hover {
   background: linear-gradient(135deg, rgba(38, 81, 219, 0.9), rgba(28, 63, 170, 1));
   transform: translateY(-2px);
   box-shadow: 0 0 15px rgba(255, 184, 0, 0.3);
@@ -266,7 +256,7 @@ body {
   pointer-events: none;
 }
 
-/* Option letter style */
+/* Option letter indicator */
 .option-letter {
   position: absolute;
   left: 0.75rem;
@@ -282,7 +272,13 @@ body {
   border: 1px solid var(--kbc-gold);
   font-size: 0.875rem;
   font-weight: bold;
-  color: inherit;
+  color: var(--kbc-gold);
+}
+
+/* Grid layout */
+.grid-cols-1 {
+  display: grid;
+  gap: 1rem;
 }
 
 /* Prize ladder section */
@@ -972,6 +968,7 @@ body {
 
   .sm\:grid-cols-2 {
     grid-template-columns: repeat(2, 1fr);
+    gap: 1rem;
   }
 
   .sm\:p-4 {
