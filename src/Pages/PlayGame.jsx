@@ -210,6 +210,7 @@ const PlayGame = () => {
       const currentQuestionIndex = parseInt(currentQuestion?.questionIndex ?? -1);
 
       if (newQuestionIndex !== currentQuestionIndex) {
+        // Reset all states when new question arrives
         setCurrentQuestion(state.currentQuestion);
         setShowOptions(false);
         setShowAnswer(false);
@@ -221,6 +222,7 @@ const PlayGame = () => {
       }
     }
 
+    // Ensure options can be selected when showOptions is true
     if (state.showOptions) {
       setShowOptions(true);
       setSelectedOption(null);
@@ -230,8 +232,6 @@ const PlayGame = () => {
       setTimerDuration(state.timerDuration || 15);
       setTimeLeft(state.timerDuration || 15);
       setIsTimerExpired(false);
-    } else {
-      setShowOptions(false);
     }
 
     if (state.showAnswer && !showAnswer) {
@@ -433,7 +433,8 @@ const PlayGame = () => {
   }, [id]);
 
   const handleOptionSelect = (option) => {
-    if (!showAnswer && !lockedAnswer && timeLeft > 0 && showOptions) {
+    // Remove unnecessary conditions and simplify
+    if (showOptions && !showAnswer && !lockedAnswer && timeLeft > 0) {
       setSelectedOption(option);
     }
   };
