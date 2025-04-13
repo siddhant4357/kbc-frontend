@@ -217,23 +217,21 @@ const PlayGame = () => {
         setLockedAnswer(null);
         setTimeLeft(state.timerDuration || 15);
         setIsTimerExpired(false);
-        // Reset timer state for new question
         setTimerStartedAt(null);
       }
     }
 
-    if (state.showOptions !== showOptions) {
-      setShowOptions(state.showOptions);
-      if (state.showOptions) {
-        // Reset selection state when options are shown
-        setSelectedOption(null);
-        setLockedAnswer(null);
-        setShowAnswer(false);
-        setTimerStartedAt(state.timerStartedAt);
-        setTimerDuration(state.timerDuration || 15);
-        setTimeLeft(state.timerDuration || 15);
-        setIsTimerExpired(false);
-      }
+    if (state.showOptions) {
+      setShowOptions(true);
+      setSelectedOption(null);
+      setLockedAnswer(null);
+      setShowAnswer(false);
+      setTimerStartedAt(state.timerStartedAt);
+      setTimerDuration(state.timerDuration || 15);
+      setTimeLeft(state.timerDuration || 15);
+      setIsTimerExpired(false);
+    } else {
+      setShowOptions(false);
     }
 
     if (state.showAnswer && !showAnswer) {
