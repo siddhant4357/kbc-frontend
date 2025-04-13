@@ -117,3 +117,21 @@
   border-radius: 50%;
   border: 1px solid var(--kbc-gold);
 }
+
+/* Game Header */
+.game-header {
+  background: linear-gradient(135deg, var(--kbc-dark-blue), var(--kbc-purple));
+  border-bottom: 1px solid rgba(255, 184, 0, 0.2);
+  backdrop-filter: blur(8px);
+}
+
+.header-content {
+  max-width: 1200px;
+  margin: 0 auto;
+  display: flex;
+  align-items: center;
+}
+
+.question-image {
+  margin-top: 0.5rem;
+}

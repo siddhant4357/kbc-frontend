@@ -102,7 +102,7 @@ const QuestionImage = React.memo(({ imageUrl }) => {
   );
 });
 
-const ExitConfirmDialog = ({ isOpen, onClose, onConfirm, message, isLoading }) => {
+const ExitConfirmDialog = ({ isOpen, onClose, onConfirm, message }) => {
   if (!isOpen) return null;
   
   return (
@@ -116,40 +116,18 @@ const ExitConfirmDialog = ({ isOpen, onClose, onConfirm, message, isLoading }) =
           <button
             onClick={onClose}
             className="kbc-button1 w-full sm:w-auto order-2 sm:order-1"
-            disabled={isLoading}
           >
             Cancel
           </button>
           <button
             onClick={onConfirm}
-            className="kbc-button1 bg-red-600 hover:bg-red-700 w-full sm:w-auto order-1 sm:order-2 relative"
-            disabled={isLoading}
+            className="kbc-button1 bg-red-600 hover:bg-red-700 w-full sm:w-auto order-1 sm:order-2"
           >
-            {isLoading ? (
-              <>
-                <span className="opacity-0">Quit</span>
-                <div className="absolute inset-0 flex items-center justify-center">
-                  <div className="animate-spin rounded-full h-5 w-5 border-2 border-white"></div>
-                </div>
-              </>
-            ) : (
-              'Quit'
-            )}
+            Quit
           </button>
         </div>
       </div>
     </div>
-  );
-};
-
-const QuitButton = ({ onQuit }) => {
-  return (
-    <button
-      onClick={onQuit}
-      className="kbc-button bg-red-600 hover:bg-red-700 text-xs h-8 w-14"
-    >
-      QUIT
-    </button>
   );
 };
 
@@ -166,6 +144,7 @@ const PlayGame = () => {
   const [selectedOption, setSelectedOption] = useState(null);
   const [lockedAnswer, setLockedAnswer] = useState(null);
   const [gameStopped, setGameStopped] = useState(false);
+  const [showExitConfirm, setShowExitConfirm] = useState(false);
   const [gameToken, setGameToken] = useState(() => localStorage.getItem(`game_${id}_token`));
   const [timeLeft, setTimeLeft] = useState(30);
   const [timerStartedAt, setTimerStartedAt] = useState(null);
@@ -179,7 +158,6 @@ const PlayGame = () => {
   const pendingUpdatesRef = useRef([]);
   const batchTimeoutRef = useRef(null);
   const [showExitDialog, setShowExitDialog] = useState(false);
-  const [isExiting, setIsExiting] = useState(false);
 
   const processGameState = useCallback(async (state) => {
     if (!state || isNavigatingRef.current || !isInitialized) return;
@@ -211,11 +189,13 @@ const PlayGame = () => {
 
       if (newQuestionIndex !== currentQuestionIndex) {
         setCurrentQuestion(state.currentQuestion);
-        setShowOptions(false);
+        setShowOptions(false); 
         setShowAnswer(false);
         setSelectedOption(null);
         setLockedAnswer(null);
+        // Reset timer states
         setTimeLeft(state.timerDuration || 15);
+        setTimerStartedAt(null); // Add this
         setIsTimerExpired(false);
       }
     }
@@ -227,8 +207,11 @@ const PlayGame = () => {
         setTimerDuration(state.timerDuration || 15);
         setTimeLeft(state.timerDuration || 15);
         setIsTimerExpired(false);
-        setSelectedOption(null);
+        setSelectedOption(null); 
         setLockedAnswer(null);
+        // Add these resets
+        setShowAnswer(false);
+        setError(null);
       }
     }
 
@@ -262,24 +245,27 @@ const PlayGame = () => {
     if (pendingUpdatesRef.current.length === 0) return;
 
     try {
+      // Create the reference once
       const gameRef = ref(db, `games/${id}`);
-      
-      // Properly structure updates to avoid dots in keys
-      const updates = {};
-      pendingUpdatesRef.current.forEach(updateObj => {
-        Object.entries(updateObj).forEach(([path, value]) => {
-          // Convert dot notation to proper Firebase path
-          const parts = path.split('.');
-          const cleanPath = parts.join('/');
-          // Remove games/id prefix if present
-          const finalPath = cleanPath.replace(`games/${id}/`, '');
-          updates[finalPath] = value;
-        });
-      });
 
+      // Restructure updates to avoid using path segments in keys
+      const updates = pendingUpdatesRef.current.reduce((acc, update) => {
+        // Convert paths to proper structure
+        Object.entries(update).forEach(([path, value]) => {
+          // Remove the 'games/gameId' prefix from paths
+          const cleanPath = path
+            .replace(`games/${id}/`, '')
+            .split('/')
+            .join('.');
+
+          acc[cleanPath] = value;
+        });
+        return acc;
+      }, {});
+
+      // Use update instead of set for atomic operations
       await update(gameRef, updates);
       pendingUpdatesRef.current = [];
-
     } catch (error) {
       console.error('Batch update failed:', error);
       setError('Failed to update game state. Please try again.');
@@ -430,8 +416,33 @@ const PlayGame = () => {
     };
   }, [id]);
 
+  useEffect(() => {
+    if (firebaseGameState?.currentQuestion?.questionIndex !== currentQuestion?.questionIndex) {
+      setSelectedOption(null);
+      setLockedAnswer(null);
+      setShowAnswer(false);
+      setIsTimerExpired(false);
+    }
+  }, [firebaseGameState?.currentQuestion?.questionIndex, currentQuestion?.questionIndex]);
+
+  useEffect(() => {
+    if (showOptions && firebaseGameState?.showOptions) {
+      setSelectedOption(null);
+      setLockedAnswer(null);
+      setShowAnswer(false);
+      setIsTimerExpired(false);
+      setTimeLeft(firebaseGameState.timerDuration || 15);
+      setTimerStartedAt(firebaseGameState.timerStartedAt);
+      setTimerDuration(firebaseGameState.timerDuration || 15);
+    }
+  }, [showOptions, firebaseGameState?.showOptions, firebaseGameState?.timerDuration, firebaseGameState?.timerStartedAt]);
+
   const handleOptionSelect = (option) => {
-    if (!showAnswer && !lockedAnswer && timeLeft > 0 && showOptions) {
+    if (!showAnswer && 
+        !lockedAnswer && 
+        timeLeft > 0 && 
+        showOptions &&
+        currentQuestion?.questionIndex === firebaseGameState?.currentQuestion?.questionIndex) {
       setSelectedOption(option);
     }
   };
@@ -440,14 +451,14 @@ const PlayGame = () => {
     if (!selectedOption || lockedAnswer || showAnswer || timeLeft <= 0) return;
 
     try {
-      // Structure updates with proper paths
+      // Structure the update without forward slashes in keys
       const update = {
-        [`players/${user.username}/answers/${currentQuestion.questionIndex}`]: {
+        [`players.${user.username}.answers.${currentQuestion.questionIndex}`]: {
           answer: selectedOption,
           answeredAt: Date.now(),
           isCorrect: selectedOption === currentQuestion.correctAnswer
         },
-        [`players/${user.username}/status`]: {
+        [`players.${user.username}.status`]: {
           lastActive: Date.now(),
           currentQuestion: currentQuestion.questionIndex
         }
@@ -462,6 +473,8 @@ const PlayGame = () => {
           batchTimeoutRef.current = null;
         }, BATCH_INTERVAL);
       }
+
+      // Rest of your code...
     } catch (error) {
       console.error('Error submitting answer:', error);
       setError('Failed to submit answer. Please try again.');
@@ -474,27 +487,26 @@ const PlayGame = () => {
 
   const handleExitConfirm = async () => {
     try {
-      setIsExiting(true);
-      setShowExitDialog(false);
-
-      // Remove user presence immediately
       if (user) {
         const userRef = ref(db, `games/${id}/players/${user.username}`);
-        set(userRef, null).catch(console.error); // Don't await, let it happen in background
+        // Cancel any disconnect handlers
+        await onDisconnect(userRef).cancel();
+        // Remove user from game
+        await set(userRef, null);
       }
       
       // Clear local storage
       localStorage.removeItem(`game_${id}_token`);
       
-      // Clear timeouts
+      // Clear any pending timeouts
       timeoutsRef.current.forEach(clearTimeout);
       timeoutsRef.current = [];
-
-      // Navigate immediately
-      navigate('/dashboard');
       
+      // Navigate to dashboard
+      navigate('/dashboard');
     } catch (error) {
-      console.error('Exit cleanup failed:', error);
+      console.error('Exit failed:', error);
+      setError('Failed to exit game. Please try again.');
     }
   };
 
@@ -550,34 +562,23 @@ const PlayGame = () => {
 
   if (isWaiting && isInitialized) {
     return (
-      <div className="game-container min-h-screen flex flex-col relative bg-gradient-to-b from-kbc-dark-blue to-kbc-purple">
-        {/* Quit button with loading state */}
-        <div className="absolute top-4 left-4 z-50">
-          <button
-            onClick={() => setShowExitDialog(true)}
-            className="kbc-button1 bg-red-600 hover:bg-red-700 flex items-center justify-center gap-2 px-4 py-2 text-sm font-semibold shadow-glow transition-all duration-300 ease-in-out min-w-[100px]"
-            disabled={isExiting}
-          >
-            <span>🚪</span>
-            {isExiting ? (
-              <div className="flex items-center gap-2">
-                <span>Quitting</span>
-                <div className="animate-spin rounded-full h-4 w-4 border-2 border-white"></div>
-              </div>
-            ) : (
-              <>
-                <span className="hidden sm:inline">Quit Game</span>
-                <span className="sm:hidden">Quit</span>
-              </>
-            )}
-          </button>
-        </div>
+      <div className="game-container min-h-screen flex flex-col relative">
+        <header className="game-header fixed top-0 left-0 right-0 z-20 h-12 sm:h-14">
+          <div className="header-content h-full py-2 px-3">
+            <QuitButton />
+            <img
+              src={kbcLogo}
+              alt="KBC Logo"
+              className="h-8"
+            />
+          </div>
+        </header>
 
-          {/* Center content */}
-        <div className="flex-1 flex items-center justify-center p-4">
+        <div className="fixed inset-0 flex items-center justify-center p-4 z-10">
           <div className="kbc-card max-w-md w-full p-6 md:p-8 text-center animate-fadeIn">
             <div className="flex justify-center mb-6">
               <div className="relative">
+                <div className="absolute inset-0 bg-kbc-gold/20 rounded-full blur-xl animate-pulse"></div>
                 <img
                   src={kbcLogo}
                   alt="KBC Logo"
@@ -603,26 +604,17 @@ const PlayGame = () => {
             </p>
           </div>
         </div>
-
-        {/* Exit dialog with highest z-index */}
-        <ExitConfirmDialog
-          isOpen={showExitDialog}
-          onClose={() => setShowExitDialog(false)}
-          onConfirm={handleExitConfirm}
-          message="Are you sure you want to leave the waiting room?"
-          isLoading={isExiting}
-        />
       </div>
     );
   }
 
   return (
     <div className="game-container overflow-hidden">
-      <header className="game-header">
-        <div className="header-content">
+      <header className="game-header fixed top-0 left-0 right-0 z-20 h-12 sm:h-14">
+        <div className="header-content h-full py-2 px-3">
           <div className="flex flex-wrap items-center justify-between gap-2 w-full">
             <div className="flex items-center gap-2">
-              <QuitButton onQuit={() => setShowExitDialog(true)} />
+              <QuitButton />
               <div className="hidden sm:block">
                 <p className="text-kbc-gold text-xs">Player</p>
                 <p className="text-white font-bold text-sm">
@@ -632,7 +624,7 @@ const PlayGame = () => {
             </div>
 
             <div className="flex justify-center absolute left-1/2 transform -translate-x-1/2">
-              <div className="relative w-10 h-10 sm:w-12 sm:h-12">
+              <div className="relative w-8 h-8 sm:w-10 sm:h-10">
                 <svg className="w-full h-full transform -rotate-90" viewBox="0 0 100 100">
                   <circle
                     cx="50"
@@ -657,7 +649,7 @@ const PlayGame = () => {
                     }}
                   />
                 </svg>
-                <span className="absolute inset-0 flex items-center justify-center text-sm sm:text-base font-bold text-kbc-gold">
+                <span className="absolute inset-0 flex items-center justify-center text-xs sm:text-sm font-bold text-kbc-gold">
                   {formatTime(timeLeft)}
                 </span>
               </div>
@@ -666,7 +658,7 @@ const PlayGame = () => {
         </div>
       </header>
 
-      <div className="container mx-auto pt-16 sm:pt-20 px-2 sm:px-4 flex flex-col lg:flex-row min-h-screen">
+      <div className="container mx-auto pt-12 sm:pt-14 px-2 sm:px-4 flex flex-col lg:flex-row min-h-screen">
         <div className="flex-1 flex flex-col order-2 lg:order-1 pb-4">
           {currentQuestion && (
             <>
@@ -745,7 +737,6 @@ const PlayGame = () => {
           "Are you sure you want to leave the waiting room?" : 
           "Are you sure you want to quit the game?"
         }
-        isLoading={isExiting}
       />
 
       {error && (

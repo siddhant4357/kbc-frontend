@@ -118,6 +118,7 @@ body {
   backdrop-filter: blur(10px);
   z-index: 10;
   padding: 0.5rem;
+  height: 48px; /* Fixed height */
 }
 
 .header-content {
@@ -150,6 +151,11 @@ body {
   border-radius: 0.25rem;
 }
 
+.timer-container {
+  transform: scale(0.9);
+  transform-origin: center;
+}
+
 /* Question area styles */
 .question-container {
   padding-top: 5rem;
@@ -166,9 +172,10 @@ body {
 .question-image {
   width: 100%;
   max-width: 400px;
-  margin: 0 auto 2rem;
+  margin: 1rem auto 2rem;
   height: 180px;
   transition: all 0.3s ease-in-out;
+  padding-top: 0.5rem;
 }
 
 .question-image {
@@ -408,6 +415,7 @@ body {
   width: 100%;
   margin-left: auto;
   margin-right: auto;
+  padding-top: 48px; /* Match header height */
 }
 
 .mx-auto {
@@ -1435,5 +1443,20 @@ body {
 @supports (padding: max(0px)) {
   .fixed.bottom-0 {
     padding-bottom: max(0.75rem, env(safe-area-inset-bottom));
+  }
+}
+
+/* Responsive adjustments */
+@media (max-width: 640px) {
+  .game-header {
+    height: 40px;
+  }
+  
+  .container {
+    padding-top: 40px;
+  }
+  
+  .question-image {
+    margin-top: 0.5rem;
   }
 }

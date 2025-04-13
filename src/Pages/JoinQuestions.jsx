@@ -425,25 +425,24 @@ const JoinQuestions = () => {
   return (
     <div className="game-container overflow-hidden">
       <header className="game-header">
-        <div className="header-content">
-          <div className="fixed top-0 left-0 right-0 bg-kbc-dark-blue/90 backdrop-blur-sm z-10 p-2 sm:p-4">
-            <div className="flex flex-wrap items-center justify-between gap-2 w-full">
-              <div className="flex items-center gap-2">
-                <button
-                  onClick={handleBackClick}
-                  className="kbc-button bg-red-600 hover:bg-red-700 text-xs h-8 w-14 sm:px-4"
-                >
-                  QUIT
-                </button>
-                <div className="hidden sm:block">
-                  <p className="text-kbc-gold text-xs">Player</p>
-                  <p className="text-white font-bold text-sm">
-                    {JSON.parse(localStorage.getItem('user'))?.username}
-                  </p>
-                </div>
-                
-              </div>
-              <div className="flex justify-center absolute left-1/2 transform -translate-x-1/2">
+  <div className="header-content">
+    <div className="fixed top-0 left-0 right-0 bg-kbc-dark-blue/90 backdrop-blur-sm z-10 py-1 px-2"> {/* Reduced padding */}
+      <div className="flex items-center justify-between gap-2 w-full max-w-7xl mx-auto">
+        <div className="flex items-center gap-2">
+          <button
+            onClick={handleBackClick}
+            className="kbc-button bg-red-600 hover:bg-red-700 text-xs h-7 w-12" // Reduced height and width
+          >
+            QUIT
+          </button>
+          <div className="hidden sm:block">
+            <p className="text-kbc-gold text-xs">Player</p>
+            <p className="text-white font-bold text-sm">
+              {JSON.parse(localStorage.getItem('user'))?.username}
+            </p>
+          </div>
+        </div>
+        <div className="flex justify-center">
                 {!showOptions ? (
                   <div className="flex items-center gap-2">
                     <input
@@ -515,7 +514,7 @@ const JoinQuestions = () => {
         </div>
       </header>
       
-      <div className="container mx-auto pt-16 sm:pt-20 px-2 sm:px-4 flex flex-col lg:flex-row min-h-screen">
+      <div className="container mx-auto pt-12 px-2 sm:px-4 flex flex-col lg:flex-row min-h-screen"> {/* Reduced from pt-16/pt-20 */}
         <div className="flex-1 flex flex-col lg:pr-80 order-2 lg:order-1 pb-4">
           <div className="block lg:hidden mb-4">
             <div className="kbc-question-box lg:hidden p-3 shadow-glow">
