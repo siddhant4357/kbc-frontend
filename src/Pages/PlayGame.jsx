@@ -659,48 +659,46 @@ const PlayGame = () => {
   return (
     <div className="game-container overflow-hidden">
       <header className="game-header">
-        <div className="header-content">
-          <div className="flex flex-wrap items-center justify-between gap-2 w-full">
-            <div className="flex items-center gap-2">
-              <QuitButton onQuit={() => setShowExitDialog(true)} />
-              <div className="hidden sm:block">
-                <p className="text-kbc-gold text-xs">Player</p>
-                <p className="text-white font-bold text-sm">
-                  {JSON.parse(localStorage.getItem('user'))?.username}
-                </p>
-              </div>
+        <div className="flex items-center justify-between w-full h-12 px-2">
+          <div className="flex items-center gap-2">
+            <QuitButton onQuit={() => setShowExitDialog(true)} />
+            <div className="hidden sm:block">
+              <p className="text-kbc-gold text-xs leading-tight">Player</p>
+              <p className="text-white font-bold text-xs leading-tight">
+                {JSON.parse(localStorage.getItem('user'))?.username}
+              </p>
             </div>
+          </div>
 
-            <div className="flex justify-center absolute left-1/2 transform -translate-x-1/2">
-              <div className="relative w-10 h-10 sm:w-12 sm:h-12">
-                <svg className="w-full h-full transform -rotate-90" viewBox="0 0 100 100">
-                  <circle
-                    cx="50"
-                    cy="50"
-                    r="45"
-                    fill="transparent"
-                    stroke="rgba(255, 184, 0, 0.2)"
-                    strokeWidth="8"
-                  />
-                  <circle
-                    cx="50"
-                    cy="50"
-                    r="45"
-                    fill="transparent"
-                    stroke="var(--kbc-gold)"
-                    strokeWidth="8"
-                    strokeLinecap="round"
-                    strokeDasharray={`${2 * Math.PI * 45}`}
-                    strokeDashoffset={`${(1 - timeLeft / timerDuration) * 2 * Math.PI * 45}`}
-                    style={{
-                      transition: 'stroke-dashoffset 1s linear'
-                    }}
-                  />
-                </svg>
-                <span className="absolute inset-0 flex items-center justify-center text-sm sm:text-base font-bold text-kbc-gold">
-                  {formatTime(timeLeft)}
-                </span>
-              </div>
+          <div className="absolute left-1/2 transform -translate-x-1/2">
+            <div className="relative w-8 h-8">
+              <svg className="w-full h-full transform -rotate-90" viewBox="0 0 100 100">
+                <circle
+                  cx="50"
+                  cy="50"
+                  r="45"
+                  fill="transparent"
+                  stroke="rgba(255, 184, 0, 0.2)"
+                  strokeWidth="8"
+                />
+                <circle
+                  cx="50"
+                  cy="50"
+                  r="45"
+                  fill="transparent"
+                  stroke="var(--kbc-gold)"
+                  strokeWidth="8"
+                  strokeLinecap="round"
+                  strokeDasharray={`${2 * Math.PI * 45}`}
+                  strokeDashoffset={`${(1 - timeLeft / timerDuration) * 2 * Math.PI * 45}`}
+                  style={{
+                    transition: 'stroke-dashoffset 1s linear'
+                  }}
+                />
+              </svg>
+              <span className="absolute inset-0 flex items-center justify-center text-xs font-bold text-kbc-gold">
+                {formatTime(timeLeft)}
+              </span>
             </div>
           </div>
         </div>
