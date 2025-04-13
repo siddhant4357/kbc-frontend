@@ -252,28 +252,9 @@ const ManagePlayAlong = () => {
   }, [navigate]);
 
   useEffect(() => {
-    // Test Firebase connection
-    const testRef = ref(db, `test/${Date.now()}`);
-    set(testRef, {
-      timestamp: Date.now(),
-      message: 'Connection test'
-    })
-      .then(() => {
-        console.log('Firebase connection successful');
-        // Clean up test data
-        set(testRef, null);
-      })
-      .catch((error) => {
-        console.error('Firebase connection failed:', error);
-        setError('Failed to connect to Firebase. Please check your connection.');
-      });
-  }, []);
-
-  useEffect(() => {
     if (error) {
-      // Show error message to user
-      console.error('Game error:', error);
-      setTimeout(() => setError(null), 5000); // Clear error after 5 seconds
+      const timer = setTimeout(() => setError(null), 3000); // Clear error after 3 seconds
+      return () => clearTimeout(timer);
     }
   }, [error]);
 
@@ -301,6 +282,11 @@ const ManagePlayAlong = () => {
 
   const startGame = async () => {
     try {
+      if (!selectedBank?._id) {
+        setError('Please select a question bank first');
+        return;
+      }
+
       const gameRef = ref(db, `games/${selectedBank._id}`);
       await set(gameRef, {
         isActive: true,
@@ -314,13 +300,19 @@ const ManagePlayAlong = () => {
         timerDuration: parseInt(timerDuration),
         startedAt: serverTimestamp()
       });
+      setGameStarted(true);
     } catch (error) {
       console.error('Error starting game:', error);
-      setError('Failed to start game');
+      setError('Failed to start game. Please check your connection and try again.');
     }
   };
 
   const showOptions = async () => {
+    if (!selectedBank?._id || !gameStarted) {
+      setError('Game must be started first');
+      return;
+    }
+
     try {
       const gameRef = ref(db, `games/${selectedBank._id}`);
       await update(gameRef, {
@@ -330,11 +322,16 @@ const ManagePlayAlong = () => {
       });
     } catch (error) {
       console.error('Error showing options:', error);
-      setError('Failed to show options');
+      setError('Failed to show options. Please try again.');
     }
   };
 
   const showAnswer = async () => {
+    if (!selectedBank?._id || !gameStarted) {
+      setError('Game must be started first');
+      return;
+    }
+
     try {
       const gameRef = ref(db, `games/${selectedBank._id}`);
       await update(gameRef, {
@@ -342,13 +339,23 @@ const ManagePlayAlong = () => {
       });
     } catch (error) {
       console.error('Error showing answer:', error);
-      setError('Failed to show answer');
+      setError('Failed to show answer. Please try again.');
     }
   };
 
   const nextQuestion = async () => {
+    if (!selectedBank?._id || !gameStarted) {
+      setError('Game must be started first');
+      return;
+    }
+
     try {
       const nextIndex = currentQuestionIndex + 1;
+      if (nextIndex >= selectedBank.questions.length) {
+        setError('No more questions available');
+        return;
+      }
+
       const gameRef = ref(db, `games/${selectedBank._id}`);
       await update(gameRef, {
         currentQuestion: {
@@ -362,7 +369,7 @@ const ManagePlayAlong = () => {
       setCurrentQuestionIndex(nextIndex);
     } catch (error) {
       console.error('Error moving to next question:', error);
-      setError('Failed to move to next question');
+      setError('Failed to move to next question. Please try again.');
     }
   };
 
