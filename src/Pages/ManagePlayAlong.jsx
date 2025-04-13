@@ -16,6 +16,7 @@ const ManagePlayAlong = () => {
   const [timerDuration, setTimerDuration] = useState(15);
   const [pollInterval, setPollInterval] = useState(null);
   const [error, setError] = useState(null);
+  const [isAdmin, setIsAdmin] = useState(false);
   const navigate = useNavigate();
   const { gameState, updateGameState } = useFirebaseGameState(selectedBank?._id);
 
@@ -247,8 +248,7 @@ const ManagePlayAlong = () => {
       navigate('/dashboard');
       return;
     }
-
-    fetchQuestionBanks();
+    setIsAdmin(true);
   }, [navigate]);
 
   useEffect(() => {
@@ -287,6 +287,11 @@ const ManagePlayAlong = () => {
         return;
       }
 
+      if (!isAdmin) {
+        setError('Only administrators can start games');
+        return;
+      }
+
       const gameRef = ref(db, `games/${selectedBank._id}`);
       await set(gameRef, {
         isActive: true,
@@ -298,12 +303,17 @@ const ManagePlayAlong = () => {
         showAnswer: false,
         timerStartedAt: null,
         timerDuration: parseInt(timerDuration),
-        startedAt: serverTimestamp()
+        startedAt: serverTimestamp(),
+        createdBy: JSON.parse(localStorage.getItem('user')).username
       });
       setGameStarted(true);
     } catch (error) {
       console.error('Error starting game:', error);
-      setError('Failed to start game. Please check your connection and try again.');
+      if (error.code === 'PERMISSION_DENIED') {
+        setError('You do not have permission to start games. Please check your admin status.');
+      } else {
+        setError('Failed to start game. Please check your connection and try again.');
+      }
     }
   };
 
@@ -410,28 +420,46 @@ const ManagePlayAlong = () => {
   }, [selectedBank?._id]);
 
   useEffect(() => {
-    if (!selectedBank?._id) return;
+    if (!selectedBank?._id || !isAdmin) return;
 
     const connectedRef = ref(db, '.info/connected');
     const presenceRef = ref(db, `games/${selectedBank._id}/presence/${Date.now()}`);
 
-    const unsubscribe = onValue(connectedRef, (snap) => {
-      if (snap.val() === true) {
-        // When we disconnect, remove this device
-        onDisconnect(presenceRef).remove();
-        // Set the presence data
-        set(presenceRef, {
-          online: true,
-          timestamp: serverTimestamp()
-        });
+    const handlePresenceError = (error) => {
+      console.error('Presence update failed:', error);
+      if (error.code === 'PERMISSION_DENIED') {
+        setError('Lost admin privileges. Please re-login.');
+        navigate('/dashboard');
       }
-    });
-
-    return () => {
-      unsubscribe();
-      set(presenceRef, null);
     };
-  }, [selectedBank?._id]);
+
+    try {
+      set(presenceRef, {
+        online: true,
+        isAdmin: true,
+        timestamp: serverTimestamp()
+      }).catch(handlePresenceError);
+
+      onValue(connectedRef, (snap) => {
+        if (snap.val() === true) {
+          // When we disconnect, remove this device
+          onDisconnect(presenceRef).remove();
+          // Set the presence data
+          set(presenceRef, {
+            online: true,
+            isAdmin: true,
+            timestamp: serverTimestamp()
+          }).catch(handlePresenceError);
+        }
+      });
+
+      return () => {
+        set(presenceRef, null).catch(console.error);
+      };
+    } catch (error) {
+      handlePresenceError(error);
+    }
+  }, [selectedBank?._id, isAdmin, navigate]);
 
   useEffect(() => {
     return () => {
