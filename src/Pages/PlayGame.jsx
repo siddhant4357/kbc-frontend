@@ -196,9 +196,7 @@ const PlayGame = () => {
       setLockedAnswer(null);
       setError('Game has been stopped by the admin');
       localStorage.removeItem(`game_${id}_token`);
-      const timeout = setTimeout(() => {
-        navigate('/dashboard');
-      }, 2000);
+      const timeout = setTimeout(() => navigate('/dashboard'), 2000);
       timeoutsRef.current.push(timeout);
       return;
     } else if (state.isActive === false) {
@@ -213,28 +211,30 @@ const PlayGame = () => {
 
       if (newQuestionIndex !== currentQuestionIndex) {
         setCurrentQuestion(state.currentQuestion);
+        // Only reset these states when changing questions
         setShowOptions(false);
         setShowAnswer(false);
         setSelectedOption(null);
         setLockedAnswer(null);
         setTimeLeft(state.timerDuration || 15);
         setIsTimerExpired(false);
+        setTimerStartedAt(null);
       }
     }
 
-    // Handle options state changes - Modified this part
-    if (state.showOptions !== undefined) { // Changed condition
-      setShowOptions(state.showOptions);
-      if (state.showOptions) {
+    // Handle options state
+    if ('showOptions' in state) {
+      const shouldShowOptions = Boolean(state.showOptions);
+      setShowOptions(shouldShowOptions);
+      
+      if (shouldShowOptions) {
         setTimerStartedAt(state.timerStartedAt);
         setTimerDuration(state.timerDuration || 15);
         setTimeLeft(state.timerDuration || 15);
         setIsTimerExpired(false);
-        setSelectedOption(null);
-        setLockedAnswer(null);
-        setShowAnswer(false); // Add this line
+        // Don't reset selection states when showing options
       } else {
-        // Reset states when options are hidden
+        // Only reset if options are being hidden
         setSelectedOption(null);
         setLockedAnswer(null);
       }
