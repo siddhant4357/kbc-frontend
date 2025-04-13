@@ -211,11 +211,10 @@ const PlayGame = () => {
 
       if (newQuestionIndex !== currentQuestionIndex) {
         setCurrentQuestion(state.currentQuestion);
-        // Only reset these states when changing questions
         setShowOptions(false);
         setShowAnswer(false);
-        setSelectedOption(null);
-        setLockedAnswer(null);
+        setSelectedOption(null); // Reset selected option
+        setLockedAnswer(null);  // Reset locked answer
         setTimeLeft(state.timerDuration || 15);
         setIsTimerExpired(false);
         setTimerStartedAt(null);
@@ -441,16 +440,15 @@ const PlayGame = () => {
   }, [id]);
 
   const handleOptionSelect = (option) => {
-    if (!showAnswer && !lockedAnswer && timeLeft > 0 && showOptions) {
+    if (showOptions && !showAnswer && !lockedAnswer && timeLeft > 0) {
       setSelectedOption(option);
     }
   };
 
   const handleLockAnswer = async () => {
-    if (!selectedOption || lockedAnswer || showAnswer || timeLeft <= 0) return;
+    if (!selectedOption || showAnswer || timeLeft <= 0) return;
 
     try {
-      // Structure updates with proper paths
       const update = {
         [`players/${user.username}/answers/${currentQuestion.questionIndex}`]: {
           answer: selectedOption,
@@ -717,6 +715,7 @@ const PlayGame = () => {
                       option !== currentQuestion.correctAnswer ? 'incorrect' : ''
                     }`}
                     disabled={lockedAnswer || showAnswer || timeLeft === 0}
+                    style={{ cursor: 'pointer' }} // Add this to ensure clickable appearance
                   >
                     <span className="option-letter">
                       {String.fromCharCode(65 + index)}
