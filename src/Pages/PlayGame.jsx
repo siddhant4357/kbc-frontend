@@ -456,13 +456,12 @@ const PlayGame = () => {
         [`players/${user.username}/answers/${currentQuestion.questionIndex}`]: {
           answer: selectedOption,
           answeredAt: Date.now(),
-          isCorrect: selectedOption === currentQuestion.correctAnswer,
-          questionId: currentQuestion.id // Add this to track which question
+          isCorrect: selectedOption === currentQuestion.correctAnswer
         },
         [`players/${user.username}/status`]: {
           lastActive: Date.now(),
           currentQuestion: currentQuestion.questionIndex,
-          lastAnswered: currentQuestion.questionIndex // Add this to track progress
+          lastAnswered: currentQuestion.questionIndex
         }
       };
 
