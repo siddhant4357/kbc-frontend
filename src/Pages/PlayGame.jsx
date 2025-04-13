@@ -211,9 +211,10 @@ const PlayGame = () => {
 
       if (newQuestionIndex !== currentQuestionIndex) {
         setCurrentQuestion(state.currentQuestion);
+        // Reset states when question changes
         setShowOptions(false);
         setShowAnswer(false);
-        setSelectedOption(null); // Reset selection for new question
+        setSelectedOption(null);
         setLockedAnswer(null);
         setTimeLeft(state.timerDuration || 15);
         setIsTimerExpired(false);
@@ -223,18 +224,19 @@ const PlayGame = () => {
     // Handle options state
     if ('showOptions' in state) {
       const shouldShowOptions = Boolean(state.showOptions);
-      setShowOptions(shouldShowOptions);
-      
-      if (shouldShowOptions) {
-        setTimerStartedAt(state.timerStartedAt);
-        setTimerDuration(state.timerDuration || 15);
-        setTimeLeft(state.timerDuration || 15);
-        setIsTimerExpired(false);
-        // Don't reset selection states when showing options
+      if (shouldShowOptions !== showOptions) {  // Only update if changed
+        setShowOptions(shouldShowOptions);
+        if (shouldShowOptions) {
+          setTimerStartedAt(state.timerStartedAt);
+          setTimerDuration(state.timerDuration || 15);
+          setTimeLeft(state.timerDuration || 15);
+          setIsTimerExpired(false);
+          // Don't reset selection states when showing options
+        }
       }
     }
 
-    // Handle answer reveal
+    // Handle answer reveal without resetting selection
     if (state.showAnswer && !showAnswer) {
       setShowAnswer(true);
     }

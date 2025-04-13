@@ -1,0 +1,42 @@
+
+{
+  "rules": {
+    "games": {
+      "$gameId": {
+        ".read": true,  // Keep read access for game functionality
+        ".write": true, // Keep write access for game functionality
+        
+        "players": {
+          "$username": {
+            ".read": true,
+            ".write": "auth != null",
+            "answers": {
+              "$questionIndex": {
+                ".validate": "newData.hasChildren(['answer', 'answeredAt', 'isCorrect'])"
+              }
+            }
+          }
+        },
+
+        // Validate game structure
+        ".validate": "newData.hasChildren(['isActive', 'admin', 'gameToken'])",
+        
+        "isActive": {
+          ".validate": "newData.isBoolean()"
+        },
+        
+        "gameToken": {
+          ".validate": "newData.isString()"
+        },
+
+        "currentQuestion": {
+          ".validate": "newData.hasChildren(['question', 'questionIndex'])"
+        }
+      }
+    },
+    "test": {
+      ".read": true,  // Change to false in production
+      ".write": true  // Change to false in production
+    }
+  }
+}
