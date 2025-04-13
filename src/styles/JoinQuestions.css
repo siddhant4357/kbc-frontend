@@ -114,11 +114,11 @@ body {
   top: 0;
   left: 0;
   right: 0;
-  height: 56px; /* Reduced fixed height */
+  height: 40px; /* Reduced from 56px */
   background: linear-gradient(135deg, var(--kbc-dark-blue), var(--kbc-purple));
   backdrop-filter: blur(10px);
   z-index: 40;
-  padding: 0.5rem;
+  padding: 0.25rem 0.5rem; /* Reduced padding */
   border-bottom: 1px solid rgba(255, 184, 0, 0.2);
 }
 
@@ -127,7 +127,6 @@ body {
   margin: 0 auto;
   height: 100%;
   display: flex;
-  align-items: center;
 }
 
 /* Timer and control styles */

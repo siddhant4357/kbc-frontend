@@ -217,18 +217,22 @@ const PlayGame = () => {
         setLockedAnswer(null);
         setTimeLeft(state.timerDuration || 15);
         setIsTimerExpired(false);
+        // Reset timer state for new question
+        setTimerStartedAt(null);
       }
     }
 
     if (state.showOptions !== showOptions) {
       setShowOptions(state.showOptions);
       if (state.showOptions) {
+        // Reset selection state when options are shown
+        setSelectedOption(null);
+        setLockedAnswer(null);
+        setShowAnswer(false);
         setTimerStartedAt(state.timerStartedAt);
         setTimerDuration(state.timerDuration || 15);
         setTimeLeft(state.timerDuration || 15);
         setIsTimerExpired(false);
-        setSelectedOption(null);
-        setLockedAnswer(null);
       }
     }
 
@@ -262,27 +266,24 @@ const PlayGame = () => {
     if (pendingUpdatesRef.current.length === 0) return;
 
     try {
-      // Create the reference once
       const gameRef = ref(db, `games/${id}`);
-
-      // Restructure updates to avoid using path segments in keys
-      const updates = pendingUpdatesRef.current.reduce((acc, update) => {
-        // Convert paths to proper structure
-        Object.entries(update).forEach(([path, value]) => {
-          // Remove the 'games/gameId' prefix from paths
-          const cleanPath = path
-            .replace(`games/${id}/`, '')
-            .split('/')
-            .join('.');
-
-          acc[cleanPath] = value;
+      
+      // Properly structure updates to avoid dots in keys
+      const updates = {};
+      pendingUpdatesRef.current.forEach(updateObj => {
+        Object.entries(updateObj).forEach(([path, value]) => {
+          // Convert dot notation to proper Firebase path
+          const parts = path.split('.');
+          const cleanPath = parts.join('/');
+          // Remove games/id prefix if present
+          const finalPath = cleanPath.replace(`games/${id}/`, '');
+          updates[finalPath] = value;
         });
-        return acc;
-      }, {});
+      });
 
-      // Use update instead of set for atomic operations
       await update(gameRef, updates);
       pendingUpdatesRef.current = [];
+
     } catch (error) {
       console.error('Batch update failed:', error);
       setError('Failed to update game state. Please try again.');
@@ -443,14 +444,14 @@ const PlayGame = () => {
     if (!selectedOption || lockedAnswer || showAnswer || timeLeft <= 0) return;
 
     try {
-      // Structure the update without forward slashes in keys
+      // Structure updates with proper paths
       const update = {
-        [`players.${user.username}.answers.${currentQuestion.questionIndex}`]: {
+        [`players/${user.username}/answers/${currentQuestion.questionIndex}`]: {
           answer: selectedOption,
           answeredAt: Date.now(),
           isCorrect: selectedOption === currentQuestion.correctAnswer
         },
-        [`players.${user.username}.status`]: {
+        [`players/${user.username}/status`]: {
           lastActive: Date.now(),
           currentQuestion: currentQuestion.questionIndex
         }
@@ -465,8 +466,6 @@ const PlayGame = () => {
           batchTimeoutRef.current = null;
         }, BATCH_INTERVAL);
       }
-
-      // Rest of your code...
     } catch (error) {
       console.error('Error submitting answer:', error);
       setError('Failed to submit answer. Please try again.');
@@ -478,31 +477,28 @@ const PlayGame = () => {
   };
 
   const handleExitConfirm = async () => {
-    setIsExiting(true);
     try {
+      setIsExiting(true);
+      setShowExitDialog(false);
+
+      // Remove user presence immediately
       if (user) {
         const userRef = ref(db, `games/${id}/players/${user.username}`);
-        // Cancel any disconnect handlers
-        await onDisconnect(userRef).cancel();
-        // Remove user from game
-        await set(userRef, null);
+        set(userRef, null).catch(console.error); // Don't await, let it happen in background
       }
       
       // Clear local storage
       localStorage.removeItem(`game_${id}_token`);
       
-      // Clear any pending timeouts
+      // Clear timeouts
       timeoutsRef.current.forEach(clearTimeout);
       timeoutsRef.current = [];
+
+      // Navigate immediately
+      navigate('/dashboard');
       
-      setShowExitDialog(false);
-      
-      // Force navigation to dashboard
-      window.location.href = '/dashboard';
     } catch (error) {
-      console.error('Exit failed:', error);
-      setError('Failed to exit game. Please try again.');
-      setIsExiting(false);
+      console.error('Exit cleanup failed:', error);
     }
   };
 
@@ -640,7 +636,7 @@ const PlayGame = () => {
             </div>
 
             <div className="flex justify-center absolute left-1/2 transform -translate-x-1/2">
-              <div className="relative w-10 h-10 sm:w-12 sm:h-12">
+              <div className="relative w-8 h-8 sm:w-10 sm:h-10"> {/* Reduced from w-10 h-10 sm:w-12 sm:h-12 */}
                 <svg className="w-full h-full transform -rotate-90" viewBox="0 0 100 100">
                   <circle
                     cx="50"
@@ -665,7 +661,7 @@ const PlayGame = () => {
                     }}
                   />
                 </svg>
-                <span className="absolute inset-0 flex items-center justify-center text-sm sm:text-base font-bold text-kbc-gold">
+                <span className="absolute inset-0 flex items-center justify-center text-xs sm:text-sm font-bold text-kbc-gold">
                   {formatTime(timeLeft)}
                 </span>
               </div>
@@ -674,7 +670,7 @@ const PlayGame = () => {
         </div>
       </header>
 
-      <div className="container mx-auto pt-14 sm:pt-16 px-2 sm:px-4 flex flex-col lg:flex-row min-h-screen">
+      <div className="container mx-auto pt-12 px-2 sm:px-4 flex flex-col lg:flex-row min-h-screen">
         <div className="flex-1 flex flex-col order-2 lg:order-1 pb-4">
           {currentQuestion && (
             <>
