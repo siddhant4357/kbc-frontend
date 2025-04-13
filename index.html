@@ -9,21 +9,21 @@
     <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700&display=swap" rel="stylesheet">
     <script>
       window.global = window;
-      var process = {
+      window.process = {
         env: {},
         browser: true,
         version: '0.0.0',
         platform: 'browser',
         nextTick: function(fn) { setTimeout(fn, 0); },
-        on: function() { return process; },
-        addListener: function() { return process; },
-        once: function() { return process; },
-        off: function() { return process; },
-        removeListener: function() { return process; },
-        removeAllListeners: function() { return process; },
-        emit: function() { return process; },
-        prependListener: function() { return process; },
-        prependOnceListener: function() { return process; }
+        on: function() { return this; },
+        addListener: function() { return this; },
+        once: function() { return this; },
+        off: function() { return this; },
+        removeListener: function() { return this; },
+        removeAllListeners: function() { return this; },
+        emit: function() { return this; },
+        prependListener: function() { return this; },
+        prependOnceListener: function() { return this; }
       };
     </script>
   </head>
