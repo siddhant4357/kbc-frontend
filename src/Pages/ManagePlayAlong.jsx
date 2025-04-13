@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import BackButton from '../components/BackButton';
 import { API_URL } from '../utils/config';
 import { useFirebaseGameState } from '../hooks/useFirebaseGameState';
-import { ref, set, update, serverTimestamp } from 'firebase/database';
+import { ref, set, update, serverTimestamp, onValue, onDisconnect } from 'firebase/database';
 import { db } from '../utils/firebase';
 
 const ManagePlayAlong = () => {
@@ -396,6 +396,42 @@ const ManagePlayAlong = () => {
     setIsButtonPressed(buttonName);
     setTimeout(() => setIsButtonPressed(''), 200);
   };
+
+  useEffect(() => {
+    return () => {
+      if (selectedBank?._id) {
+        const presenceRef = ref(db, `games/${selectedBank._id}/presence/${Date.now()}`);
+        // Cancel any pending onDisconnect operations
+        onDisconnect(presenceRef).cancel();
+        // Clear the presence data
+        set(presenceRef, null);
+      }
+    };
+  }, [selectedBank?._id]);
+
+  useEffect(() => {
+    if (!selectedBank?._id) return;
+
+    const connectedRef = ref(db, '.info/connected');
+    const presenceRef = ref(db, `games/${selectedBank._id}/presence/${Date.now()}`);
+
+    const unsubscribe = onValue(connectedRef, (snap) => {
+      if (snap.val() === true) {
+        // When we disconnect, remove this device
+        onDisconnect(presenceRef).remove();
+        // Set the presence data
+        set(presenceRef, {
+          online: true,
+          timestamp: serverTimestamp()
+        });
+      }
+    });
+
+    return () => {
+      unsubscribe();
+      set(presenceRef, null);
+    };
+  }, [selectedBank?._id]);
 
   useEffect(() => {
     return () => {

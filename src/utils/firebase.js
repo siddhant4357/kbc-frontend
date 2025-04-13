@@ -1,6 +1,6 @@
 // Import the functions you need from the SDKs you need
 import { initializeApp } from 'firebase/app';
-import { getDatabase } from 'firebase/database';
+import { getDatabase, connectDatabaseEmulator } from 'firebase/database';
 
 // Your web app's Firebase configuration
 const firebaseConfig = {
@@ -18,6 +18,15 @@ const app = initializeApp(firebaseConfig);
 
 // Initialize Realtime Database and get a reference to the service
 export const db = getDatabase(app);
+
+// Connect to emulator if in development
+if (import.meta.env.DEV) {
+  try {
+    connectDatabaseEmulator(db, 'localhost', 9000);
+  } catch (e) {
+    console.error('Failed to connect to emulator:', e);
+  }
+}
 
 // Export the app instance if needed elsewhere
 export default app;
