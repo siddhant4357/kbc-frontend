@@ -159,6 +159,18 @@ const PlayGame = () => {
   const batchTimeoutRef = useRef(null);
   const [showExitDialog, setShowExitDialog] = useState(false);
 
+  const QuitButton = () => {
+    return (
+      <button
+        onClick={handleExit}
+        className="kbc-button bg-red-600 hover:bg-red-700 flex items-center justify-center gap-2 px-3 py-1.5 text-sm font-semibold shadow-glow transition-all duration-300 ease-in-out"
+      >
+        <span className="hidden sm:inline">Quit Game</span>
+        <span className="sm:hidden">Quit</span>
+      </button>
+    );
+  };
+
   const processGameState = useCallback(async (state) => {
     if (!state || isNavigatingRef.current || !isInitialized) return;
 
