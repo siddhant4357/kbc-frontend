@@ -12,6 +12,12 @@
     <script src="https://unpkg.com/regenerator-runtime@0.x/runtime.js"></script>
     <!-- Use meta environment variables -->
     <link rel="preconnect" href="%VITE_API_URL%" />
+    <script>
+      window.global = window;
+      window.process = {
+        env: { NODE_ENV: 'production' }
+      };
+    </script>
   </head>
   <body>
     <div id="root"></div>

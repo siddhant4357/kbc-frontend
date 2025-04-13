@@ -1,11 +1,12 @@
 import { defineConfig } from 'vite';
 import react from '@vitejs/plugin-react';
-import tailwindcss from '@tailwindcss/vite'
 
 export default defineConfig({
-  plugins: [react(),
-    tailwindcss(),
-  ],
+  plugins: [react()],
+  define: {
+    'process.env': {},
+    global: {},
+  },
   build: {
     outDir: 'dist',
     sourcemap: false,
@@ -30,6 +31,7 @@ export default defineConfig({
   },
   resolve: {
     alias: {
+      '@': '/src',
       'firebase/app': '@firebase/app',
       'firebase/database': '@firebase/database'
     }
