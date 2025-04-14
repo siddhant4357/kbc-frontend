@@ -10,33 +10,40 @@ const FastestFingerHome = () => {
   const navigate = useNavigate();
 
   useEffect(() => {
-    // Fetch banks designated for Fastest Finger First.
-    // Adjust the endpoint as needed.
     const fetchBanks = async () => {
       try {
-        const response = await fetch(`${API_URL}/api/fastest-finger-banks`, {
+        const response = await fetch(`${API_URL}/api/fastest-finger`, {
           credentials: 'include'
         });
+        if (!response.ok) throw new Error('Failed to fetch games');
         const data = await response.json();
         setQuestionBanks(data);
       } catch (err) {
-        console.error(err);
-        setError('Failed to load banks.');
+        setError('Failed to load fastest finger games');
       }
     };
 
     fetchBanks();
   }, []);
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
     if (!selectedBank || !password) {
-      setError('Please select a bank and enter password.');
+      setError('Please select a game and enter passcode');
       return;
     }
-    // Add any password validation logic here if required.
-    // Redirect user to the game page (logic to be added later)
-    navigate(`/fastest-finger/${selectedBank._id}`);
+
+    try {
+      // Verify passcode
+      if (password !== selectedBank.passcode) {
+        setError('Invalid passcode');
+        return;
+      }
+
+      navigate(`/fastest-finger/${selectedBank._id}`);
+    } catch (error) {
+      setError('Failed to join game');
+    }
   };
 
   return (
