@@ -234,6 +234,29 @@ const PlayGame = () => {
       return;
     }
 
+    // Handle options state with timer
+    if ('showOptions' in state) {
+      const shouldShowOptions = Boolean(state.showOptions);
+      if (shouldShowOptions !== showOptions) {
+        setShowOptions(shouldShowOptions);
+        if (shouldShowOptions) {
+          // Ensure we're using the admin's selected timer duration
+          const adminTimerDuration = parseInt(state.timerDuration) || 15;
+          setTimerStartedAt(state.timerStartedAt);
+          setTimerDuration(adminTimerDuration);
+          setTimeLeft(adminTimerDuration);
+          setIsTimerExpired(false);
+        }
+      }
+    }
+
+    // Update timer duration if it changes
+    if (state.timerDuration && state.timerDuration !== timerDuration) {
+      const newDuration = parseInt(state.timerDuration);
+      setTimerDuration(newDuration);
+      setTimeLeft(newDuration);
+    }
+
     // Handle question changes
     if (state.currentQuestion) {
       const newQuestionIndex = parseInt(state.currentQuestion.questionIndex ?? 0);
@@ -251,20 +274,6 @@ const PlayGame = () => {
       }
     }
 
-    // Handle options state
-    if ('showOptions' in state) {
-      const shouldShowOptions = Boolean(state.showOptions);
-      if (shouldShowOptions !== showOptions) {
-        setShowOptions(shouldShowOptions);
-        if (shouldShowOptions) {
-          setTimerStartedAt(state.timerStartedAt);
-          setTimerDuration(state.timerDuration || 15);
-          setTimeLeft(state.timerDuration || 15);
-          setIsTimerExpired(false);
-        }
-      }
-    }
-
     // Handle answer reveal without resetting selection
     if (state.showAnswer && !showAnswer) {
       setShowAnswer(true);
@@ -275,7 +284,7 @@ const PlayGame = () => {
       setGameToken(state.gameToken);
       localStorage.setItem(`game_${id}_token`, state.gameToken);
     }
-  }, [id, gameToken, gameStopped, navigate, currentQuestion, showOptions, showAnswer, isInitialized]);
+  }, [id, gameToken, gameStopped, navigate, currentQuestion, showOptions, showAnswer, isInitialized, timerDuration]);
 
   const debouncedProcessGameState = useCallback(
     debounce((state) => {
@@ -453,7 +462,7 @@ const PlayGame = () => {
       }
       if (firebaseGameState.timerStartedAt && firebaseGameState.timerDuration) {
         setTimerStartedAt(firebaseGameState.timerStartedAt);
-        setTimerDuration(firebaseGameState.timerDuration); // Sync timer duration
+        setTimerDuration(firebaseGameState.timerDuration);
       }
       setIsWaiting(!firebaseGameState.isActive);
     }
