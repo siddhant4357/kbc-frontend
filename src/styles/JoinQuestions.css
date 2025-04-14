@@ -36,32 +36,6 @@ body {
 }
 
 /* Header styles */
-header {
-  height: auto;
-  padding: 1rem;
-}
-
-header .kbc-button {
-  transition: all 0.3s ease;
-}
-
-header .kbc-button:hover {
-  transform: scale(1.1);
-}
-
-header .relative {
-  position: relative;
-  z-index: 10;
-}
-
-header svg {
-  filter: drop-shadow(0 0 15px rgba(255, 184, 0, 0.4));
-}
-
-header span {
-  text-shadow: 0 0 15px rgba(255, 184, 0, 0.6);
-}
-
 .fixed {
   position: fixed;
 }
@@ -1106,7 +1080,7 @@ header span {
   }
 
   .prize-ladder {
-    margin-top: 280px;
+    margin-top: 0.5rem;
     height: calc(100vh - 100px);
   }
 
@@ -1116,50 +1090,6 @@ header span {
 
   .question-container.shifted-up .question-image {
     height: 280px; /* Increased height for desktop view */
-  }
-
-  /* Timer styles */
-  .timer-container {
-    position: relative;
-    z-index: 100;
-  }
-
-  /* Add backdrop filter to make timer more visible */
-  .timer-container::before {
-    content: '';
-    position: absolute;
-    inset: -20px;
-    background: radial-gradient(circle, rgba(0,0,0,0.3) 0%, transparent 70%);
-    border-radius: 50%;
-    z-index: -1;
-  }
-
-  /* Timer glow effect */
-  .timer-container svg circle:last-child {
-    filter: drop-shadow(0 0 15px rgba(255, 184, 0, 0.4));
-  }
-
-  /* Timer text glow */
-  .timer-container span {
-    text-shadow: 0 0 15px rgba(255, 184, 0, 0.6);
-  }
-
-  /* Increase timer visibility */
-  .timer-container svg circle {
-    filter: drop-shadow(0 0 10px rgba(255, 184, 0, 0.3));
-  }
-
-  /* Container adjustments to prevent overlap */
-  .container {
-    position: relative;
-    z-index: 1;
-  }
-
-  .kbc-question-box, 
-  .options-grid,
-  .prize-ladder {
-    position: relative;
-    z-index: 2;
   }
 }
 
@@ -1532,29 +1462,5 @@ header span {
 @supports (padding: max(0px)) {
   .fixed.bottom-0 {
     padding-bottom: max(0.75rem, env(safe-area-inset-bottom));
-  }
-}
-
-@media (min-width: 1024px) {
-  /* Timer styles for laptop */
-  .timer-container {
-    position: relative;
-    z-index: 100;
-  }
-
-  /* Add shadow and glow effect to timer */
-  .timer-container svg {
-    filter: drop-shadow(0 0 10px rgba(255, 184, 0, 0.3));
-  }
-
-  /* Ensure timer is always visible */
-  .timer-container circle {
-    stroke-width: 8;
-    transition: stroke-dashoffset 1s linear;
-  }
-
-  /* Increase visibility of timer text */
-  .timer-container span {
-    text-shadow: 0 0 10px rgba(255, 184, 0, 0.5);
   }
 }

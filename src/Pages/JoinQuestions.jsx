@@ -424,50 +424,73 @@ const JoinQuestions = () => {
 
   return (
     <div className="game-container overflow-hidden">
-      <header className="lg:h-24 flex items-center justify-center bg-kbc-dark-blue/90 backdrop-blur-sm z-10 p-2">
-        <div className="flex flex-col items-center gap-4 lg:gap-6">
-          <div className="flex items-center gap-4">
-            <button
-              onClick={handleInfiniteTimer}
-              className={`kbc-button w-12 h-12 flex items-center justify-center text-lg rounded-full ${isInfiniteTimer ? 'bg-green-600 hover:bg-green-700' : ''}`}
-              title={isInfiniteTimer ? 'Timer is infinite' : 'Click to make timer infinite'}
-            >
-              {isInfiniteTimer ? '∞' : '⏸'}
-            </button>
-            <div className="relative w-12 h-12 lg:w-64 lg:h-64">
-              <svg className="w-full h-full transform -rotate-90" viewBox="0 0 100 100">
-                <circle
-                  cx="50"
-                  cy="50"
-                  r="45"
-                  fill="transparent"
-                  stroke="rgba(255, 184, 0, 0.2)"
-                  strokeWidth="8"
+      <header className="lg:h-16 flex items-center justify-center bg-kbc-dark-blue/90 backdrop-blur-sm z-10 p-2 lg:p-4">
+        <div className="flex flex-col lg:flex-row items-center justify-between gap-4 lg:gap-8 w-full max-w-5xl">
+          <button
+            onClick={handleBackClick}
+            className="kbc-button bg-red-600 hover:bg-red-700 text-xs h-8 w-16 lg:h-10 lg:w-20"
+          >
+            QUIT
+          </button>
+          <div className="flex flex-col lg:flex-row items-center gap-4 lg:gap-6">
+            {!showOptions ? (
+              <div className="flex items-center gap-2">
+                <input
+                  type="number"
+                  min="5"
+                  max="60"
+                  value={customTimerInput}
+                  onChange={(e) => setCustomTimerInput(Number(e.target.value))}
+                  className="kbc-input w-16 text-sm h-8 lg:w-20 lg:h-10 py-1 px-2"
+                  placeholder="Sec"
                 />
-                <circle
-                  cx="50"
-                  cy="50"
-                  r="45"
-                  fill="transparent"
-                  stroke="var(--kbc-gold)"
-                  strokeWidth="8"
-                  strokeLinecap="round"
-                  strokeDasharray={`${2 * Math.PI * 45}`}
-                  strokeDashoffset={`${(1 - timeLeft / timerDuration) * 2 * Math.PI * 45}`}
-                  style={{ transition: 'stroke-dashoffset 1s linear' }}
-                />
-              </svg>
-              <span className="absolute inset-0 flex items-center justify-center text-lg lg:text-8xl font-bold text-kbc-gold drop-shadow-[0_2px_8px_rgba(255,184,0,0.5)]">
-                {isInfiniteTimer ? '∞' : formatTime(timeLeft)}
-              </span>
-            </div>
-            <button
-              onClick={handleShowOptions}
-              className="kbc-button w-12 h-12 flex items-center justify-center text-lg rounded-full bg-blue-600 hover:bg-blue-700"
-              title="Start Timer"
-            >
-              ▶
-            </button>
+                <button
+                  onClick={handleShowOptions}
+                  className="kbc-button1 text-sm h-8 lg:h-10 py-1 px-3"
+                >
+                  Start
+                </button>
+              </div>
+            ) : (
+              <div className="flex items-center gap-2">
+                <button
+                  onClick={handleInfiniteTimer}
+                  className={`kbc-button w-10 h-10 lg:w-12 lg:h-12 flex items-center justify-center text-sm rounded-full ${
+                    isInfiniteTimer ? 'bg-green-600 hover:bg-green-700' : ''
+                  }`}
+                  title={isInfiniteTimer ? 'Timer is infinite' : 'Click to make timer infinite'}
+                >
+                  {isInfiniteTimer ? '∞' : '⏸'}
+                </button>
+                <div className="relative w-12 h-12 lg:w-16 lg:h-16">
+                  <svg className="w-full h-full transform -rotate-90" viewBox="0 0 100 100">
+                    <circle
+                      cx="50"
+                      cy="50"
+                      r="45"
+                      fill="transparent"
+                      stroke="rgba(255, 184, 0, 0.2)"
+                      strokeWidth="8"
+                    />
+                    <circle
+                      cx="50"
+                      cy="50"
+                      r="45"
+                      fill="transparent"
+                      stroke="var(--kbc-gold)"
+                      strokeWidth="8"
+                      strokeLinecap="round"
+                      strokeDasharray={`${2 * Math.PI * 45}`}
+                      strokeDashoffset={`${(1 - timeLeft / timerDuration) * 2 * Math.PI * 45}`}
+                      style={{ transition: 'stroke-dashoffset 1s linear' }}
+                    />
+                  </svg>
+                  <span className="absolute inset-0 flex items-center justify-center text-sm lg:text-lg font-bold text-kbc-gold">
+                    {isInfiniteTimer ? '∞' : formatTime(timeLeft)}
+                  </span>
+                </div>
+              </div>
+            )}
           </div>
         </div>
       </header>
