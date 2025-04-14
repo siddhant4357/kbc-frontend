@@ -353,6 +353,7 @@ const ManagePlayAlong = () => {
       });
       setCurrentQuestionIndex(nextIndex);
     }
+    
   };
 
   const showOptions = async () => {
