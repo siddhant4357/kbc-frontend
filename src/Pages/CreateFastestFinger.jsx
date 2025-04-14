@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import BackButton from '../components/BackButton';
 import { API_URL } from '../utils/config';
@@ -15,6 +15,19 @@ const CreateFastestFinger = () => {
   });
   const [showSuccess, setShowSuccess] = useState(false);
   const [error, setError] = useState('');
+
+  useEffect(() => {
+    // Check if user is admin
+    const userStr = localStorage.getItem('user');
+    if (!userStr) {
+      navigate('/login');
+      return;
+    }
+    const user = JSON.parse(userStr);
+    if (!user.isAdmin) {
+      navigate('/dashboard');
+    }
+  }, [navigate]);
 
   const handleOptionChange = (index, value) => {
     const newOptions = [...question.options];
@@ -53,12 +66,25 @@ const CreateFastestFinger = () => {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    if (!name || !passcode || !question.text || question.options.includes('') || question.correctSequence.length !== 4) {
-      setError('Please fill all fields and provide correct sequence');
-      return;
-    }
-
+    setError('');
+    
     try {
+      // Validate inputs
+      if (!name || !passcode || !question.text) {
+        setError('Please fill in all required fields');
+        return;
+      }
+
+      if (question.options.some(opt => !opt.trim())) {
+        setError('All options must be filled');
+        return;
+      }
+
+      if (question.correctSequence.length !== 4) {
+        setError('Please provide a complete sequence (A,B,C,D)');
+        return;
+      }
+
       const response = await fetch(`${API_URL}/api/fastest-finger/create`, {
         method: 'POST',
         headers: {
@@ -68,16 +94,25 @@ const CreateFastestFinger = () => {
         body: JSON.stringify({
           name,
           passcode,
-          question
-        }),
+          question: {
+            text: question.text,
+            options: question.options,
+            correctSequence: question.correctSequence,
+            imageUrl: question.imageUrl || ''
+          }
+        })
       });
 
-      if (!response.ok) throw new Error('Failed to create fastest finger game');
+      if (!response.ok) {
+        const data = await response.json();
+        throw new Error(data.message || 'Failed to create game');
+      }
 
       setShowSuccess(true);
       setTimeout(() => navigate('/dashboard'), 2000);
-    } catch (error) {
-      setError(error.message || 'Failed to create game');
+    } catch (err) {
+      console.error('Error creating game:', err);
+      setError(err.message || 'Failed to create game');
     }
   };
 
