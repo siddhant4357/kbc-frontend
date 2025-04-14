@@ -69,19 +69,8 @@ const CreateFastestFinger = () => {
     setError('');
     
     try {
-      // Validate inputs
-      if (!name || !passcode || !question.text) {
-        setError('Please fill in all required fields');
-        return;
-      }
-
-      if (question.options.some(opt => !opt.trim())) {
-        setError('All options must be filled');
-        return;
-      }
-
-      if (question.correctSequence.length !== 4) {
-        setError('Please provide a complete sequence (A,B,C,D)');
+      if (!name || !passcode || !question.text || question.options.includes('') || question.correctSequence.length !== 4) {
+        setError('Please fill all fields and provide correct sequence');
         return;
       }
 
@@ -90,7 +79,7 @@ const CreateFastestFinger = () => {
         headers: {
           'Content-Type': 'application/json'
         },
-        credentials: 'include',
+        credentials: 'include', // Important for sending cookies
         body: JSON.stringify({
           name,
           passcode,
