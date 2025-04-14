@@ -303,6 +303,8 @@ const PlayGame = () => {
 
           setTimeLeft(remainingSeconds);
           setIsTimerExpired(false);
+        } else {
+          console.error('Invalid timerStart value:', timerStart);
         }
       }
     }
