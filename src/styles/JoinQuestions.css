@@ -36,6 +36,32 @@ body {
 }
 
 /* Header styles */
+header {
+  height: auto;
+  padding: 1rem;
+}
+
+header .kbc-button {
+  transition: all 0.3s ease;
+}
+
+header .kbc-button:hover {
+  transform: scale(1.1);
+}
+
+header .relative {
+  position: relative;
+  z-index: 10;
+}
+
+header svg {
+  filter: drop-shadow(0 0 15px rgba(255, 184, 0, 0.4));
+}
+
+header span {
+  text-shadow: 0 0 15px rgba(255, 184, 0, 0.6);
+}
+
 .fixed {
   position: fixed;
 }
