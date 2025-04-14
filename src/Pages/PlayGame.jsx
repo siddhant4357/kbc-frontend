@@ -67,7 +67,15 @@ const ImageErrorBoundary = React.memo(({ children }) => {
 });
 
 const QuestionImage = React.memo(({ imageUrl }) => {
-  const [imgSrc, setImgSrc] = useState(() => getImageUrl(imageUrl));
+  const [imgSrc, setImgSrc] = useState(() => {
+    if (imageUrl?.startsWith('http') || imageUrl?.startsWith('data:')) {
+      return imageUrl;
+    }
+    if (imageUrl?.startsWith('/uploads/questions/')) {
+      return `${API_URL}${imageUrl}`;
+    }
+    return defaultQuestionImage;
+  });
   const [hasError, setHasError] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
   const retryCount = useRef(0);
