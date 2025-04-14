@@ -7,6 +7,7 @@ const FastestFingerGame = () => {
   const { bankId } = useParams();
   const navigate = useNavigate();
   const [game, setGame] = useState(null);
+  const [randomizedOptions, setRandomizedOptions] = useState([]);
   const [userSequence, setUserSequence] = useState([]);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState('');
@@ -23,6 +24,12 @@ const FastestFingerGame = () => {
         }
         const data = await response.json();
         setGame(data);
+        
+        // Randomize the options when game data is loaded
+        const shuffledOptions = [...data.question.options]
+          .map((option, index) => ({ option, originalIndex: index }))
+          .sort(() => Math.random() - 0.5);
+        setRandomizedOptions(shuffledOptions);
       } catch (err) {
         setError('Failed to load game');
         console.error(err);
@@ -32,28 +39,51 @@ const FastestFingerGame = () => {
     fetchGame();
   }, [bankId]);
 
-  const handleOptionClick = (index) => {
-    if (userSequence.includes(index)) {
+  const handleOptionClick = (originalIndex) => {
+    if (userSequence.includes(originalIndex)) {
       // Remove if already selected
-      setUserSequence(prev => prev.filter(i => i !== index));
-    } else {
-      // Add to sequence
-      setUserSequence(prev => [...prev, index]);
+      setUserSequence(prev => prev.filter(i => i !== originalIndex));
+    } else if (userSequence.length < 4) {
+      // Add to sequence if less than 4 selections
+      setUserSequence(prev => [...prev, originalIndex]);
     }
   };
 
   const handleSubmit = async () => {
     if (userSequence.length !== 4) {
-      setError('Please select all options in order');
+      setError('Please select all options in sequence');
       return;
     }
 
     setIsSubmitting(true);
     try {
-      // Here you'll implement the logic to check if the sequence is correct
-      // For now, just showing a success message
-      setSuccess('Sequence submitted successfully!');
-      setTimeout(() => navigate('/dashboard'), 2000);
+      // Compare user sequence with correct sequence
+      const isCorrect = JSON.stringify(userSequence) === JSON.stringify(game.question.correctSequence);
+      
+      // Send result to backend
+      const response = await fetch(`${API_URL}/api/fastest-finger/submit`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        credentials: 'include',
+        body: JSON.stringify({
+          bankId,
+          sequence: userSequence,
+          isCorrect
+        })
+      });
+
+      if (!response.ok) throw new Error('Failed to submit sequence');
+
+      setSuccess(isCorrect ? 'Correct sequence! Well done!' : 'Wrong sequence. Try again!');
+      setTimeout(() => {
+        if (isCorrect) navigate('/dashboard');
+        else {
+          setUserSequence([]);
+          setSuccess('');
+        }
+      }, 2000);
     } catch (err) {
       setError('Failed to submit sequence');
     } finally {
@@ -103,23 +133,27 @@ const FastestFingerGame = () => {
           </div>
 
           <div className="grid grid-cols-1 gap-4">
-            {game.question.options.map((option, index) => (
+            {randomizedOptions.map(({ option, originalIndex }, index) => (
               <button
                 key={index}
-                onClick={() => handleOptionClick(index)}
+                onClick={() => handleOptionClick(originalIndex)}
                 className={`kbc-option ${
-                  userSequence.includes(index) ? 'selected' : ''
+                  userSequence.includes(originalIndex) ? 'selected' : ''
                 }`}
                 disabled={isSubmitting}
               >
                 <span className="option-number">
-                  {userSequence.includes(index) ? 
-                    userSequence.indexOf(index) + 1 : 
+                  {userSequence.includes(originalIndex) ? 
+                    (userSequence.indexOf(originalIndex) + 1) : 
                     ''}
                 </span>
                 <span className="option-text">{option}</span>
               </button>
             ))}
+          </div>
+
+          <div className="text-center text-kbc-gold mb-4">
+            Click options in the correct sequence
           </div>
 
           <div className="flex justify-end">

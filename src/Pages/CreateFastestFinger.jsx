@@ -14,11 +14,21 @@ const CreateFastestFinger = () => {
     imageUrl: ''
   });
   const [showSuccess, setShowSuccess] = useState(false);
+  const [error, setError] = useState('');
 
   const handleOptionChange = (index, value) => {
     const newOptions = [...question.options];
     newOptions[index] = value;
     setQuestion({ ...question, options: newOptions });
+  };
+
+  const handleSequenceChange = (value) => {
+    const sequence = value.split(',')
+      .map(s => s.trim().toUpperCase())
+      .filter(s => ['A', 'B', 'C', 'D'].includes(s))
+      .map(s => ['A', 'B', 'C', 'D'].indexOf(s));
+    
+    setQuestion({ ...question, correctSequence: sequence });
   };
 
   const handleImageUpload = async (file) => {
@@ -43,6 +53,11 @@ const CreateFastestFinger = () => {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+    if (!name || !passcode || !question.text || question.options.includes('') || question.correctSequence.length !== 4) {
+      setError('Please fill all fields and provide correct sequence');
+      return;
+    }
+
     try {
       const response = await fetch(`${API_URL}/api/fastest-finger/create`, {
         method: 'POST',
@@ -53,21 +68,16 @@ const CreateFastestFinger = () => {
         body: JSON.stringify({
           name,
           passcode,
-          question: {
-            text: question.text,
-            options: question.options,
-            correctSequence: question.correctSequence,
-            imageUrl: question.imageUrl
-          }
+          question
         }),
       });
 
-      if (!response.ok) throw new Error('Failed to create fastest finger question');
+      if (!response.ok) throw new Error('Failed to create fastest finger game');
 
       setShowSuccess(true);
       setTimeout(() => navigate('/dashboard'), 2000);
     } catch (error) {
-      console.error('Error:', error);
+      setError(error.message || 'Failed to create game');
     }
   };
 
@@ -77,6 +87,12 @@ const CreateFastestFinger = () => {
         {showSuccess && (
           <div className="fixed top-4 right-4 bg-green-500 bg-opacity-90 text-white p-4 rounded-lg shadow-lg">
             Fastest Finger question created successfully!
+          </div>
+        )}
+
+        {error && (
+          <div className="fixed top-4 right-4 bg-red-500 bg-opacity-90 text-white p-4 rounded-lg shadow-lg">
+            {error}
           </div>
         )}
 
@@ -136,6 +152,17 @@ const CreateFastestFinger = () => {
                 />
               </div>
             ))}
+          </div>
+
+          <div>
+            <label className="block text-kbc-gold text-sm mb-2">Correct Sequence (e.g., A,B,C,D)</label>
+            <input
+              type="text"
+              onChange={(e) => handleSequenceChange(e.target.value)}
+              className="kbc-input"
+              placeholder="Enter sequence (e.g., A,B,C,D)"
+              required
+            />
           </div>
 
           <div>

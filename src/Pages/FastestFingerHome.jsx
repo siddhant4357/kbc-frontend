@@ -1,101 +1,116 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
+import BackButton from '../components/BackButton';
 import { API_URL } from '../utils/config';
 
 const FastestFingerHome = () => {
-  const [questionBanks, setQuestionBanks] = useState([]);
-  const [selectedBank, setSelectedBank] = useState(null);
-  const [password, setPassword] = useState('');
+  const [games, setGames] = useState([]);
+  const [selectedGame, setSelectedGame] = useState(null);
+  const [passcode, setPasscode] = useState('');
   const [error, setError] = useState('');
   const navigate = useNavigate();
 
   useEffect(() => {
-    const fetchBanks = async () => {
+    const fetchGames = async () => {
       try {
         const response = await fetch(`${API_URL}/api/fastest-finger`, {
           credentials: 'include'
         });
         if (!response.ok) throw new Error('Failed to fetch games');
         const data = await response.json();
-        setQuestionBanks(data);
+        setGames(data);
       } catch (err) {
         setError('Failed to load fastest finger games');
       }
     };
 
-    fetchBanks();
+    fetchGames();
   }, []);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    if (!selectedBank || !password) {
+    if (!selectedGame || !passcode) {
       setError('Please select a game and enter passcode');
       return;
     }
 
     try {
-      // Verify passcode
-      if (password !== selectedBank.passcode) {
-        setError('Invalid passcode');
-        return;
+      const response = await fetch(`${API_URL}/api/fastest-finger/validate`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        credentials: 'include',
+        body: JSON.stringify({
+          bankId: selectedGame._id,
+          passcode
+        })
+      });
+
+      if (!response.ok) {
+        throw new Error('Invalid passcode');
       }
 
-      navigate(`/fastest-finger/${selectedBank._id}`);
+      navigate(`/fastest-finger/${selectedGame._id}`);
     } catch (error) {
-      setError('Failed to join game');
+      setError(error.message || 'Failed to join game');
     }
   };
 
   return (
-    <div className="min-h-screen p-4 sm:p-8 bg-gray-100">
-      <div className="max-w-md mx-auto bg-white rounded-xl shadow-md p-6">
-        <h1 className="text-2xl font-bold mb-4 text-center">Fastest Finger First</h1>
+    <div className="min-h-screen p-4 sm:p-8">
+      <div className="max-w-4xl mx-auto kbc-card p-6 sm:p-8 rounded-xl">
+        <div className="flex items-center space-x-4 mb-8">
+          <BackButton to="/dashboard" />
+          <h1 className="text-4xl kbc-title">Fastest Finger First</h1>
+        </div>
+
         {error && (
-          <div className="bg-red-100 text-red-700 p-2 rounded mb-4">
+          <div className="bg-red-500 bg-opacity-20 text-red-100 p-4 rounded-lg mb-6">
             {error}
           </div>
         )}
-        <form onSubmit={handleSubmit} className="space-y-4">
+
+        <form onSubmit={handleSubmit} className="space-y-6">
           <div>
-            <label className="block text-gray-700 mb-1">
-              Select Question Bank
+            <label className="block text-kbc-gold text-sm mb-2">
+              Select Game
             </label>
             <select
-              value={selectedBank ? selectedBank._id : ''}
-              onChange={(e) => {
-                const bank = questionBanks.find(
-                  (b) => b._id === e.target.value
-                );
-                setSelectedBank(bank);
-              }}
-              className="w-full p-2 border border-gray-300 rounded"
+              value={selectedGame?._id || ''}
+              onChange={(e) => setSelectedGame(games.find(g => g._id === e.target.value))}
+              className="kbc-input"
               required
             >
-              <option value="">-- Choose Bank --</option>
-              {questionBanks.map((bank) => (
-                <option key={bank._id} value={bank._id}>
-                  {bank.name}
+              <option value="">-- Select a Game --</option>
+              {games.map(game => (
+                <option key={game._id} value={game._id}>
+                  {game.name}
                 </option>
               ))}
             </select>
           </div>
+
           <div>
-            <label className="block text-gray-700 mb-1">
-              Enter Password
+            <label className="block text-kbc-gold text-sm mb-2">
+              Enter Passcode
             </label>
             <input
               type="password"
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              className="w-full p-2 border border-gray-300 rounded"
+              value={passcode}
+              onChange={(e) => setPasscode(e.target.value)}
+              className="kbc-input"
+              pattern="\d{4}"
+              maxLength="4"
               required
             />
           </div>
+
           <button
             type="submit"
-            className="w-full bg-blue-600 text-white py-2 rounded hover:bg-blue-700 transition"
+            className="kbc-button1 w-full"
           >
-            Continue
+            Start Game
           </button>
         </form>
       </div>
