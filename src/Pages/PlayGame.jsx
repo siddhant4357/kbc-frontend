@@ -281,13 +281,29 @@ const PlayGame = () => {
 
       if (newQuestionIndex !== currentQuestionIndex) {
         setCurrentQuestion(state.currentQuestion);
+
         // Reset states when question changes
         setShowOptions(false);
         setShowAnswer(false);
         setSelectedOption(null);
         setLockedAnswer(null); // Ensure lockedAnswer is reset
-        setTimeLeft(state.timerDuration || 15);
-        setIsTimerExpired(false);
+
+        // Reset timer based on admin's configuration
+        const adminTimerDuration = parseInt(state.timerDuration) || 15;
+        const timerStart = parseInt(state.timerStartedAt);
+
+        if (!isNaN(timerStart)) {
+          setTimerStartedAt(timerStart);
+          setTimerDuration(adminTimerDuration);
+
+          // Calculate initial time left
+          const now = Date.now();
+          const elapsedSeconds = Math.floor((now - timerStart) / 1000);
+          const remainingSeconds = Math.max(0, adminTimerDuration - elapsedSeconds);
+
+          setTimeLeft(remainingSeconds);
+          setIsTimerExpired(false);
+        }
       }
     }
 
@@ -379,6 +395,7 @@ const PlayGame = () => {
 
   useEffect(() => {
     let interval;
+
     if (timerStartedAt && showOptions && !isTimerExpired && !lockedAnswer) {
       const startTime = parseInt(timerStartedAt);
 
@@ -411,7 +428,7 @@ const PlayGame = () => {
         clearInterval(interval);
       }
     };
-  }, [timerStartedAt, timerDuration, showOptions, lockedAnswer, isTimerExpired]);
+  }, [timerStartedAt, timerDuration, showOptions, lockedAnswer, isTimerExpired, currentQuestion]);
 
   useEffect(() => {
     return () => {
@@ -511,6 +528,16 @@ const PlayGame = () => {
       }
     };
   }, [batchedFirebaseUpdate]);
+
+  useEffect(() => {
+    console.log('Timer Debug:', {
+      timerStartedAt,
+      timerDuration,
+      timeLeft,
+      isTimerExpired,
+      currentQuestion,
+    });
+  }, [timerStartedAt, timerDuration, timeLeft, isTimerExpired, currentQuestion]);
 
   const handleOptionSelect = useCallback((option) => {
     if (!showAnswer && !lockedAnswer && timeLeft > 0) {
