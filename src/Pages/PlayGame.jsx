@@ -453,7 +453,7 @@ const PlayGame = () => {
       }
       if (firebaseGameState.timerStartedAt && firebaseGameState.timerDuration) {
         setTimerStartedAt(firebaseGameState.timerStartedAt);
-        setTimerDuration(firebaseGameState.timerDuration);
+        setTimerDuration(firebaseGameState.timerDuration); // Sync timer duration
       }
       setIsWaiting(!firebaseGameState.isActive);
     }

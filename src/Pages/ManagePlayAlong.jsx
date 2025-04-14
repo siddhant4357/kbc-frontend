@@ -303,36 +303,22 @@ const ManagePlayAlong = () => {
     if (!selectedBank) return;
 
     try {
-      const user = JSON.parse(localStorage.getItem('user'));
-      if (!user?.isAdmin) {
-        setError('Only admins can start the game');
-        return;
-      }
-
       const gameData = {
         isActive: true,
-        admin: user.username,
-        gameToken: Date.now().toString(),
+        timerDuration: parseInt(timerDuration), // Include timer duration
+        timerStartedAt: Date.now(), // Include start time
         currentQuestion: {
           ...selectedBank.questions[0],
           questionIndex: 0,
-          imageUrl: selectedBank.questions[0].imageUrl || '',
         },
         showOptions: false,
         showAnswer: false,
-        timerStartedAt: null,
-        timerDuration: parseInt(timerDuration),
-        players: {},
-        startedAt: Date.now(),
-        questionBankId: selectedBank._id,
       };
 
-      // Update Firebase
       const gameRef = ref(db, `games/${selectedBank._id}`);
       await set(gameRef, gameData);
-      
+
       setGameStarted(true);
-      // console.log('Game started successfully');
     } catch (err) {
       console.error('Error starting game:', err);
       setError('Failed to start game. Please check your permissions.');
@@ -362,7 +348,7 @@ const ManagePlayAlong = () => {
       await updateGameState({
         showOptions: true,
         timerStartedAt: Date.now(),
-        timerDuration: parseInt(timerDuration),
+        timerDuration: parseInt(timerDuration), // Ensure this is sent to Firebase
         updatedAt: Date.now(),
       });
       console.log('Options shown successfully');
