@@ -359,13 +359,12 @@ const ManagePlayAlong = () => {
     if (!gameStarted) return;
 
     try {
-      // Ensure timerDuration is a number and at least 5 seconds
       const duration = Math.max(5, parseInt(timerDuration) || 15);
-      
+
       await updateGameState({
         showOptions: true,
         timerStartedAt: Date.now(),
-        timerDuration: duration, // Make sure this is being set
+        timerDuration: duration,
         updatedAt: Date.now(),
       });
       console.log('Options shown successfully with timer duration:', duration);

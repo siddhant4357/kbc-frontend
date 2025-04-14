@@ -253,7 +253,14 @@ const PlayGame = () => {
             const now = Date.now();
             const elapsedSeconds = Math.floor((now - timerStart) / 1000);
             const remainingSeconds = Math.max(0, adminTimerDuration - elapsedSeconds);
-            setTimeLeft(remainingSeconds);
+
+            // Fallback for mobile rendering delays
+            if (remainingSeconds <= 0) {
+              setTimeLeft(0);
+              setIsTimerExpired(true);
+            } else {
+              setTimeLeft(remainingSeconds);
+            }
           }
           setIsTimerExpired(false);
         }
@@ -373,9 +380,10 @@ const PlayGame = () => {
   useEffect(() => {
     let interval;
     if (timerStartedAt && showOptions && !isTimerExpired && !lockedAnswer) {
+      const startTime = parseInt(timerStartedAt);
+
       const updateTimer = () => {
-        const now = Date.now(); // Use timestamp instead of Date object
-        const startTime = parseInt(timerStartedAt);
+        const now = Date.now();
         const elapsedSeconds = Math.floor((now - startTime) / 1000);
         const remainingSeconds = Math.max(0, timerDuration - elapsedSeconds);
 
@@ -393,9 +401,9 @@ const PlayGame = () => {
 
       // Initial update
       updateTimer();
-      
-      // Update every 100ms for smoother countdown
-      interval = setInterval(updateTimer, 100);
+
+      // Update every 500ms for smoother countdown
+      interval = setInterval(updateTimer, 500);
     }
 
     return () => {
