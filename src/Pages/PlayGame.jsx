@@ -242,9 +242,19 @@ const PlayGame = () => {
         if (shouldShowOptions) {
           // Ensure we're using the admin's selected timer duration
           const adminTimerDuration = parseInt(state.timerDuration) || 15;
-          setTimerStartedAt(state.timerStartedAt);
-          setTimerDuration(adminTimerDuration);
-          setTimeLeft(adminTimerDuration);
+          const timerStart = parseInt(state.timerStartedAt);
+          
+          // Ensure we have valid timestamps
+          if (!isNaN(timerStart)) {
+            setTimerStartedAt(timerStart);
+            setTimerDuration(adminTimerDuration);
+            
+            // Calculate initial time left
+            const now = Date.now();
+            const elapsedSeconds = Math.floor((now - timerStart) / 1000);
+            const remainingSeconds = Math.max(0, adminTimerDuration - elapsedSeconds);
+            setTimeLeft(remainingSeconds);
+          }
           setIsTimerExpired(false);
         }
       }
@@ -363,11 +373,11 @@ const PlayGame = () => {
   useEffect(() => {
     let interval;
     if (timerStartedAt && showOptions && !isTimerExpired && !lockedAnswer) {
-      interval = setInterval(() => {
-        const now = new Date();
-        const startTime = new Date(timerStartedAt);
+      const updateTimer = () => {
+        const now = Date.now(); // Use timestamp instead of Date object
+        const startTime = parseInt(timerStartedAt);
         const elapsedSeconds = Math.floor((now - startTime) / 1000);
-        const remainingSeconds = timerDuration - elapsedSeconds;
+        const remainingSeconds = Math.max(0, timerDuration - elapsedSeconds);
 
         if (remainingSeconds <= 0) {
           setTimeLeft(0);
@@ -379,7 +389,13 @@ const PlayGame = () => {
         } else {
           setTimeLeft(remainingSeconds);
         }
-      }, 1000);
+      };
+
+      // Initial update
+      updateTimer();
+      
+      // Update every 100ms for smoother countdown
+      interval = setInterval(updateTimer, 100);
     }
 
     return () => {
