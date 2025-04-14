@@ -1080,7 +1080,7 @@ body {
   }
 
   .prize-ladder {
-    margin-top: 0.5rem;
+    margin-top: 280px;
     height: calc(100vh - 100px);
   }
 
@@ -1106,6 +1106,16 @@ body {
     background: radial-gradient(circle, rgba(0,0,0,0.3) 0%, transparent 70%);
     border-radius: 50%;
     z-index: -1;
+  }
+
+  /* Timer glow effect */
+  .timer-container svg circle:last-child {
+    filter: drop-shadow(0 0 15px rgba(255, 184, 0, 0.4));
+  }
+
+  /* Timer text glow */
+  .timer-container span {
+    text-shadow: 0 0 15px rgba(255, 184, 0, 0.6);
   }
 
   /* Increase timer visibility */
