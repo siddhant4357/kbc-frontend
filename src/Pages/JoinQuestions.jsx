@@ -461,7 +461,7 @@ const JoinQuestions = () => {
                   >
                     {isInfiniteTimer ? '∞' : '⏸'}
                   </button>
-                  <div className="relative w-8 h-8 lg:w-32 lg:h-32 mx-auto lg:fixed lg:top-12 lg:left-1/2 lg:transform lg:-translate-x-1/2 lg:z-50">
+                  <div className="relative w-8 h-8 lg:w-40 lg:h-40 mx-auto lg:fixed lg:top-1/2 lg:-translate-y-1/2 lg:left-1/2 lg:-translate-x-1/2 lg:z-[100]">
                     <svg className="w-full h-full transform -rotate-90" viewBox="0 0 100 100">
                       <circle
                         cx="50"
@@ -484,7 +484,7 @@ const JoinQuestions = () => {
                         style={{ transition: 'stroke-dashoffset 1s linear' }}
                       />
                     </svg>
-                    <span className="absolute inset-0 flex items-center justify-center text-xs lg:text-5xl font-bold text-kbc-gold">
+                    <span className="absolute inset-0 flex items-center justify-center text-xs lg:text-6xl font-bold text-kbc-gold drop-shadow-[0_2px_8px_rgba(255,184,0,0.5)]">
                       {isInfiniteTimer ? '∞' : formatTime(timeLeft)}
                     </span>
                   </div>

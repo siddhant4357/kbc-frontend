@@ -1091,6 +1091,40 @@ body {
   .question-container.shifted-up .question-image {
     height: 280px; /* Increased height for desktop view */
   }
+
+  /* Timer styles */
+  .timer-container {
+    position: relative;
+    z-index: 100;
+  }
+
+  /* Add backdrop filter to make timer more visible */
+  .timer-container::before {
+    content: '';
+    position: absolute;
+    inset: -20px;
+    background: radial-gradient(circle, rgba(0,0,0,0.3) 0%, transparent 70%);
+    border-radius: 50%;
+    z-index: -1;
+  }
+
+  /* Increase timer visibility */
+  .timer-container svg circle {
+    filter: drop-shadow(0 0 10px rgba(255, 184, 0, 0.3));
+  }
+
+  /* Container adjustments to prevent overlap */
+  .container {
+    position: relative;
+    z-index: 1;
+  }
+
+  .kbc-question-box, 
+  .options-grid,
+  .prize-ladder {
+    position: relative;
+    z-index: 2;
+  }
 }
 
 @media (max-width: 1024px) {
