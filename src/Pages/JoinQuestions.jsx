@@ -425,77 +425,71 @@ const JoinQuestions = () => {
   return (
     <div className="game-container overflow-hidden">
       <header className="game-header">
-        <div className="fixed top-0 left-0 right-0 bg-kbc-dark-blue/90 backdrop-blur-sm z-10 p-1 h-10">
-          <div className="flex items-center justify-between gap-2 w-full">
+        <div className="fixed top-0 left-0 right-0 bg-kbc-dark-blue/90 backdrop-blur-sm z-10 p-1 h-10 lg:p-1">
+          <div className="flex items-center justify-between gap-2 lg:gap-0 w-full">
             <button
               onClick={handleBackClick}
               className="kbc-button bg-red-600 hover:bg-red-700 text-xs h-7 w-12"
             >
               QUIT
             </button>
-            <div className="flex items-center gap-2">
-                {!showOptions ? (
-                  <div className="flex items-center gap-1">
-                    <input
-                      type="number"
-                      min="5"
-                      max="60"
-                      value={customTimerInput}
-                      onChange={(e) => setCustomTimerInput(Number(e.target.value))}
-                      className="kbc-input w-12 text-xs h-7 py-0 px-1"
-                      placeholder="Sec"
-                    />
-                    <button
-                      onClick={handleShowOptions}
-                      className="kbc-button1 text-xs h-7 py-0 px-2 min-w-0"
-                    >
-                      Start
-                    </button>
+            <div className="flex items-center gap-2 lg:gap-0">
+              { !showOptions ? (
+                <div className="flex items-center gap-1">
+                  <input
+                    type="number"
+                    min="5"
+                    max="60"
+                    value={customTimerInput}
+                    onChange={(e) => setCustomTimerInput(Number(e.target.value))}
+                    className="kbc-input w-12 text-xs h-7 py-0 px-1"
+                    placeholder="Sec"
+                  />
+                  <button
+                    onClick={handleShowOptions}
+                    className="kbc-button1 text-xs h-7 py-0 px-2 min-w-0"
+                  >
+                    Start
+                  </button>
+                </div>
+              ) : (
+                <div className="flex items-center gap-1">
+                  <button
+                    onClick={handleInfiniteTimer}
+                    className={`kbc-button w-8 h-7 flex items-center justify-center text-xs rounded-full ${isInfiniteTimer ? 'bg-green-600 hover:bg-green-700' : ''}`}
+                    title={isInfiniteTimer ? 'Timer is infinite' : 'Click to make timer infinite'}
+                  >
+                    {isInfiniteTimer ? '∞' : '⏸'}
+                  </button>
+                  <div className="relative w-8 h-8">
+                    <svg className="w-full h-full transform -rotate-90" viewBox="0 0 100 100">
+                      <circle
+                        cx="50"
+                        cy="50"
+                        r="45"
+                        fill="transparent"
+                        stroke="rgba(255, 184, 0, 0.2)"
+                        strokeWidth="8"
+                      />
+                      <circle
+                        cx="50"
+                        cy="50"
+                        r="45"
+                        fill="transparent"
+                        stroke="var(--kbc-gold)"
+                        strokeWidth="8"
+                        strokeLinecap="round"
+                        strokeDasharray={`${2 * Math.PI * 45}`}
+                        strokeDashoffset={`${(1 - timeLeft / timerDuration) * 2 * Math.PI * 45}`}
+                        style={{ transition: 'stroke-dashoffset 1s linear' }}
+                      />
+                    </svg>
+                    <span className="absolute inset-0 flex items-center justify-center text-xs font-bold text-kbc-gold">
+                      {isInfiniteTimer ? '∞' : formatTime(timeLeft)}
+                    </span>
                   </div>
-                ) : (
-                  <div className="flex items-center gap-1">
-                    <button
-                      onClick={handleInfiniteTimer}
-                      className={`kbc-button w-8 h-7 flex items-center justify-center text-xs rounded-full ${
-                        isInfiniteTimer ? 'bg-green-600 hover:bg-green-700' : ''
-                      }`}
-                      title={isInfiniteTimer ? 'Timer is infinite' : 'Click to make timer infinite'}
-                    >
-                      {isInfiniteTimer ? '∞' : '⏸'}
-                    </button>
-                    
-                    <div className="relative w-8 h-8">
-                      <svg className="w-full h-full transform -rotate-90" viewBox="0 0 100 100">
-                        <circle
-                          cx="50"
-                          cy="50"
-                          r="45"
-                          fill="transparent"
-                          stroke="rgba(255, 184, 0, 0.2)"
-                          strokeWidth="8"
-                        />
-                        <circle
-                          cx="50"
-                          cy="50"
-                          r="45"
-                          fill="transparent"
-                          stroke="var(--kbc-gold)"
-                          strokeWidth="8"
-                          strokeLinecap="round"
-                          strokeDasharray={`${2 * Math.PI * 45}`}
-                          strokeDashoffset={`${(1 - timeLeft / timerDuration) * 2 * Math.PI * 45}`}
-                          style={{
-                            transition: 'stroke-dashoffset 1s linear'
-                          }}
-                        />
-                      </svg>
-                      <span className="absolute inset-0 flex items-center justify-center text-xs font-bold text-kbc-gold">
-                        {isInfiniteTimer ? '∞' : formatTime(timeLeft)}
-                      </span>
-                    </div>
-                  </div>
-                )}
-              
+                </div>
+              )}
             </div>
           </div>
         </div>
