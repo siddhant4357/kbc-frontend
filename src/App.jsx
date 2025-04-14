@@ -19,10 +19,6 @@ import PlayAlong from './Pages/PlayAlong'; // Fix the casing here
 import JoinGame from './Pages/JoinGame';
 import JoinQuestions from './Pages/JoinQuestions';
 import GameRules from './Pages/GameRules';
-import FastestFingerHome from './Pages/FastestFingerHome';
-import FastestFingerCreate from './Pages/FastestFingerCreate';
-import CreateFastestFinger from './Pages/CreateFastestFinger';
-import FastestFingerGame from './Pages/FastestFingerGame';
 import ErrorBoundary from './components/ErrorBoundary';
 
 const App = () => {
@@ -69,22 +65,6 @@ const App = () => {
               <ProtectedRoute>
                 <GameRules />
               </ProtectedRoute>
-            } />
-
-            <Route path="/fastest-finger" element={
-              <ProtectedRoute>
-                <FastestFingerHome />
-              </ProtectedRoute>
-            } />
-            <Route path="/fastest-finger/:bankId" element={
-              <ProtectedRoute>
-                <FastestFingerGame />
-              </ProtectedRoute>
-            } />
-            <Route path="/create-fastest-finger" element={
-              <AdminRoute>
-                <CreateFastestFinger />
-              </AdminRoute>
             } />
 
             {/* Admin Only Routes */}

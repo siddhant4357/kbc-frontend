@@ -47,12 +47,6 @@ const Dashboard = () => {
         case "Join a Game":
           navigate('/join-game');
           break;
-        case "Fastest Finger":
-          navigate('/fastest-finger');
-          break;
-        case "Create Fastest Finger":
-          navigate('/create-fastest-finger');
-          break;
         default:
           break;
       }
@@ -66,8 +60,6 @@ const Dashboard = () => {
         <DashboardCard title="Join a Game" icon="🎯" onCardClick={handleCardClick} />
         <DashboardCard title="Manage Users" icon="👥" onCardClick={handleCardClick} />
         <DashboardCard title="Leaderboard" icon="🏆" onCardClick={handleCardClick} />
-        <DashboardCard title="Fastest Finger" icon="☝️" onCardClick={handleCardClick} />
-        <DashboardCard title="Create Fastest Finger" icon="⚡" onCardClick={handleCardClick} />
       </div>
     );
   };
@@ -81,9 +73,6 @@ const Dashboard = () => {
         case "Join a Game":
           navigate('/join-game');
           break;
-        case "Fastest Finger":
-          navigate('/fastest-finger');
-          break;
         default:
           break;
       }
@@ -93,7 +82,6 @@ const Dashboard = () => {
       <div className="dashboard-grid">
         <DashboardCard title="Play Along" icon="📱" onCardClick={handleCardClick} />
         <DashboardCard title="Join a Game" icon="🎯" onCardClick={handleCardClick} />
-        <DashboardCard title="Fastest Finger" icon="☝️" onCardClick={handleCardClick} />
       </div>
     );
   };
