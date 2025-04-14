@@ -1464,3 +1464,27 @@ body {
     padding-bottom: max(0.75rem, env(safe-area-inset-bottom));
   }
 }
+
+@media (min-width: 1024px) {
+  /* Timer styles for laptop */
+  .timer-container {
+    position: relative;
+    z-index: 100;
+  }
+
+  /* Add shadow and glow effect to timer */
+  .timer-container svg {
+    filter: drop-shadow(0 0 10px rgba(255, 184, 0, 0.3));
+  }
+
+  /* Ensure timer is always visible */
+  .timer-container circle {
+    stroke-width: 8;
+    transition: stroke-dashoffset 1s linear;
+  }
+
+  /* Increase visibility of timer text */
+  .timer-container span {
+    text-shadow: 0 0 10px rgba(255, 184, 0, 0.5);
+  }
+}
