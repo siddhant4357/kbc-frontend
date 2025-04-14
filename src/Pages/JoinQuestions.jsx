@@ -424,7 +424,7 @@ const JoinQuestions = () => {
 
   return (
     <div className="game-container overflow-hidden">
-      <header className="game-header">
+      <header className="">
         <div className="fixed top-0 left-0 right-0 bg-kbc-dark-blue/90 backdrop-blur-sm z-10 p-1 h-10 lg:p-1">
           <div className="flex items-center justify-between gap-2 lg:gap-0 w-full">
             <button
