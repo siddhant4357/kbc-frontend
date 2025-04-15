@@ -111,6 +111,7 @@ const QuestionImage = React.memo(({ imageUrl }) => {
         className={`w-full h-full object-contain rounded-lg shadow-glow transition-opacity duration-300 ${
           isLoading ? 'opacity-0' : 'opacity-100'
         }`}
+        style={{ maxHeight: '100%' }} // Add this line
         onError={handleError}
         onLoad={() => {
           setIsLoading(false);
@@ -805,8 +806,8 @@ const PlayGame = () => {
               <div className="question-image mb-4 flex justify-center transition-all duration-300">
                 <div className={`relative w-full max-w-xl ${
                   showOptions || (selectedOption && !lockedAnswer) 
-                    ? 'h-32 sm:h-40 lg:h-66'
-                    : 'h-48 sm:h-64 lg:h-88'
+                    ? 'h-28 sm:h-40 lg:h-66' // Reduced height for mobile
+                    : 'h-40 sm:h-64 lg:h-88' // Adjusted height for mobile
                 }`}>
                   <ImageErrorBoundary>
                     <QuestionImage imageUrl={currentQuestion.imageUrl} />
