@@ -349,7 +349,7 @@ const Leaderboard = () => {
                     e.currentTarget.style.boxShadow = '';
                   }}
                 >
-                  Clear All
+                  Clear All 
                 </button>
               </div>
             </div>
