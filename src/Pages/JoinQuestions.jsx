@@ -558,7 +558,7 @@ const JoinQuestions = () => {
                   />
                 </div>
               </div>
-              <div className="kbc-question-box p-4 sm:p-6 shadow-glow mb-4 mx-auto w-full max-w-2xl z-10">
+              <div className="kbc-question-box p-4 sm:p-6 shadow-glow mb-4 max-w-3xl mx-auto w-full z-10">
                 <h2 className="text-xl text-kbc-gold mb-3">
                   Question {currentQuestionIndex + 1} 
                 </h2>
