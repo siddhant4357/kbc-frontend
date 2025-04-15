@@ -725,9 +725,11 @@ const JoinQuestions = () => {
             </div>
           </div>
         </div>
-        <div className="hidden lg:block w-80 fixed left-8 top-24 order-1">
-          <div className="kbc-question-box p-3 shadow-glow relative">
-            <h3 className="text-kbc-gold text-base font-bold text-center mb-2">Timer Controls</h3>
+        <div className="hidden lg:block w-80 fixed left-8 top-16 order-1"> {/* Changed from top-24 to top-16 */}
+          <div className="kbc-question-box p-2 shadow-glow relative"> {/* Reduced padding from p-3 to p-2 */}
+            <h3 className="text-kbc-gold text-sm font-bold text-center mb-1"> {/* Reduced text size and margin */}
+              Timer Controls
+            </h3>
             {!showOptions ? (
               <div className="flex flex-col items-center gap-2">
                 <input
@@ -757,7 +759,7 @@ const JoinQuestions = () => {
                 >
                   {isInfiniteTimer ? '∞' : '⏸'}
                 </button>
-                <div className="relative w-14 h-14">
+                <div className="relative w-20 h-20"> {/* Increased from w-14 h-14 to w-20 h-20 */}
                   <svg className="w-full h-full transform -rotate-90" viewBox="0 0 100 100">
                     <circle
                       cx="50"
@@ -780,7 +782,7 @@ const JoinQuestions = () => {
                       style={{ transition: 'stroke-dashoffset 1s linear' }}
                     />
                   </svg>
-                  <span className="absolute inset-0 flex items-center justify-center text-lg font-bold text-kbc-gold">
+                  <span className="absolute inset-0 flex items-center justify-center text-xl font-bold text-kbc-gold"> {/* Increased text size */}
                     {isInfiniteTimer ? '∞' : formatTime(timeLeft)}
                   </span>
                 </div>
