@@ -206,8 +206,9 @@ const JoinGame = () => {
     }
 
     const user = JSON.parse(localStorage.getItem('user'));
-    if (!user || user.username !== 'admin' || adminPasscode !== ADMIN_PASSCODE) {
-      setError('Invalid admin credentials');
+    // Remove username check, only verify admin passcode
+    if (!user || adminPasscode !== ADMIN_PASSCODE) {
+      setError('Invalid admin passcode');
       return;
     }
 
@@ -223,7 +224,7 @@ const JoinGame = () => {
         body: JSON.stringify({
           questionBankId: selectedBank._id,
           passcode: bankPasscode,
-          adminUsername: user.username // Add this to track which admin started the game
+          adminUsername: user.username
         }),
       });
 
