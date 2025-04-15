@@ -181,12 +181,6 @@ const JoinGame = () => {
       return;
     }
 
-    // Check if user is an admin
-    if (user.username !== 'admin') {
-      navigate('/dashboard');
-      return;
-    }
-
     fetchQuestionBanks();
   }, [navigate]);
 
