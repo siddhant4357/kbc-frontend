@@ -531,38 +531,40 @@ const JoinQuestions = () => {
           </div>
           {currentQuestion && (
             <>
-              <div className="question-image mb-4 flex justify-center transition-all duration-300">
-                <div className={`relative w-full max-w-xl ${
-                  showOptions || (selectedOption && !lockedAnswer) 
-                    ? 'h-32 sm:h-40 lg:h-66'
-                    : 'h-48 sm:h-64 lg:h-88'
-                }`}>
-                  <img
-                    src={currentQuestion.imageUrl 
-                      ? currentQuestion.imageUrl.startsWith('http') 
-                        ? currentQuestion.imageUrl 
-                        : `${API_URL}${currentQuestion.imageUrl}`.replace(/([^:]\/)\/+/g, "$1")
-                      : defaultQuestionImage}
-                    alt="Question"
-                    className="w-full h-full object-contain rounded-lg shadow-glow"
-                    crossOrigin="anonymous"
-                    onError={(e) => {
-                      if (e.target.src !== defaultQuestionImage) {
-                        console.warn('Error loading image, falling back to default');
-                        e.target.src = defaultQuestionImage;
-                      } else {
-                        e.target.style.display = 'none';
-                        console.error('Error loading default image');
-                      }
-                    }}
-                  />
+              <div className="flex flex-col lg:space-y-6 mb-4"> {/* Added flex container with spacing */}
+                <div className="question-image flex justify-center transition-all duration-300">
+                  <div className={`relative w-full max-w-2xl ${
+                    showOptions || (selectedOption && !lockedAnswer) 
+                      ? 'h-32 sm:h-40 lg:h-72' // Increased height for laptop
+                      : 'h-48 sm:h-64 lg:h-96' // Increased height for laptop
+                  }`}>
+                    <img
+                      src={currentQuestion.imageUrl 
+                        ? currentQuestion.imageUrl.startsWith('http') 
+                          ? currentQuestion.imageUrl 
+                          : `${API_URL}${currentQuestion.imageUrl}`.replace(/([^:]\/)\/+/g, "$1")
+                        : defaultQuestionImage}
+                      alt="Question"
+                      className="w-full h-full object-contain rounded-lg shadow-glow"
+                      crossOrigin="anonymous"
+                      onError={(e) => {
+                        if (e.target.src !== defaultQuestionImage) {
+                          console.warn('Error loading image, falling back to default');
+                          e.target.src = defaultQuestionImage;
+                        } else {
+                          e.target.style.display = 'none';
+                          console.error('Error loading default image');
+                        }
+                      }}
+                    />
+                  </div>
                 </div>
-              </div>
-              <div className="kbc-question-box p-4 sm:p-6 shadow-glow mb-4 max-w-3xl mx-auto w-full z-10">
-                <h2 className="text-xl text-kbc-gold mb-3">
-                  Question {currentQuestionIndex + 1} 
-                </h2>
-                <p className="text-white text-lg mb-3">{currentQuestion.question}</p>
+                <div className="kbc-question-box p-4 sm:p-6 shadow-glow max-w-2xl mx-auto w-full z-10">
+                  <h2 className="text-xl text-kbc-gold mb-3">
+                    Question {currentQuestionIndex + 1} 
+                  </h2>
+                  <p className="text-white text-lg mb-3">{currentQuestion.question}</p>
+                </div>
               </div>
             </>
           )}

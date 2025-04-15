@@ -1076,7 +1076,16 @@ body {
   }
 
   .question-image {
-    height: 300px;
+    margin-bottom: 0;
+    height: auto;
+    min-height: 300px;
+  }
+
+  .kbc-question-box {
+    margin-top: 2rem;
+    min-height: 120px;
+    background: linear-gradient(to right, rgba(6, 7, 89, 0.9), rgba(10, 57, 114, 0.9));
+    backdrop-filter: blur(8px);
   }
 
   .prize-ladder {
