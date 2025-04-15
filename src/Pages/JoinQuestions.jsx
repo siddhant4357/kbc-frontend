@@ -433,70 +433,12 @@ const JoinQuestions = () => {
             >
               QUIT
             </button>
-            <div className="flex items-center gap-2 lg:gap-0">
-              { !showOptions ? (
-                <div className="flex items-center gap-1">
-                  <input
-                    type="number"
-                    min="5"
-                    max="60"
-                    value={customTimerInput}
-                    onChange={(e) => setCustomTimerInput(Number(e.target.value))}
-                    className="kbc-input w-12 text-xs h-7 py-0 px-1"
-                    placeholder="Sec"
-                  />
-                  <button
-                    onClick={handleShowOptions}
-                    className="kbc-button1 text-xs h-7 py-0 px-2 min-w-0"
-                  >
-                    Start
-                  </button>
-                </div>
-              ) : (
-                <div className="flex items-center gap-1">
-                  <button
-                    onClick={handleInfiniteTimer}
-                    className={`kbc-button w-8 h-7 flex items-center justify-center text-xs rounded-full ${isInfiniteTimer ? 'bg-green-600 hover:bg-green-700' : ''}`}
-                    title={isInfiniteTimer ? 'Timer is infinite' : 'Click to make timer infinite'}
-                  >
-                    {isInfiniteTimer ? '∞' : '⏸'}
-                  </button>
-                  <div className="relative w-8 h-8">
-                    <svg className="w-full h-full transform -rotate-90" viewBox="0 0 100 100">
-                      <circle
-                        cx="50"
-                        cy="50"
-                        r="45"
-                        fill="transparent"
-                        stroke="rgba(255, 184, 0, 0.2)"
-                        strokeWidth="8"
-                      />
-                      <circle
-                        cx="50"
-                        cy="50"
-                        r="45"
-                        fill="transparent"
-                        stroke="var(--kbc-gold)"
-                        strokeWidth="8"
-                        strokeLinecap="round"
-                        strokeDasharray={`${2 * Math.PI * 45}`}
-                        strokeDashoffset={`${(1 - timeLeft / timerDuration) * 2 * Math.PI * 45}`}
-                        style={{ transition: 'stroke-dashoffset 1s linear' }}
-                      />
-                    </svg>
-                    <span className="absolute inset-0 flex items-center justify-center text-xs font-bold text-kbc-gold">
-                      {isInfiniteTimer ? '∞' : formatTime(timeLeft)}
-                    </span>
-                  </div>
-                </div>
-              )}
-            </div>
           </div>
         </div>
       </header>
       
       <div className="container mx-auto pt-12 sm:pt-16 px-2 sm:px-4 flex flex-col lg:flex-row min-h-screen">
-        <div className="flex-1 flex flex-col lg:pr-80 order-2 lg:order-1 pb-4">
+        <div className="flex-1 flex flex-col lg:pl-80 lg:pr-80 order-2 lg:order-1 pb-4">
           <div className="block lg:hidden mb-4">
             <div className="kbc-question-box lg:hidden p-3 shadow-glow">
               <div className="flex justify-around items-center gap-2">
@@ -730,6 +672,69 @@ const JoinQuestions = () => {
                 </div>
               )).reverse()}
             </div>
+          </div>
+        </div>
+        <div className="hidden lg:block w-80 fixed left-8 top-24 order-1">
+          <div className="kbc-question-box p-3 shadow-glow relative">
+            <h3 className="text-kbc-gold text-base font-bold text-center mb-2">Timer Controls</h3>
+            { !showOptions ? (
+              <div className="flex flex-col items-center gap-2">
+                <input
+                  type="number"
+                  min="5"
+                  max="60"
+                  value={customTimerInput}
+                  onChange={(e) => setCustomTimerInput(Number(e.target.value))}
+                  className="kbc-input w-20 text-sm h-8 py-1 px-2"
+                  placeholder="Seconds"
+                />
+                <button
+                  onClick={handleShowOptions}
+                  className="kbc-button1 text-sm h-8 py-1 px-4 w-full"
+                >
+                  Start Timer
+                </button>
+              </div>
+            ) : (
+              <div className="flex flex-col items-center gap-2">
+                <button
+                  onClick={handleInfiniteTimer}
+                  className={`kbc-button w-10 h-10 flex items-center justify-center text-sm rounded-full ${
+                    isInfiniteTimer ? 'bg-green-600 hover:bg-green-700' : ''
+                  }`}
+                  title={isInfiniteTimer ? 'Timer is infinite' : 'Click to make timer infinite'}
+                >
+                  {isInfiniteTimer ? '∞' : '⏸'}
+                </button>
+                <div className="relative w-24 h-24">
+                  <svg className="w-full h-full transform -rotate-90" viewBox="0 0 100 100">
+                    <circle
+                      cx="50"
+                      cy="50"
+                      r="45"
+                      fill="transparent"
+                      stroke="rgba(255, 184, 0, 0.2)"
+                      strokeWidth="8"
+                    />
+                    <circle
+                      cx="50"
+                      cy="50"
+                      r="45"
+                      fill="transparent"
+                      stroke="var(--kbc-gold)"
+                      strokeWidth="8"
+                      strokeLinecap="round"
+                      strokeDasharray={`${2 * Math.PI * 45}`}
+                      strokeDashoffset={`${(1 - timeLeft / timerDuration) * 2 * Math.PI * 45}`}
+                      style={{ transition: 'stroke-dashoffset 1s linear' }}
+                    />
+                  </svg>
+                  <span className="absolute inset-0 flex items-center justify-center text-xl font-bold text-kbc-gold">
+                    {isInfiniteTimer ? '∞' : formatTime(timeLeft)}
+                  </span>
+                </div>
+              </div>
+            )}
           </div>
         </div>
       </div>
