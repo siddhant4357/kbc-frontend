@@ -110,25 +110,3 @@
   border-radius: 50%;
   border: 1px solid var(--kbc-gold);
 }
-
-/* Question image responsive styles */
-@media (max-width: 640px) {
-  .question-image {
-    margin-bottom: 0.5rem;
-    max-height: 180px;
-  }
-
-  .question-image > div {
-    height: 100% !important;
-    min-height: 120px;
-    max-height: 180px;
-  }
-
-  .kbc-question-box {
-    margin-top: 0.5rem;
-  }
-
-  .options-grid {
-    margin-top: 0.5rem;
-  }
-}

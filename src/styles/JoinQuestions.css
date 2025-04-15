@@ -797,36 +797,6 @@ body {
   backdrop-filter: blur(10px);
   max-height: 30vh;
   overflow-y: auto;
-  max-width: 100%;
-  width: 100%;
-  margin: 0.5rem auto;
-  padding: 1rem;
-  word-break: break-word;
-}
-
-@media (max-width: 640px) {
-  .kbc-question-box {
-    font-size: 0.875rem;
-    padding: 0.75rem;
-    margin: 0.25rem auto;
-  }
-
-  .kbc-question-box h2 {
-    font-size: 1rem;
-    margin-bottom: 0.5rem;
-  }
-
-  .kbc-question-box p {
-    font-size: 0.875rem;
-    line-height: 1.4;
-  }
-}
-
-@media (max-width: 360px) {
-  .kbc-question-box {
-    padding: 0.5rem;
-    max-height: 35vh;
-  }
 }
 
 .kbc-card {
