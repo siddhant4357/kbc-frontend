@@ -726,40 +726,42 @@ const JoinQuestions = () => {
           </div>
         </div>
         <div className="hidden lg:block w-80 fixed left-8 top-16 order-1"> {/* Changed from top-24 to top-16 */}
-          <div className="kbc-question-box p-2 shadow-glow relative"> {/* Reduced padding from p-3 to p-2 */}
-            <h3 className="text-kbc-gold text-sm font-bold text-center mb-1"> {/* Reduced text size and margin */}
+          <div className="kbc-question-box p-1 shadow-glow relative"> {/* Reduced padding from p-3 to p-2 */}
+            <h3 className="text-kbc-gold text-xs font-bold text-center mb-1"> {/* Reduced text and margin */}
               Timer Controls
             </h3>
             {!showOptions ? (
-              <div className="flex flex-col items-center gap-2">
+              <div className="flex flex-col items-center gap-1"> {/* Reduced gap from gap-2 to gap-1 */}
                 <input
                   type="number"
                   min="5"
                   max="60"
                   value={customTimerInput}
                   onChange={(e) => setCustomTimerInput(Number(e.target.value))}
-                  className="kbc-input w-20 text-sm h-8 py-1 px-2"
+                  
+                  className="kbc-input w-20 text-sm h-7 py-1 px-2"
                   placeholder="Seconds"
                 />
                 <button
                   onClick={handleShowOptions}
-                  className="kbc-button1 text-sm h-8 py-1 px-4 w-full"
+                 
+                  className="kbc-button1 text-sm h-7 py-1 px-4 w-full"
                 >
                   Start Timer
                 </button>
               </div>
             ) : (
-              <div className="flex flex-col items-center gap-2">
+              <div className="flex flex-col items-center gap-1"> {/* Reduced gap */}
                 <button
                   onClick={handleInfiniteTimer}
-                  className={`kbc-button w-8 h-8 flex items-center justify-center text-sm rounded-full ${
+                  className={`kbc-button w-7 h-7 flex items-center justify-center text-sm rounded-full ${
                     isInfiniteTimer ? 'bg-green-600 hover:bg-green-700' : ''
                   }`}
                   title={isInfiniteTimer ? 'Timer is infinite' : 'Click to make timer infinite'}
                 >
                   {isInfiniteTimer ? '∞' : '⏸'}
                 </button>
-                <div className="relative w-20 h-20"> {/* Increased from w-14 h-14 to w-20 h-20 */}
+                <div className="relative w-16 h-16"> {/* Changed from w-14 h-14 to w-16 h-16 */}
                   <svg className="w-full h-full transform -rotate-90" viewBox="0 0 100 100">
                     <circle
                       cx="50"
@@ -782,7 +784,7 @@ const JoinQuestions = () => {
                       style={{ transition: 'stroke-dashoffset 1s linear' }}
                     />
                   </svg>
-                  <span className="absolute inset-0 flex items-center justify-center text-xl font-bold text-kbc-gold"> {/* Increased text size */}
+                  <span className="absolute inset-0 flex items-center justify-center text-base font-bold text-kbc-gold"> {/* Changed from text-lg */}
                     {isInfiniteTimer ? '∞' : formatTime(timeLeft)}
                   </span>
                 </div>
