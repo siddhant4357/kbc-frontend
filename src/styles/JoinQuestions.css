@@ -795,13 +795,28 @@ body {
   border-radius: 0.75rem;
   box-shadow: 0 0 20px rgba(28, 63, 170, 0.3), inset 0 0 15px rgba(28, 63, 170, 0.3);
   backdrop-filter: blur(10px);
-  max-height: 30vh;
+  max-height: min(30vh, 300px);
   overflow-y: auto;
+  scrollbar-width: thin;
+  scrollbar-color: var(--kbc-gold) transparent;
   max-width: 100%;
   width: 100%;
   margin: 0.5rem auto;
   padding: 1rem;
   word-break: break-word;
+}
+
+.kbc-question-box::-webkit-scrollbar {
+  width: 6px;
+}
+
+.kbc-question-box::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.kbc-question-box::-webkit-scrollbar-thumb {
+  background-color: var(--kbc-gold);
+  border-radius: 3px;
 }
 
 @media (max-width: 640px) {
