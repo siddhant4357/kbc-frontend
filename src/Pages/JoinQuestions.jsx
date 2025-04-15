@@ -441,39 +441,90 @@ const JoinQuestions = () => {
         <div className="flex-1 flex flex-col lg:pl-80 lg:pr-80 order-2 lg:order-1 pb-4">
           <div className="block lg:hidden mb-4">
             <div className="kbc-question-box lg:hidden p-3 shadow-glow">
-              <div className="flex justify-around items-center gap-2">
-                <div className="relative">
-                  <button
-                    onClick={() => handleLifeline('fiftyFifty')}
-                    disabled={!lifelines.fiftyFifty}
-                    className={`kbc-button w-10 h-10 flex items-center justify-center text-xs ${
-                      !lifelines.fiftyFifty ? 'opacity-50 cursor-not-allowed' : ''
-                    }`}
-                  >
-                    50:50
-                  </button>
-                  {!lifelines.fiftyFifty && (
-                    <div className="absolute inset-0 flex items-center justify-center">
-                      <span className="text-red-500 text-xl font-bold transform rotate-90">×</span>
+              <div className="flex flex-col items-center gap-2">
+                {!showOptions ? (
+                  <>
+                    <div className="flex items-center gap-2">
+                      <input
+                        type="number"
+                        min="5"
+                        max="60"
+                        value={customTimerInput}
+                        onChange={(e) => setCustomTimerInput(Number(e.target.value))}
+                        className="kbc-input w-16 text-sm h-8 py-1 px-2"
+                        placeholder="Sec"
+                      />
+                      <button
+                        onClick={handleShowOptions}
+                        className="kbc-button1 text-sm h-8 py-1 px-2"
+                      >
+                        Start
+                      </button>
                     </div>
-                  )}
-                </div>
-
-                <div className="relative">
-                  <button
-                    onClick={() => handleLifeline('askAudience')}
-                    disabled={!lifelines.askAudience}
-                    className={`kbc-button w-10 h-10 flex items-center justify-center text-xs ${
-                      !lifelines.askAudience ? 'opacity-50 cursor-not-allowed' : ''
-                    }`}
-                  >
-                    👥
-                  </button>
-                  {!lifelines.askAudience && (
-                    <div className="absolute inset-0 flex items-center justify-center">
-                      <span className="text-red-500 text-xl font-bold transform rotate-90">×</span>
+                  </>
+                ) : (
+                  <div className="flex items-center gap-4">
+                    <button
+                      onClick={handleInfiniteTimer}
+                      className={`kbc-button w-8 h-8 flex items-center justify-center text-sm rounded-full ${
+                        isInfiniteTimer ? 'bg-green-600 hover:bg-green-700' : ''
+                      }`}
+                      title={isInfiniteTimer ? 'Timer is infinite' : 'Click to make timer infinite'}
+                    >
+                      {isInfiniteTimer ? '∞' : '⏸'}
+                    </button>
+                    <div className="relative w-12 h-12">
+                      <svg className="w-full h-full transform -rotate-90" viewBox="0 0 100 100">
+                        <circle
+                          cx="50"
+                          cy="50"
+                          r="45"
+                          fill="transparent"
+                          stroke="rgba(255, 184, 0, 0.2)"
+                          strokeWidth="8"
+                        />
+                        <circle
+                          cx="50"
+                          cy="50"
+                          r="45"
+                          fill="transparent"
+                          stroke="var(--kbc-gold)"
+                          strokeWidth="8"
+                          strokeLinecap="round"
+                          strokeDasharray={`${2 * Math.PI * 45}`}
+                          strokeDashoffset={`${(1 - timeLeft / timerDuration) * 2 * Math.PI * 45}`}
+                          style={{ transition: 'stroke-dashoffset 1s linear' }}
+                        />
+                      </svg>
+                      <span className="absolute inset-0 flex items-center justify-center text-sm font-bold text-kbc-gold">
+                        {isInfiniteTimer ? '∞' : formatTime(timeLeft)}
+                      </span>
                     </div>
-                  )}
+                  </div>
+                )}
+                <div className="flex justify-around items-center gap-4 mt-2">
+                  <div className="relative">
+                    <button
+                      onClick={() => handleLifeline('fiftyFifty')}
+                      disabled={!lifelines.fiftyFifty}
+                      className={`kbc-button w-10 h-10 flex items-center justify-center text-xs ${
+                        !lifelines.fiftyFifty ? 'opacity-50 cursor-not-allowed' : ''
+                      }`}
+                    >
+                      50:50
+                    </button>
+                  </div>
+                  <div className="relative">
+                    <button
+                      onClick={() => handleLifeline('askAudience')}
+                      disabled={!lifelines.askAudience}
+                      className={`kbc-button w-10 h-10 flex items-center justify-center text-xs ${
+                        !lifelines.askAudience ? 'opacity-50 cursor-not-allowed' : ''
+                      }`}
+                    >
+                      👥
+                    </button>
+                  </div>
                 </div>
               </div>
             </div>
@@ -677,7 +728,7 @@ const JoinQuestions = () => {
         <div className="hidden lg:block w-80 fixed left-8 top-24 order-1">
           <div className="kbc-question-box p-3 shadow-glow relative">
             <h3 className="text-kbc-gold text-base font-bold text-center mb-2">Timer Controls</h3>
-            { !showOptions ? (
+            {!showOptions ? (
               <div className="flex flex-col items-center gap-2">
                 <input
                   type="number"
@@ -699,14 +750,14 @@ const JoinQuestions = () => {
               <div className="flex flex-col items-center gap-2">
                 <button
                   onClick={handleInfiniteTimer}
-                  className={`kbc-button w-10 h-10 flex items-center justify-center text-sm rounded-full ${
+                  className={`kbc-button w-8 h-8 flex items-center justify-center text-sm rounded-full ${
                     isInfiniteTimer ? 'bg-green-600 hover:bg-green-700' : ''
                   }`}
                   title={isInfiniteTimer ? 'Timer is infinite' : 'Click to make timer infinite'}
                 >
                   {isInfiniteTimer ? '∞' : '⏸'}
                 </button>
-                <div className="relative w-24 h-24">
+                <div className="relative w-14 h-14">
                   <svg className="w-full h-full transform -rotate-90" viewBox="0 0 100 100">
                     <circle
                       cx="50"
@@ -729,7 +780,7 @@ const JoinQuestions = () => {
                       style={{ transition: 'stroke-dashoffset 1s linear' }}
                     />
                   </svg>
-                  <span className="absolute inset-0 flex items-center justify-center text-xl font-bold text-kbc-gold">
+                  <span className="absolute inset-0 flex items-center justify-center text-lg font-bold text-kbc-gold">
                     {isInfiniteTimer ? '∞' : formatTime(timeLeft)}
                   </span>
                 </div>
