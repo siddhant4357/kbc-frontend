@@ -804,10 +804,10 @@ const PlayGame = () => {
           {currentQuestion && (
             <>
               <div className="question-image mb-4 flex justify-center transition-all duration-300">
-                <div className={`relative w-full max-w-xl ${
+                <div className={`relative w-full max-w-sm ${
                   showOptions || (selectedOption && !lockedAnswer) 
-                    ? 'h-28 sm:h-40 lg:h-66' // Reduced height for mobile
-                    : 'h-40 sm:h-64 lg:h-88' // Adjusted height for mobile
+                    ? 'h-32 sm:h-40' // Adjusted height for mobile
+                    : 'h-40 sm:h-64' // Adjusted height for mobile
                 }`}>
                   <ImageErrorBoundary>
                     <QuestionImage imageUrl={currentQuestion.imageUrl} />
@@ -815,11 +815,11 @@ const PlayGame = () => {
                 </div>
               </div>
 
-              <div className="kbc-question-box p-4 sm:p-6 shadow-glow mb-4 max-w-3xl mx-auto w-full">
-                <h2 className="text-xl text-kbc-gold mb-3">
+              <div className="kbc-question-box p-3 sm:p-4 shadow-glow mb-4 max-w-sm mx-auto w-full">
+                <h2 className="text-lg text-kbc-gold mb-2">
                   Question {(parseInt(currentQuestion.questionIndex ?? 0) + 1)}
                 </h2>
-                <p className="text-white text-lg mb-3">{currentQuestion.question}</p>
+                <p className="text-white text-base mb-2">{currentQuestion.question}</p>
               </div>
             </>
           )}

@@ -15,13 +15,22 @@ const RECONNECT_DELAY = 2000;
 
 const getImageUrl = (imageUrl) => {
   if (!imageUrl || imageUrl === '') return defaultQuestionImage;
-  if (imageUrl.startsWith('http') || imageUrl.startsWith('data:')) return imageUrl;
 
   try {
-    const cleanUrl = imageUrl.replace(/([^:])\/+/g, '$1/');
-    if (cleanUrl.includes('uploads/questions/')) {
+    // Ensure the URL is properly formatted
+    const cleanUrl = imageUrl.replace(/([^:]\/)\/+/g, "$1");
+
+    // Handle absolute URLs (e.g., starting with http or https)
+    if (cleanUrl.startsWith('http') || cleanUrl.startsWith('data:')) {
+      return cleanUrl;
+    }
+
+    // Handle relative paths (e.g., uploads/questions/)
+    if (cleanUrl.startsWith('/uploads/questions/')) {
       return `${API_URL}${cleanUrl}`;
     }
+
+    // Fallback for other cases
     return `${API_URL}/${cleanUrl}`;
   } catch (error) {
     console.error('Error formatting image URL:', error);
@@ -58,7 +67,15 @@ const ImageErrorBoundary = React.memo(({ children }) => {
 });
 
 const QuestionImage = React.memo(({ imageUrl }) => {
-  const [imgSrc, setImgSrc] = useState(() => getImageUrl(imageUrl));
+  const [imgSrc, setImgSrc] = useState(() => {
+    if (imageUrl?.startsWith('http') || imageUrl?.startsWith('data:')) {
+      return imageUrl;
+    }
+    if (imageUrl?.startsWith('/uploads/questions/')) {
+      return `${API_URL}${imageUrl}`;
+    }
+    return defaultQuestionImage;
+  });
   const [hasError, setHasError] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
   const retryCount = useRef(0);
@@ -94,6 +111,7 @@ const QuestionImage = React.memo(({ imageUrl }) => {
         className={`w-full h-full object-contain rounded-lg shadow-glow transition-opacity duration-300 ${
           isLoading ? 'opacity-0' : 'opacity-100'
         }`}
+        style={{ maxHeight: '100%' }} // Add this line
         onError={handleError}
         onLoad={() => {
           setIsLoading(false);
@@ -217,6 +235,46 @@ const PlayGame = () => {
       return;
     }
 
+    // Handle options state with timer
+    if ('showOptions' in state) {
+      const shouldShowOptions = Boolean(state.showOptions);
+      if (shouldShowOptions !== showOptions) {
+        setShowOptions(shouldShowOptions);
+        if (shouldShowOptions) {
+          // Ensure we're using the admin's selected timer duration
+          const adminTimerDuration = parseInt(state.timerDuration) || 15;
+          const timerStart = parseInt(state.timerStartedAt);
+          
+          // Ensure we have valid timestamps
+          if (!isNaN(timerStart)) {
+            setTimerStartedAt(timerStart);
+            setTimerDuration(adminTimerDuration);
+            
+            // Calculate initial time left
+            const now = Date.now();
+            const elapsedSeconds = Math.floor((now - timerStart) / 1000);
+            const remainingSeconds = Math.max(0, adminTimerDuration - elapsedSeconds);
+
+            // Fallback for mobile rendering delays
+            if (remainingSeconds <= 0) {
+              setTimeLeft(0);
+              setIsTimerExpired(true);
+            } else {
+              setTimeLeft(remainingSeconds);
+            }
+          }
+          setIsTimerExpired(false);
+        }
+      }
+    }
+
+    // Update timer duration if it changes
+    if (state.timerDuration && state.timerDuration !== timerDuration) {
+      const newDuration = parseInt(state.timerDuration);
+      setTimerDuration(newDuration);
+      setTimeLeft(newDuration);
+    }
+
     // Handle question changes
     if (state.currentQuestion) {
       const newQuestionIndex = parseInt(state.currentQuestion.questionIndex ?? 0);
@@ -224,26 +282,30 @@ const PlayGame = () => {
 
       if (newQuestionIndex !== currentQuestionIndex) {
         setCurrentQuestion(state.currentQuestion);
+
         // Reset states when question changes
         setShowOptions(false);
         setShowAnswer(false);
         setSelectedOption(null);
         setLockedAnswer(null); // Ensure lockedAnswer is reset
-        setTimeLeft(state.timerDuration || 15);
-        setIsTimerExpired(false);
-      }
-    }
 
-    // Handle options state
-    if ('showOptions' in state) {
-      const shouldShowOptions = Boolean(state.showOptions);
-      if (shouldShowOptions !== showOptions) {
-        setShowOptions(shouldShowOptions);
-        if (shouldShowOptions) {
-          setTimerStartedAt(state.timerStartedAt);
-          setTimerDuration(state.timerDuration || 15);
-          setTimeLeft(state.timerDuration || 15);
+        // Reset timer based on admin's configuration
+        const adminTimerDuration = parseInt(state.timerDuration) || 15;
+        const timerStart = parseInt(state.timerStartedAt);
+
+        if (!isNaN(timerStart)) {
+          setTimerStartedAt(timerStart);
+          setTimerDuration(adminTimerDuration);
+
+          // Calculate initial time left
+          const now = Date.now();
+          const elapsedSeconds = Math.floor((now - timerStart) / 1000);
+          const remainingSeconds = Math.max(0, adminTimerDuration - elapsedSeconds);
+
+          setTimeLeft(remainingSeconds);
           setIsTimerExpired(false);
+        } else {
+          console.error('Invalid timerStart value:', timerStart);
         }
       }
     }
@@ -258,7 +320,7 @@ const PlayGame = () => {
       setGameToken(state.gameToken);
       localStorage.setItem(`game_${id}_token`, state.gameToken);
     }
-  }, [id, gameToken, gameStopped, navigate, currentQuestion, showOptions, showAnswer, isInitialized]);
+  }, [id, gameToken, gameStopped, navigate, currentQuestion, showOptions, showAnswer, isInitialized, timerDuration]);
 
   const debouncedProcessGameState = useCallback(
     debounce((state) => {
@@ -336,12 +398,14 @@ const PlayGame = () => {
 
   useEffect(() => {
     let interval;
+
     if (timerStartedAt && showOptions && !isTimerExpired && !lockedAnswer) {
-      interval = setInterval(() => {
-        const now = new Date();
-        const startTime = new Date(timerStartedAt);
+      const startTime = parseInt(timerStartedAt);
+
+      const updateTimer = () => {
+        const now = Date.now();
         const elapsedSeconds = Math.floor((now - startTime) / 1000);
-        const remainingSeconds = timerDuration - elapsedSeconds;
+        const remainingSeconds = Math.max(0, timerDuration - elapsedSeconds);
 
         if (remainingSeconds <= 0) {
           setTimeLeft(0);
@@ -353,7 +417,13 @@ const PlayGame = () => {
         } else {
           setTimeLeft(remainingSeconds);
         }
-      }, 1000);
+      };
+
+      // Initial update
+      updateTimer();
+
+      // Update every 500ms for smoother countdown
+      interval = setInterval(updateTimer, 500);
     }
 
     return () => {
@@ -361,7 +431,7 @@ const PlayGame = () => {
         clearInterval(interval);
       }
     };
-  }, [timerStartedAt, timerDuration, showOptions, lockedAnswer, isTimerExpired]);
+  }, [timerStartedAt, timerDuration, showOptions, lockedAnswer, isTimerExpired, currentQuestion]);
 
   useEffect(() => {
     return () => {
@@ -461,6 +531,16 @@ const PlayGame = () => {
       }
     };
   }, [batchedFirebaseUpdate]);
+
+  useEffect(() => {
+    console.log('Timer Debug:', {
+      timerStartedAt,
+      timerDuration,
+      timeLeft,
+      isTimerExpired,
+      currentQuestion,
+    });
+  }, [timerStartedAt, timerDuration, timeLeft, isTimerExpired, currentQuestion]);
 
   const handleOptionSelect = useCallback((option) => {
     if (!showAnswer && !lockedAnswer && timeLeft > 0) {
@@ -726,8 +806,8 @@ const PlayGame = () => {
               <div className="question-image mb-4 flex justify-center transition-all duration-300">
                 <div className={`relative w-full max-w-xl ${
                   showOptions || (selectedOption && !lockedAnswer) 
-                    ? 'h-32 sm:h-40 lg:h-66'
-                    : 'h-48 sm:h-64 lg:h-88'
+                    ? 'h-28 sm:h-40 lg:h-66' // Reduced height for mobile
+                    : 'h-40 sm:h-64 lg:h-88' // Adjusted height for mobile
                 }`}>
                   <ImageErrorBoundary>
                     <QuestionImage imageUrl={currentQuestion.imageUrl} />

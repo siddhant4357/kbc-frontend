@@ -1464,3 +1464,22 @@ body {
     padding-bottom: max(0.75rem, env(safe-area-inset-bottom));
   }
 }
+
+@media (max-width: 640px) {
+  .question-image {
+    margin: 0 auto 1rem;
+    max-width: 90%; /* Ensure it fits within the screen */
+    height: auto; /* Allow height to adjust dynamically */
+  }
+
+  .question-image img {
+    object-fit: contain;
+    max-height: 200px; /* Limit the height for mobile */
+  }
+
+  .kbc-question-box {
+    margin: 0 auto;
+    max-width: 90%; /* Ensure it fits within the screen */
+    font-size: 0.875rem; /* Slightly smaller font size for mobile */
+  }
+}
