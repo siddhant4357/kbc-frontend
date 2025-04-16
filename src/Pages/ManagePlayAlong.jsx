@@ -13,7 +13,7 @@ const ManagePlayAlong = () => {
   const [gameStarted, setGameStarted] = useState(false);
   const [isButtonPressed, setIsButtonPressed] = useState('');
   const [success, setSuccess] = useState('');
-  const [timerDuration, setTimerDuration] = useState(15);
+  const [timerDuration, setTimerDuration] = useState(30);
   const [pollInterval, setPollInterval] = useState(null);
   const [error, setError] = useState(null);
   const navigate = useNavigate();
@@ -553,7 +553,7 @@ const ManagePlayAlong = () => {
                           <input
                             type="number"
                             min="5"
-                            max="60"
+                            max="200"
                             value={timerDuration}
                             onChange={(e) => setTimerDuration(e.target.value)}
                             style={styles.timerInput}
