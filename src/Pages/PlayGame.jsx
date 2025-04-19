@@ -200,7 +200,7 @@ const PlayGame = () => {
   const [gameToken, setGameToken] = useState(() => localStorage.getItem(`game_${id}_token`));
   const [timeLeft, setTimeLeft] = useState(30);
   const [timerStartedAt, setTimerStartedAt] = useState(null);
-  const [timerDuration, setTimerDuration] = useState(15);
+  const [timerDuration, setTimerDuration] = useState(30);
   const [isTimerExpired, setIsTimerExpired] = useState(false);
   const [isWaiting, setIsWaiting] = useState(true);
   const { gameState: firebaseGameState, error: firebaseError, isInitialized, isConnected } = useFirebaseGameState(id);
@@ -211,6 +211,9 @@ const PlayGame = () => {
   const batchTimeoutRef = useRef(null);
   const [showExitDialog, setShowExitDialog] = useState(false);
   const [isExiting, setIsExiting] = useState(false);
+  const [timerStarted, setTimerStarted] = useState(false);
+  const [currentQuestionIndex, setCurrentQuestionIndex] = useState(null);
+  const [selectedBank, setSelectedBank] = useState(null);
 
   const processGameState = useCallback(async (state) => {
     if (!state || isNavigatingRef.current || !isInitialized) return;
@@ -242,7 +245,7 @@ const PlayGame = () => {
         setShowOptions(shouldShowOptions);
         if (shouldShowOptions) {
           // Ensure we're using the admin's selected timer duration
-          const adminTimerDuration = parseInt(state.timerDuration) || 15;
+          const adminTimerDuration = parseInt(state.timerDuration) || 30;
           const timerStart = parseInt(state.timerStartedAt);
           
           // Ensure we have valid timestamps
@@ -290,7 +293,7 @@ const PlayGame = () => {
         setLockedAnswer(null); // Ensure lockedAnswer is reset
 
         // Reset timer based on admin's configuration
-        const adminTimerDuration = parseInt(state.timerDuration) || 15;
+        const adminTimerDuration = parseInt(state.timerDuration) || 30;
         const timerStart = parseInt(state.timerStartedAt);
 
         if (!isNaN(timerStart)) {
@@ -541,6 +544,49 @@ const PlayGame = () => {
       currentQuestion,
     });
   }, [timerStartedAt, timerDuration, timeLeft, isTimerExpired, currentQuestion]);
+
+  useEffect(() => {
+    if (currentQuestionIndex !== null) {
+      const adminTimerDuration = parseInt(selectedBank?.timerDuration) || 30;
+      setTimeLeft(adminTimerDuration);
+      setTimerStarted(false);
+      setIsTimerExpired(false);
+    }
+  }, [currentQuestionIndex]);
+
+  useEffect(() => {
+    let timer;
+    if (timerStarted && timeLeft > 0) {
+      timer = setInterval(() => {
+        setTimeLeft((prev) => {
+          if (prev <= 1) {
+            clearInterval(timer);
+            handleTimerEnd();
+            return 0;
+          }
+          return prev - 1;
+        });
+      }, 1000);
+    }
+    return () => clearInterval(timer);
+  }, [timerStarted, timeLeft]);
+
+  const handleTimerEnd = () => {
+    setIsTimerExpired(true);
+    setTimerStarted(false);
+    setTimeLeft(0); // Set to 0 for the current question
+
+    // Automatically reset the timer for the next question
+    if (currentQuestionIndex < selectedBank.questions.length - 1) {
+      const adminTimerDuration = parseInt(selectedBank?.timerDuration) || 30;
+      setTimeout(() => {
+        setCurrentQuestionIndex(currentQuestionIndex + 1);
+        setTimeLeft(adminTimerDuration);
+        setTimerStarted(false);
+        setIsTimerExpired(false);
+      }, 1000); // Add a small delay to ensure smooth transition
+    }
+  };
 
   const handleOptionSelect = useCallback((option) => {
     if (!showAnswer && !lockedAnswer && timeLeft > 0) {
