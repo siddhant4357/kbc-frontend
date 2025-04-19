@@ -238,6 +238,17 @@ const PlayAlong = () => {
     setIsTimerExpired(true);
     setTimerStarted(false);
     setTimeLeft(0); // Set to 0 for the current question
+
+    // Automatically reset the timer for the next question
+    if (currentQuestionIndex < selectedBank.questions.length - 1) {
+      const adminTimerDuration = parseInt(selectedBank?.timerDuration) || 30;
+      setTimeout(() => {
+        setCurrentQuestionIndex(currentQuestionIndex + 1);
+        setTimeLeft(adminTimerDuration);
+        setTimerStarted(false);
+        setIsTimerExpired(false);
+      }, 1000); // Add a small delay to ensure smooth transition
+    }
   };
 
   // Reset timer for the next question
@@ -272,6 +283,23 @@ const PlayAlong = () => {
       setIsTimerExpired(false);
     }
   }, [currentQuestionIndex]);
+
+  useEffect(() => {
+    let timer;
+    if (timerStarted && timeLeft > 0) {
+      timer = setInterval(() => {
+        setTimeLeft((prev) => {
+          if (prev <= 1) {
+            clearInterval(timer);
+            handleTimerEnd();
+            return 0;
+          }
+          return prev - 1;
+        });
+      }, 1000);
+    }
+    return () => clearInterval(timer);
+  }, [timerStarted, timeLeft]);
 
   return (
     <div style={styles.pageContainer}>
