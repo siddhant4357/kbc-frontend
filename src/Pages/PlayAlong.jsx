@@ -9,6 +9,10 @@ const PlayAlong = () => {
   const [passcode, setPasscode] = useState('');
   const [error, setError] = useState('');
   const [isLoading, setIsLoading] = useState(false);
+  const [timeLeft, setTimeLeft] = useState(0);
+  const [timerStarted, setTimerStarted] = useState(false);
+  const [isTimerExpired, setIsTimerExpired] = useState(false);
+  const [currentQuestionIndex, setCurrentQuestionIndex] = useState(null);
   const navigate = useNavigate();
 
   const colors = {
@@ -230,9 +234,44 @@ const PlayAlong = () => {
     }
   };
 
+  const handleTimerEnd = () => {
+    setIsTimerExpired(true);
+    setTimerStarted(false);
+    setTimeLeft(0); // Set to 0 for the current question
+  };
+
+  // Reset timer for the next question
+  const handleNextQuestion = () => {
+    if (currentQuestionIndex < selectedBank.questions.length - 1) {
+      setCurrentQuestionIndex(currentQuestionIndex + 1);
+      const adminTimerDuration = parseInt(selectedBank?.timerDuration) || 15;
+      setTimeLeft(adminTimerDuration);
+      setTimerStarted(false);
+      setIsTimerExpired(false);
+    }
+  };
+
   useEffect(() => {
     fetchQuestionBanks();
   }, []);
+
+  useEffect(() => {
+    if (selectedBank && selectedBank.questions) {
+      const adminTimerDuration = parseInt(selectedBank.timerDuration) || 30; // Default to 30 seconds if not provided
+      setTimeLeft(adminTimerDuration); // Reset the timer for the new question
+      setTimerStarted(false); // Ensure the timer is not running initially
+      setIsTimerExpired(false); // Reset the timer expiration state
+    }
+  }, [selectedBank]);
+
+  useEffect(() => {
+    if (currentQuestionIndex !== null) {
+      const adminTimerDuration = parseInt(selectedBank?.timerDuration) || 15;
+      setTimeLeft(adminTimerDuration);
+      setTimerStarted(false);
+      setIsTimerExpired(false);
+    }
+  }, [currentQuestionIndex]);
 
   return (
     <div style={styles.pageContainer}>
