@@ -562,11 +562,11 @@ const PlayGame = () => {
     }
   };
 
-  const handleOptionSelect = useCallback((option) => {
+  const handleOptionSelect = (option) => {
     if (!showAnswer && !lockedAnswer && timeLeft > 0) {
       setSelectedOption(option);
     }
-  }, [showAnswer, lockedAnswer, timeLeft]);
+  };
 
   const handleLockAnswer = useCallback(async () => {
     if (!selectedOption || showAnswer || timeLeft <= 0) return;
@@ -659,7 +659,7 @@ const PlayGame = () => {
         return await operation();
       } catch (error) {
         if (i === maxRetries - 1) throw error;
-        await new Promise(resolve => setTimeout(resolve, Math.pow(2, i) * 1000));
+        await new Promise(resolve => setTimeout(resolve, Math.pow(2), 1000));
       }
     }
   };
@@ -687,6 +687,28 @@ const PlayGame = () => {
       console.error('Error during exit:', err);
       isNavigatingRef.current = false;
       setError('Failed to quit game. Please try again.');
+    }
+  };
+
+  const handleNextQuestion = async () => {
+    if (currentQuestionIndex < questionBank.questions.length - 1) {
+      await stopAllSounds();
+      setCurrentQuestionIndex(prev => prev + 1);
+      setShowOptions(true); // Changed from false to true
+      setSelectedOption(null);
+      setShowAnswer(false);
+      setTimerStarted(false);
+      setTimeLeft(timerDuration);
+      setLockedAnswer(null);
+      setTimeExpired(false);
+      setContinuePlaying(false);
+      setHiddenOptions([]);
+      setIsTimerStopped(false);
+      
+      // Optional: If you want the timer to automatically start for next question
+      setTimerStarted(true);
+    } else if (lockedAnswer === currentQuestion?.correctAnswer) {
+      // existing code...
     }
   };
 
