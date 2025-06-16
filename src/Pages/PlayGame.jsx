@@ -562,11 +562,12 @@ const PlayGame = () => {
     }
   };
 
-  const handleOptionSelect = (option) => {
-    if (!showAnswer && !lockedAnswer && timeLeft > 0) {
-      setSelectedOption(option);
-    }
-  };
+ const handleOptionSelect = (option) => {
+  // Use showOptions instead of timeLeft > 0 to determine if selections are allowed
+  if (!showAnswer && !lockedAnswer && showOptions) {
+    setSelectedOption(option);
+  }
+};
 
   const handleLockAnswer = useCallback(async () => {
     if (!selectedOption || showAnswer || timeLeft <= 0) return;
