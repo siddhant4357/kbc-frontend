@@ -704,8 +704,7 @@ const PlayGame = () => {
       setContinuePlaying(false);
       setHiddenOptions([]);
       setIsTimerStopped(false);
-      
-      // Optional: If you want the timer to automatically start for next question
+    
       setTimerStarted(true);
     } else if (lockedAnswer === currentQuestion?.correctAnswer) {
       // existing code...
