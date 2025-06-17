@@ -1,6 +1,5 @@
 import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
-import { DEFAULT_TIMER_DURATION } from '../utils/gameConfig';
 import { API_URL } from '../utils/config';
 import defaultQuestionImage from '../assets/default_img.jpg';
 import { useFirebaseGameState } from '../hooks/useFirebaseGameState';
@@ -180,21 +179,28 @@ const PlayGame = () => {
   const navigate = useNavigate();
   const user = JSON.parse(localStorage.getItem('user'));
 
-  // Existing state variables
   const [gameState, setGameState] = useState(null);
   const [error, setError] = useState('');
   const [currentQuestion, setCurrentQuestion] = useState(null);
+
+  useEffect(() => {
+    if (currentQuestion) {
+      // Reset answer states every time the question changes
+      setSelectedOption(null);
+      setLockedAnswer(null); // Ensure lockedAnswer is reset
+      setShowAnswer(false);
+    }
+  }, [currentQuestion?.questionIndex]);
+  
   const [showOptions, setShowOptions] = useState(false);
   const [showAnswer, setShowAnswer] = useState(false);
   const [selectedOption, setSelectedOption] = useState(null);
   const [lockedAnswer, setLockedAnswer] = useState(null);
   const [gameStopped, setGameStopped] = useState(false);
   const [gameToken, setGameToken] = useState(() => localStorage.getItem(`game_${id}_token`));
-  
-  // Timer related state variables
-  const [timeLeft, setTimeLeft] = useState(DEFAULT_TIMER_DURATION);
-  const [timerDuration, setTimerDuration] = useState(DEFAULT_TIMER_DURATION);
-  const [timerStarted, setTimerStarted] = useState(false);
+  const [timeLeft, setTimeLeft] = useState(30);
+  const [timerStartedAt, setTimerStartedAt] = useState(null);
+  const [timerDuration, setTimerDuration] = useState(30);
   const [isTimerExpired, setIsTimerExpired] = useState(false);
   const [isWaiting, setIsWaiting] = useState(true);
   const { gameState: firebaseGameState, error: firebaseError, isInitialized, isConnected } = useFirebaseGameState(id);
@@ -205,6 +211,7 @@ const PlayGame = () => {
   const batchTimeoutRef = useRef(null);
   const [showExitDialog, setShowExitDialog] = useState(false);
   const [isExiting, setIsExiting] = useState(false);
+  const [timerStarted, setTimerStarted] = useState(false);
   const [currentQuestionIndex, setCurrentQuestionIndex] = useState(null);
   const [selectedBank, setSelectedBank] = useState(null);
 
@@ -220,7 +227,7 @@ const PlayGame = () => {
       setShowOptions(false);
       setShowAnswer(false);
       setSelectedOption(null);
-      setLockedAnswer(null);
+      setLockedAnswer(null); // Reset lockedAnswer when the game stops
       setError('Game has been stopped by the admin');
       localStorage.removeItem(`game_${id}_token`);
       const timeout = setTimeout(() => navigate('/dashboard'), 2000);
@@ -231,44 +238,99 @@ const PlayGame = () => {
       return;
     }
 
-    // Handle question changes
+    // Handle question changes - MOVED THIS SECTION UP FOR PRIORITY
     if (state.currentQuestion) {
       const newQuestionIndex = parseInt(state.currentQuestion.questionIndex ?? 0);
       const currentQuestionIndex = parseInt(currentQuestion?.questionIndex ?? -1);
 
       if (newQuestionIndex !== currentQuestionIndex) {
-        setCurrentQuestion(state.currentQuestion);
+        console.log('Question changed from', currentQuestionIndex, 'to', newQuestionIndex);
         
-        // Reset all states when question changes
+        setCurrentQuestion(state.currentQuestion);
+
+        // Reset ALL states when question changes - CRITICAL FIX
         setShowOptions(false);
         setShowAnswer(false);
         setSelectedOption(null);
         setLockedAnswer(null);
-        setIsTimerExpired(false);
-        setTimerStarted(false);
+        setIsTimerExpired(false); // RESET TIMER EXPIRED STATE
+
+        // Reset timer based on admin's configuration
+        const adminTimerDuration = parseInt(state.timerDuration) || 30;
+        setTimerDuration(adminTimerDuration);
+        setTimeLeft(adminTimerDuration); // Set to full duration initially
         
-        // Always set timer to DEFAULT_TIMER_DURATION seconds for new questions
-        setTimerDuration(DEFAULT_TIMER_DURATION);
-        setTimeLeft(DEFAULT_TIMER_DURATION);
+        // Set timer start time if provided
+        if (state.timerStartedAt) {
+          const timerStart = parseInt(state.timerStartedAt);
+          if (!isNaN(timerStart)) {
+            setTimerStartedAt(timerStart);
+            
+            // Calculate actual time left based on when timer started
+            const now = Date.now();
+            const elapsedSeconds = Math.floor((now - timerStart) / 1000);
+            const remainingSeconds = Math.max(0, adminTimerDuration - elapsedSeconds);
+            
+            setTimeLeft(remainingSeconds);
+            
+            // Only set expired if truly no time left
+            if (remainingSeconds <= 0) {
+              setIsTimerExpired(true);
+            }
+          }
+        } else {
+          // No timer started yet, use full duration
+          setTimerStartedAt(null);
+          setTimeLeft(adminTimerDuration);
+        }
       }
     }
 
-    // Handle options state with local timer
+    // Handle options state with timer
     if ('showOptions' in state) {
       const shouldShowOptions = Boolean(state.showOptions);
       if (shouldShowOptions !== showOptions) {
         setShowOptions(shouldShowOptions);
         if (shouldShowOptions) {
-          // Start a timer when options are shown
-          setTimerDuration(DEFAULT_TIMER_DURATION);
-          setTimeLeft(DEFAULT_TIMER_DURATION);
-          setTimerStarted(true);
-          setIsTimerExpired(false);
+          // Ensure we're using the admin's selected timer duration
+          const adminTimerDuration = parseInt(state.timerDuration) || 30;
+          const timerStart = parseInt(state.timerStartedAt);
+          
+          // Ensure we have valid timestamps
+          if (!isNaN(timerStart)) {
+            setTimerStartedAt(timerStart);
+            setTimerDuration(adminTimerDuration);
+            
+            // Calculate initial time left
+            const now = Date.now();
+            const elapsedSeconds = Math.floor((now - timerStart) / 1000);
+            const remainingSeconds = Math.max(0, adminTimerDuration - elapsedSeconds);
+
+            setTimeLeft(remainingSeconds);
+            
+            // Reset expired state when showing options
+            if (remainingSeconds > 0) {
+              setIsTimerExpired(false);
+            } else {
+              setIsTimerExpired(true);
+            }
+          } else {
+            // No valid timer start, use full duration and reset expired state
+            setTimeLeft(adminTimerDuration);
+            setIsTimerExpired(false);
+          }
         }
       }
     }
 
-    // Handle answer reveal without affecting other states
+    // Update timer duration if it changes
+    if (state.timerDuration && state.timerDuration !== timerDuration) {
+      const newDuration = parseInt(state.timerDuration);
+      setTimerDuration(newDuration);
+      // Don't automatically set timeLeft here as it might override ongoing timer
+    }
+
+    // Handle answer reveal without resetting selection
     if (state.showAnswer && !showAnswer) {
       setShowAnswer(true);
     }
@@ -278,13 +340,13 @@ const PlayGame = () => {
       setGameToken(state.gameToken);
       localStorage.setItem(`game_${id}_token`, state.gameToken);
     }
-  }, [id, gameToken, gameStopped, navigate, currentQuestion, showOptions, showAnswer, isInitialized]);
-  
+  }, [id, gameToken, gameStopped, navigate, currentQuestion, showOptions, showAnswer, isInitialized, timerDuration]);
+
   const debouncedProcessGameState = useCallback(
     debounce((state) => {
       if (!state || isNavigatingRef.current || !isInitialized) return;
       processGameState(state).catch(console.error);
-    }, 500),
+    }, 300), // Reduced debounce time for faster response
     [processGameState]
   );
 
@@ -353,6 +415,45 @@ const PlayGame = () => {
       return () => clearTimeout(reconnectTimeout);
     }
   }, [isConnected, connectionAttempts]);
+
+  // IMPROVED TIMER EFFECT - This is the main fix
+  useEffect(() => {
+    let interval;
+
+    // Only run timer if we have valid conditions and timer hasn't expired
+    if (timerStartedAt && showOptions && !isTimerExpired && !lockedAnswer && !showAnswer) {
+      const startTime = parseInt(timerStartedAt);
+
+      const updateTimer = () => {
+        const now = Date.now();
+        const elapsedSeconds = Math.floor((now - startTime) / 1000);
+        const remainingSeconds = Math.max(0, timerDuration - elapsedSeconds);
+
+        if (remainingSeconds <= 0) {
+          setTimeLeft(0);
+          setIsTimerExpired(true);
+          if (!lockedAnswer) {
+            setSelectedOption(null);
+          }
+          clearInterval(interval);
+        } else {
+          setTimeLeft(remainingSeconds);
+        }
+      };
+
+      // Initial update
+      updateTimer();
+
+      // Update every 500ms for smoother countdown
+      interval = setInterval(updateTimer, 500);
+    }
+
+    return () => {
+      if (interval) {
+        clearInterval(interval);
+      }
+    };
+  }, [timerStartedAt, timerDuration, showOptions, lockedAnswer, isTimerExpired, showAnswer, currentQuestion]);
 
   useEffect(() => {
     return () => {
@@ -459,55 +560,25 @@ const PlayGame = () => {
       timerDuration,
       timeLeft,
       isTimerExpired,
-      currentQuestion,
+      showOptions,
+      currentQuestion: currentQuestion?.questionIndex,
     });
-  }, [timerStartedAt, timerDuration, timeLeft, isTimerExpired, currentQuestion]);
+  }, [timerStartedAt, timerDuration, timeLeft, isTimerExpired, showOptions, currentQuestion]);
 
- useEffect(() => {
-  if (currentQuestionIndex !== null) {
-    const adminTimerDuration = parseInt(selectedBank?.timerDuration) || 30;
-    setTimeLeft(adminTimerDuration); // Reset timer for the new question
-    setTimerStarted(false); // Ensure timer is not started immediately
-    setShowOptions(false); // Hide options initially
-    setLockedAnswer(null); // Reset locked answer
-    setSelectedOption(null); // Reset selected option
-    setShowAnswer(false); // Reset answer visibility
-    setIsTimerExpired(false); // Reset timer expiration state
-  }
-}, [currentQuestionIndex, selectedBank?.timerDuration]);
-
-  const handleTimerEnd = () => {
-    setIsTimerExpired(true);
-    setTimerStarted(false);
-    setTimeLeft(0); // Set to 0 for the current question
-
-    // Automatically reset the timer for the next question
-    if (currentQuestionIndex < selectedBank.questions.length - 1) {
-      const adminTimerDuration = parseInt(selectedBank?.timerDuration) || 30;
-      setTimeout(() => {
-        setCurrentQuestionIndex(currentQuestionIndex + 1);
-        setTimeLeft(adminTimerDuration);
-        setTimerStarted(false);
-        setShowOptions(false); // Ensure options are hidden initially
-        setLockedAnswer(null); // Reset locked answer
-        setSelectedOption(null); // Reset selected option
-        setShowAnswer(false); // Reset answer visibility
-      }, 1000); // Add a small delay to ensure smooth transition
-    }
-  };
+  // Remove the problematic timer effects that were causing conflicts
+  // These are the sections that were removed:
+  // - useEffect for currentQuestionIndex !== null
+  // - useEffect for timerStarted && timeLeft > 0
+  // - handleTimerEnd function
 
   const handleOptionSelect = useCallback((option) => {
-    // Allow selecting an option if:
-    // 1. Answer not shown yet
-    // 2. No answer locked yet
-    // 3. Timer still running
-    if (!showAnswer && !lockedAnswer && timeLeft > 0) {
+    if (!showAnswer && !lockedAnswer && timeLeft > 0 && !isTimerExpired) {
       setSelectedOption(option);
     }
-  }, [showAnswer, lockedAnswer, timeLeft]);
+  }, [showAnswer, lockedAnswer, timeLeft, isTimerExpired]);
 
   const handleLockAnswer = useCallback(async () => {
-    if (!selectedOption || showAnswer || timeLeft <= 0) return;
+    if (!selectedOption || showAnswer || timeLeft <= 0 || isTimerExpired) return;
 
     try {
       const isCorrect = selectedOption === currentQuestion.correctAnswer;
@@ -559,7 +630,7 @@ const PlayGame = () => {
       setError('Failed to submit answer. Please try again.');
       setLockedAnswer(null);
     }
-  }, [selectedOption, showAnswer, timeLeft, currentQuestion, user, batchedFirebaseUpdate]);
+  }, [selectedOption, showAnswer, timeLeft, isTimerExpired, currentQuestion, user, batchedFirebaseUpdate]);
 
   const handleExit = () => {
     setShowExitDialog(true);
@@ -597,7 +668,7 @@ const PlayGame = () => {
         return await operation();
       } catch (error) {
         if (i === maxRetries - 1) throw error;
-        await new Promise(resolve => setTimeout(resolve, Math.pow(2), 1000));
+        await new Promise(resolve => setTimeout(resolve, Math.pow(2, i) * 1000));
       }
     }
   };
@@ -627,28 +698,6 @@ const PlayGame = () => {
       setError('Failed to quit game. Please try again.');
     }
   };
-
-  const handleNextQuestion = async () => {
-  if (currentQuestionIndex < questionBank.questions.length - 1) {
-    await stopAllSounds();
-    setCurrentQuestionIndex(prev => prev + 1);
-    setShowOptions(true); // Show options immediately for the next question
-    setSelectedOption(null);
-    setShowAnswer(false);
-    setTimerStarted(true); // Start timer immediately
-    setTimeLeft(30); // Always reset to 30 seconds
-    setTimerDuration(30); 
-    setLockedAnswer(null);
-    setTimeExpired(false);
-    setContinuePlaying(false);
-    setHiddenOptions([]);
-    setIsTimerStopped(false);
-  } else if (lockedAnswer === currentQuestion?.correctAnswer) {
-    // Handle game completion
-    setGameEndMessage('Congratulations! You have successfully completed the game! 🎉');
-    setShowGameEndPopup(true);
-  }
-};
 
   if (!isInitialized) {
     return (
@@ -730,33 +779,6 @@ const PlayGame = () => {
       </div>
     );
   }
-  // Replace your current timer useEffect with this implementation
-useEffect(() => {
-  let timerInterval = null;
-  
-  // Start the timer when options are shown and no answer is locked yet
-  if (timerStarted && !lockedAnswer && !showAnswer && timeLeft > 0) {
-    timerInterval = setInterval(() => {
-      setTimeLeft(prevTime => {
-        const newTime = prevTime - 1;
-        if (newTime <= 0) {
-          clearInterval(timerInterval);
-          setIsTimerExpired(true);
-          setTimerStarted(false);
-          return 0;
-        }
-        return newTime;
-      });
-    }, 1000);
-  }
-  
-  // Clear interval when component unmounts or dependencies change
-  return () => {
-    if (timerInterval) {
-      clearInterval(timerInterval);
-    }
-  };
-}, [timerStarted, lockedAnswer, showAnswer]); // Remove timeLeft from dependencies
 
   return (
     <div className="game-container overflow-hidden">

@@ -86,7 +86,7 @@ const ManagePlayAlong = () => {
     },
     card: {
       background: `linear-gradient(135deg, ${colors.darkBlue}, ${colors.purple})`,
-      clipPath: `polygon(5% 0, 95% 0, 100% 5%, 100% 95%, 95% 100%, 5% 100%, 0 95%, 0 5%)`,
+      clipPath: 'polygon(5% 0, 95% 0, 100% 5%, 100% 95%, 95% 100%, 5% 100%, 0 95%, 0 5%)',
       border: `2px solid ${colors.lightBlue}`,
       boxShadow: `0 0 20px rgba(28, 63, 170, 0.3), inset 0 0 15px rgba(28, 63, 170, 0.3)`,
       padding: '1.5rem',
@@ -342,25 +342,16 @@ const ManagePlayAlong = () => {
   const showNextQuestion = async () => {
     if (gameStarted && currentQuestionIndex < selectedBank.questions.length - 1) {
       const nextIndex = currentQuestionIndex + 1;
-      
-      try {
-        await updateGameState({
-          currentQuestion: {
-            ...selectedBank.questions[nextIndex],
-            questionIndex: nextIndex,
-          },
-          showOptions: false,
-          showAnswer: false,
-          timerStartedAt: null,
-          timerDuration: parseInt(timerDuration) || 15,
-          // Add a flag to indicate this is a new question to help clients reset their state
-          isNewQuestion: true, 
-        });
-        setCurrentQuestionIndex(nextIndex);
-      } catch (err) {
-        console.error('Error showing next question:', err);
-        setError('Failed to show next question. Please try again.');
-      }
+      await updateGameState({
+        currentQuestion: {
+          ...selectedBank.questions[nextIndex],
+          questionIndex: nextIndex,
+        },
+        showOptions: false,
+        showAnswer: false,
+        timerStartedAt: null,
+      });
+      setCurrentQuestionIndex(nextIndex);
     }
     
   };
@@ -369,11 +360,15 @@ const ManagePlayAlong = () => {
     if (!gameStarted) return;
 
     try {
+      const duration = Math.max(5, parseInt(timerDuration) || 15);
+
       await updateGameState({
         showOptions: true,
+        timerStartedAt: Date.now(),
+        timerDuration: duration,
         updatedAt: Date.now(),
       });
-      console.log('Options shown successfully');
+      console.log('Options shown successfully with timer duration:', duration);
     } catch (err) {
       console.error('Error showing options:', err);
       setError('Failed to show options. Please try again.');
@@ -552,7 +547,28 @@ const ManagePlayAlong = () => {
                     </div>
 
                     <div style={useGridStyle}>
-                     
+                      <div style={styles.timerCard}>
+                        <label style={styles.timerLabel}>Timer Duration (seconds)</label>
+                        <div style={styles.timerInputContainer}>
+                          <input
+                            type="number"
+                            min="5"
+                            max="200"
+                            value={timerDuration}
+                            onChange={(e) => setTimerDuration(e.target.value)}
+                            style={styles.timerInput}
+                            className="input"
+                            onFocus={(e) => Object.assign(e.currentTarget.style, styles.timerInputFocus)}
+                            onBlur={(e) => {
+                              e.currentTarget.style.outline = '';
+                              e.currentTarget.style.borderColor = 'rgba(28, 63, 170, 0.5)';
+                              e.currentTarget.style.boxShadow = '';
+                              e.currentTarget.style.background = 'rgba(0, 11, 62, 0.6)';
+                            }}
+                          />
+                          <span style={styles.timerUnit}>sec</span>
+                        </div>
+                      </div>
                       <button
                         onClick={() => {
                           handleButtonPress('options');
