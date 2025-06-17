@@ -552,28 +552,7 @@ const ManagePlayAlong = () => {
                     </div>
 
                     <div style={useGridStyle}>
-                      <div style={styles.timerCard}>
-                        {/* <label style={styles.timerLabel}>Timer Duration (seconds)</label> */}
-                        <div style={styles.timerInputContainer}>
-                          {/* <input
-                            type="number"
-                            min="5"
-                            max="200"
-                            value={timerDuration}
-                            onChange={(e) => setTimerDuration(e.target.value)}
-                            style={styles.timerInput}
-                            className="input"
-                            onFocus={(e) => Object.assign(e.currentTarget.style, styles.timerInputFocus)}
-                            onBlur={(e) => {
-                              e.currentTarget.style.outline = '';
-                              e.currentTarget.style.borderColor = 'rgba(28, 63, 170, 0.5)';
-                              e.currentTarget.style.boxShadow = '';
-                              e.currentTarget.style.background = 'rgba(0, 11, 62, 0.6)';
-                            }}
-                          /> */}
-                          {/* <span style={styles.timerUnit}>sec</span> */}
-                        </div>
-                      </div>
+                     
                       <button
                         onClick={() => {
                           handleButtonPress('options');

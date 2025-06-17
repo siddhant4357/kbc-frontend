@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
+import { DEFAULT_TIMER_DURATION } from '../utils/gameConfig';
 import { API_URL } from '../utils/config';
 import defaultQuestionImage from '../assets/default_img.jpg';
 import { useFirebaseGameState } from '../hooks/useFirebaseGameState';
@@ -191,9 +192,10 @@ const PlayGame = () => {
   const [gameToken, setGameToken] = useState(() => localStorage.getItem(`game_${id}_token`));
   
   // Timer related state variables
-  const [timeLeft, setTimeLeft] = useState(30); // Default to 30 seconds
-  const [timerDuration, setTimerDuration] = useState(30);
+  const [timeLeft, setTimeLeft] = useState(DEFAULT_TIMER_DURATION);
+  const [timerDuration, setTimerDuration] = useState(DEFAULT_TIMER_DURATION);
   const [timerStarted, setTimerStarted] = useState(false);
+  const [timerStartedAt, setTimerStartedAt] = useState(null);
   const [isTimerExpired, setIsTimerExpired] = useState(false);
   const [isWaiting, setIsWaiting] = useState(true);
   const { gameState: firebaseGameState, error: firebaseError, isInitialized, isConnected } = useFirebaseGameState(id);
@@ -245,10 +247,11 @@ const PlayGame = () => {
         setLockedAnswer(null);
         setIsTimerExpired(false);
         setTimerStarted(false);
+        setTimerStartedAt(null);
         
-        // Always set timer to 30 seconds for new questions
-        setTimerDuration(30);
-        setTimeLeft(30);
+        // Always set timer to DEFAULT_TIMER_DURATION seconds for new questions
+        setTimerDuration(DEFAULT_TIMER_DURATION);
+        setTimeLeft(DEFAULT_TIMER_DURATION);
       }
     }
 
@@ -258,10 +261,12 @@ const PlayGame = () => {
       if (shouldShowOptions !== showOptions) {
         setShowOptions(shouldShowOptions);
         if (shouldShowOptions) {
-          // Start a 30 second timer when options are shown
-          setTimerDuration(30);
-          setTimeLeft(30);
+          // Start a timer when options are shown
+          const now = Date.now();
+          setTimerDuration(DEFAULT_TIMER_DURATION);
+          setTimeLeft(DEFAULT_TIMER_DURATION);
           setTimerStarted(true);
+          setTimerStartedAt(now);
           setIsTimerExpired(false);
         }
       }
@@ -278,7 +283,7 @@ const PlayGame = () => {
       localStorage.setItem(`game_${id}_token`, state.gameToken);
     }
   }, [id, gameToken, gameStopped, navigate, currentQuestion, showOptions, showAnswer, isInitialized]);
-
+  
   const debouncedProcessGameState = useCallback(
     debounce((state) => {
       if (!state || isNavigatingRef.current || !isInitialized) return;
@@ -352,43 +357,6 @@ const PlayGame = () => {
       return () => clearTimeout(reconnectTimeout);
     }
   }, [isConnected, connectionAttempts]);
-
-  useEffect(() => {
-    let interval;
-
-    if (timerStarted && showOptions && !isTimerExpired && !lockedAnswer) {
-      const startTime = parseInt(timerStartedAt);
-
-      const updateTimer = () => {
-        const now = Date.now();
-        const elapsedSeconds = Math.floor((now - startTime) / 1000);
-        const remainingSeconds = Math.max(0, timerDuration - elapsedSeconds);
-
-        if (remainingSeconds <= 0) {
-          setTimeLeft(0);
-          setIsTimerExpired(true);
-          if (!lockedAnswer) {
-            setSelectedOption(null);
-          }
-          clearInterval(interval);
-        } else {
-          setTimeLeft(remainingSeconds);
-        }
-      };
-
-      // Initial update
-      updateTimer();
-
-      // Update every 500ms for smoother countdown
-      interval = setInterval(updateTimer, 500);
-    }
-
-    return () => {
-      if (interval) {
-        clearInterval(interval);
-      }
-    };
-  }, [timerStartedAt, timerDuration, showOptions, lockedAnswer, isTimerExpired, currentQuestion]);
 
   useEffect(() => {
     return () => {
@@ -512,42 +480,25 @@ const PlayGame = () => {
   }
 }, [currentQuestionIndex, selectedBank?.timerDuration]);
 
-  useEffect(() => {
-    let timer;
-    if (timerStarted && timeLeft > 0) {
-      timer = setInterval(() => {
-        setTimeLeft((prev) => {
-          if (prev <= 1) {
-            clearInterval(timer);
-            handleTimerEnd();
-            return 0;
-          }
-          return prev - 1;
-        });
-      }, 1000);
+  const handleTimerEnd = () => {
+    setIsTimerExpired(true);
+    setTimerStarted(false);
+    setTimeLeft(0); // Set to 0 for the current question
+
+    // Automatically reset the timer for the next question
+    if (currentQuestionIndex < selectedBank.questions.length - 1) {
+      const adminTimerDuration = parseInt(selectedBank?.timerDuration) || 30;
+      setTimeout(() => {
+        setCurrentQuestionIndex(currentQuestionIndex + 1);
+        setTimeLeft(adminTimerDuration);
+        setTimerStarted(false);
+        setShowOptions(false); // Ensure options are hidden initially
+        setLockedAnswer(null); // Reset locked answer
+        setSelectedOption(null); // Reset selected option
+        setShowAnswer(false); // Reset answer visibility
+      }, 1000); // Add a small delay to ensure smooth transition
     }
-    return () => clearInterval(timer);
-  }, [timerStarted, timeLeft]);
-
- const handleTimerEnd = () => {
-  setIsTimerExpired(true);
-  setTimerStarted(false);
-  setTimeLeft(0); // Set to 0 for the current question
-
-  // Automatically reset the timer for the next question
-  if (currentQuestionIndex < selectedBank.questions.length - 1) {
-    const adminTimerDuration = parseInt(selectedBank?.timerDuration) || 30;
-    setTimeout(() => {
-      setCurrentQuestionIndex(currentQuestionIndex + 1);
-      setTimeLeft(adminTimerDuration);
-      setTimerStarted(false);
-      setShowOptions(false); // Ensure options are hidden initially
-      setLockedAnswer(null); // Reset locked answer
-      setSelectedOption(null); // Reset selected option
-      setShowAnswer(false); // Reset answer visibility
-    }, 1000); // Add a small delay to ensure smooth transition
-  }
-};
+  };
 
   const handleOptionSelect = useCallback((option) => {
     // Allow selecting an option if:
