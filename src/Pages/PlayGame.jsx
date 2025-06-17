@@ -198,9 +198,9 @@ const PlayGame = () => {
   const [lockedAnswer, setLockedAnswer] = useState(null);
   const [gameStopped, setGameStopped] = useState(false);
   const [gameToken, setGameToken] = useState(() => localStorage.getItem(`game_${id}_token`));
-  const [timeLeft, setTimeLeft] = useState(30);
-  const [timerStartedAt, setTimerStartedAt] = useState(null);
+  const [timeLeft, setTimeLeft] = useState(30); // Default to 30 seconds
   const [timerDuration, setTimerDuration] = useState(30);
+  const [timerStarted, setTimerStarted] = useState(false);
   const [isTimerExpired, setIsTimerExpired] = useState(false);
   const [isWaiting, setIsWaiting] = useState(true);
   const { gameState: firebaseGameState, error: firebaseError, isInitialized, isConnected } = useFirebaseGameState(id);
@@ -211,7 +211,6 @@ const PlayGame = () => {
   const batchTimeoutRef = useRef(null);
   const [showExitDialog, setShowExitDialog] = useState(false);
   const [isExiting, setIsExiting] = useState(false);
-  const [timerStarted, setTimerStarted] = useState(false);
   const [currentQuestionIndex, setCurrentQuestionIndex] = useState(null);
   const [selectedBank, setSelectedBank] = useState(null);
 
@@ -260,7 +259,7 @@ const PlayGame = () => {
       }
     }
 
-    // Handle options state with local timer instead of admin timer
+    // Handle options state with local timer
     if ('showOptions' in state) {
       const shouldShowOptions = Boolean(state.showOptions);
       if (shouldShowOptions !== showOptions) {
@@ -275,7 +274,7 @@ const PlayGame = () => {
       }
     }
 
-    // Handle answer reveal without affecting other states
+    // Handle answer reveal
     if (state.showAnswer && !showAnswer) {
       setShowAnswer(true);
     }
@@ -364,7 +363,7 @@ const PlayGame = () => {
   useEffect(() => {
     let interval;
 
-    if (timerStartedAt && showOptions && !isTimerExpired && !lockedAnswer) {
+    if (timerStarted && showOptions && !isTimerExpired && !lockedAnswer) {
       const startTime = parseInt(timerStartedAt);
 
       const updateTimer = () => {
