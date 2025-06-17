@@ -1,64 +1,90 @@
-import { useState, useEffect, useRef } from 'react';
-import { ref, onValue, off } from 'firebase/database';
+import { useState, useEffect, useCallback, useRef } from 'react';
+import { ref, onValue, set, onDisconnect, serverTimestamp } from 'firebase/database';
 import { db } from '../utils/firebase';
 
 export const useFirebaseGameState = (gameId) => {
-  const [firebaseGameState, setFirebaseGameState] = useState(null);
-  const [players, setPlayers] = useState({});
-  const [isReady, setIsReady] = useState(false);
+  const [gameState, setGameState] = useState(null);
   const [error, setError] = useState(null);
-  // Store refs in ref objects properly
-  const gameRefObj = useRef(null);
-  const playersRefObj = useRef(null);
+  const [isInitialized, setIsInitialized] = useState(false);
+  const [isConnected, setIsConnected] = useState(true);
+  const connectionRef = useRef(null);
 
   useEffect(() => {
     if (!gameId) return;
 
-    try {
-      // Create Firebase references
-      const gameReference = ref(db, `games/${gameId}`);
-      const playersReference = ref(db, `games/${gameId}/players`);
+    const gameRef = ref(db, `games/${gameId}`);
+    const connectedRef = ref(db, '.info/connected');
+    connectionRef.current = connectedRef;
+
+    // Listen for connection state
+    const connectUnsubscribe = onValue(connectedRef, (snap) => {
+      const connected = snap.val() === true;
+      setIsConnected(connected);
       
-      // Store references for cleanup
-      gameRefObj.current = gameReference;
-      playersRefObj.current = playersReference;
+      if (connected) {
+        // Create presence ref under the game path instead of .info
+        const presenceRef = ref(db, `games/${gameId}/presence/${Date.now()}`);
+        
+        // Set offline status on disconnect
+        onDisconnect(presenceRef).remove();
+        
+        // Set online status
+        set(presenceRef, {
+          status: 'online',
+          timestamp: serverTimestamp()
+        });
+      }
+    });
 
-      // Set up game state listener
-      const unsubscribeGame = onValue(gameReference, (snapshot) => {
-        const data = snapshot.val();
-        if (data) {
-          setFirebaseGameState(data);
-          setIsReady(true);
-        }
-      }, (err) => {
-        console.error("Firebase game state error:", err);
-        setError(`Failed to load game: ${err.message}`);
-      });
+    // Listen for real-time updates
+    const gameUnsubscribe = onValue(gameRef, (snapshot) => {
+      const data = snapshot.val();
+      if (data) {
+        setGameState(data);
+        setError(null);
+      }
+      setIsInitialized(true);
+    }, (error) => {
+      console.error('Firebase error:', error);
+      setError('Error connecting to game');
+      setIsInitialized(true);
+    });
 
-      // Set up players listener
-      const unsubscribePlayers = onValue(playersReference, (snapshot) => {
-        const data = snapshot.val();
-        if (data) {
-          setPlayers(data);
-        }
-      }, (err) => {
-        console.error("Firebase players error:", err);
-      });
+    return () => {
+      connectUnsubscribe();
+      gameUnsubscribe();
+      // Clear any disconnect handlers
+      if (gameRef) {
+        const presenceRef = ref(db, `games/${gameId}/presence/${Date.now()}`);
+        onDisconnect(presenceRef).cancel();
+      }
+    };
+  }, [gameId]);
 
-      // Return cleanup function
-      return () => {
-        if (gameRefObj.current) {
-          off(gameRefObj.current);
-        }
-        if (playersRefObj.current) {
-          off(playersRefObj.current);
-        }
+  const updateGameState = useCallback(async (updates) => {
+    if (!gameId || !isConnected) return false;
+
+    try {
+      const gameRef = ref(db, `games/${gameId}`);
+      const newState = {
+        ...gameState,
+        ...updates,
+        updatedAt: Date.now()
       };
+      await set(gameRef, newState);
+      return true;
     } catch (err) {
-      console.error("Firebase initialization error:", err);
-      setError(`Firebase initialization failed: ${err.message}`);
+      console.error('Error updating game state:', err);
+      setError('Failed to update game state');
+      return false;
     }
-  }, [gameId, db]);
+  }, [gameId, gameState, isConnected]);
 
-  return { firebaseGameState, players, isReady, error };
+  return { 
+    gameState, 
+    error, 
+    updateGameState, 
+    isInitialized,
+    isConnected 
+  };
 };

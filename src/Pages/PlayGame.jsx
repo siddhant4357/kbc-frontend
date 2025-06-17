@@ -2,7 +2,7 @@ import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react'
 import { useNavigate, useParams } from 'react-router-dom';
 import { API_URL } from '../utils/config';
 import defaultQuestionImage from '../assets/default_img.jpg';
-import { useFirebaseGameState } from '../hooks/useFirebaseGameState';
+
 import { ref, set, onDisconnect, serverTimestamp, onValue, update } from 'firebase/database';
 import { db } from '../utils/firebase';
 import kbcLogo from '../assets/kbc-logo.jpg';
@@ -195,7 +195,6 @@ const PlayGame = () => {
   const [timerDuration, setTimerDuration] = useState(30);
   const [isTimerExpired, setIsTimerExpired] = useState(false);
   const [isWaiting, setIsWaiting] = useState(true);
-  const { gameState: firebaseGameState, error: firebaseError, isInitialized, isConnected } = useFirebaseGameState(id);
   const timeoutsRef = useRef([]);
   const isNavigatingRef = useRef(false);
   const [connectionAttempts, setConnectionAttempts] = useState(0);
