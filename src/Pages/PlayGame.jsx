@@ -288,40 +288,33 @@ const PlayGame = () => {
 
     // Handle options state with timer
     if ('showOptions' in state) {
-      const shouldShowOptions = Boolean(state.showOptions);
-      if (shouldShowOptions !== showOptions) {
-        setShowOptions(shouldShowOptions);
-        if (shouldShowOptions) {
-          // Ensure we're using the admin's selected timer duration
-          const adminTimerDuration = parseInt(state.timerDuration) || 30;
-          const timerStart = parseInt(state.timerStartedAt);
-          
-          // Ensure we have valid timestamps
-          if (!isNaN(timerStart)) {
-            setTimerStartedAt(timerStart);
-            setTimerDuration(adminTimerDuration);
-            
-            // Calculate initial time left
-            const now = Date.now();
-            const elapsedSeconds = Math.floor((now - timerStart) / 1000);
-            const remainingSeconds = Math.max(0, adminTimerDuration - elapsedSeconds);
+  const shouldShowOptions = Boolean(state.showOptions);
+  if (shouldShowOptions) {
+    const adminTimerDuration = parseInt(state.timerDuration) || 30;
+    const timerStart = parseInt(state.timerStartedAt);
 
-            setTimeLeft(remainingSeconds);
-            
-            // Reset expired state when showing options
-            if (remainingSeconds > 0) {
-              setIsTimerExpired(false);
-            } else {
-              setIsTimerExpired(true);
-            }
-          } else {
-            // No valid timer start, use full duration and reset expired state
-            setTimeLeft(adminTimerDuration);
-            setIsTimerExpired(false);
-          }
-        }
-      }
+    setShowOptions(true); // Always set to true when admin allows
+
+    if (!isNaN(timerStart)) {
+      setTimerStartedAt(timerStart);
+      setTimerDuration(adminTimerDuration);
+
+      const now = Date.now();
+      const elapsedSeconds = Math.floor((now - timerStart) / 1000);
+      const remainingSeconds = Math.max(0, adminTimerDuration - elapsedSeconds);
+
+      setTimeLeft(remainingSeconds);
+      setIsTimerExpired(remainingSeconds <= 0 ? true : false);
+    } else {
+      setTimerStartedAt(null);
+      setTimeLeft(adminTimerDuration);
+      setIsTimerExpired(false); // force reset
     }
+  } else {
+    setShowOptions(false); // Admin disabled options
+  }
+}
+
 
     // Update timer duration if it changes
     if (state.timerDuration && state.timerDuration !== timerDuration) {
@@ -421,7 +414,7 @@ const PlayGame = () => {
     let interval;
 
     // Only run timer if we have valid conditions and timer hasn't expired
-    if (timerStartedAt && showOptions && !isTimerExpired && !lockedAnswer && !showAnswer) {
+if (timerStartedAt && showOptions && !lockedAnswer && !showAnswer && timeLeft > 0){
       const startTime = parseInt(timerStartedAt);
 
       const updateTimer = () => {
