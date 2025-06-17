@@ -555,7 +555,7 @@ const ManagePlayAlong = () => {
                       <div style={styles.timerCard}>
                         <label style={styles.timerLabel}>Timer Duration (seconds)</label>
                         <div style={styles.timerInputContainer}>
-                          <input
+                          {/* <input
                             type="number"
                             min="5"
                             max="200"
@@ -570,7 +570,7 @@ const ManagePlayAlong = () => {
                               e.currentTarget.style.boxShadow = '';
                               e.currentTarget.style.background = 'rgba(0, 11, 62, 0.6)';
                             }}
-                          />
+                          /> */}
                           <span style={styles.timerUnit}>sec</span>
                         </div>
                       </div>
