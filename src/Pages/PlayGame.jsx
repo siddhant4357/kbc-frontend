@@ -245,8 +245,8 @@ const PlayGame = () => {
 
       if (newQuestionIndex !== currentQuestionIndex) {
         setCurrentQuestion(state.currentQuestion);
-
-        // Reset all states when question changes, regardless of what happened with previous question
+        
+        // Reset all states when question changes
         setShowOptions(false);
         setShowAnswer(false);
         setSelectedOption(null);
@@ -254,35 +254,23 @@ const PlayGame = () => {
         setIsTimerExpired(false);
         setTimerStarted(false);
         
-        // Reset timer for new question
-        const adminTimerDuration = parseInt(state.timerDuration) || 30;
-        setTimerDuration(adminTimerDuration);
-        setTimeLeft(adminTimerDuration);
+        // Always set timer to 30 seconds for new questions
+        setTimerDuration(30);
+        setTimeLeft(30);
       }
     }
 
-    // Handle options state with timer
+    // Handle options state with local timer instead of admin timer
     if ('showOptions' in state) {
       const shouldShowOptions = Boolean(state.showOptions);
       if (shouldShowOptions !== showOptions) {
         setShowOptions(shouldShowOptions);
         if (shouldShowOptions) {
-          const adminTimerDuration = parseInt(state.timerDuration) || 30;
-          const timerStart = parseInt(state.timerStartedAt);
-          
-          if (!isNaN(timerStart)) {
-            setTimerStartedAt(timerStart);
-            setTimerDuration(adminTimerDuration);
-            setTimerStarted(true);
-            
-            // Calculate initial time left
-            const now = Date.now();
-            const elapsedSeconds = Math.floor((now - timerStart) / 1000);
-            const remainingSeconds = Math.max(0, adminTimerDuration - elapsedSeconds);
-            
-            setTimeLeft(remainingSeconds);
-            setIsTimerExpired(false);
-          }
+          // Start a 30 second timer when options are shown
+          setTimerDuration(30);
+          setTimeLeft(30);
+          setTimerStarted(true);
+          setIsTimerExpired(false);
         }
       }
     }
@@ -297,7 +285,7 @@ const PlayGame = () => {
       setGameToken(state.gameToken);
       localStorage.setItem(`game_${id}_token`, state.gameToken);
     }
-  }, [id, gameToken, gameStopped, navigate, currentQuestion, showOptions, showAnswer, isInitialized, timerDuration]);
+  }, [id, gameToken, gameStopped, navigate, currentQuestion, showOptions, showAnswer, isInitialized]);
 
   const debouncedProcessGameState = useCallback(
     debounce((state) => {
@@ -569,12 +557,15 @@ const PlayGame = () => {
   }
 };
 
- const handleOptionSelect = (option) => {
-  // Use showOptions instead of timeLeft > 0 to determine if selections are allowed
-  if (!showAnswer && !lockedAnswer && showOptions) {
+ const handleOptionSelect = useCallback((option) => {
+  // Allow selecting an option if:
+  // 1. Answer not shown yet
+  // 2. No answer locked yet
+  // 3. Timer still running
+  if (!showAnswer && !lockedAnswer && timeLeft > 0) {
     setSelectedOption(option);
   }
-};
+}, [showAnswer, lockedAnswer, timeLeft]);
 
   const handleLockAnswer = useCallback(async () => {
     if (!selectedOption || showAnswer || timeLeft <= 0) return;
@@ -699,25 +690,26 @@ const PlayGame = () => {
   };
 
   const handleNextQuestion = async () => {
-    if (currentQuestionIndex < questionBank.questions.length - 1) {
-      await stopAllSounds();
-      setCurrentQuestionIndex(prev => prev + 1);
-      setShowOptions(true); // Changed from false to true
-      setSelectedOption(null);
-      setShowAnswer(false);
-      setTimerStarted(false);
-      setTimeLeft(timerDuration);
-      setLockedAnswer(null);
-      setTimeExpired(false);
-      setContinuePlaying(false);
-      setHiddenOptions([]);
-      setIsTimerStopped(false);
-    
-      setTimerStarted(true);
-    } else if (lockedAnswer === currentQuestion?.correctAnswer) {
-      // existing code...
-    }
-  };
+  if (currentQuestionIndex < questionBank.questions.length - 1) {
+    await stopAllSounds();
+    setCurrentQuestionIndex(prev => prev + 1);
+    setShowOptions(true); // Show options immediately for the next question
+    setSelectedOption(null);
+    setShowAnswer(false);
+    setTimerStarted(true); // Start timer immediately
+    setTimeLeft(30); // Always reset to 30 seconds
+    setTimerDuration(30); 
+    setLockedAnswer(null);
+    setTimeExpired(false);
+    setContinuePlaying(false);
+    setHiddenOptions([]);
+    setIsTimerStopped(false);
+  } else if (lockedAnswer === currentQuestion?.correctAnswer) {
+    // Handle game completion
+    setGameEndMessage('Congratulations! You have successfully completed the game! 🎉');
+    setShowGameEndPopup(true);
+  }
+};
 
   if (!isInitialized) {
     return (
@@ -941,3 +933,27 @@ const PlayGame = () => {
 };
 
 export default PlayGame;
+// Add this useEffect to handle the local timer
+useEffect(() => {
+  let timer;
+  
+  // Start the timer when options are shown and no answer is locked yet
+  if (showOptions && !lockedAnswer && !showAnswer && timeLeft > 0) {
+    timer = setInterval(() => {
+      setTimeLeft(prev => {
+        if (prev <= 1) {
+          clearInterval(timer);
+          // Timer expired
+          setIsTimerExpired(true);
+          setTimerStarted(false);
+          return 0;
+        }
+        return prev - 1;
+      });
+    }, 1000);
+  }
+  
+  return () => {
+    if (timer) clearInterval(timer);
+  };
+}, [showOptions, lockedAnswer, showAnswer, timeLeft]);

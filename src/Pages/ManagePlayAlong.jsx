@@ -86,7 +86,7 @@ const ManagePlayAlong = () => {
     },
     card: {
       background: `linear-gradient(135deg, ${colors.darkBlue}, ${colors.purple})`,
-      clipPath: 'polygon(5% 0, 95% 0, 100% 5%, 100% 95%, 95% 100%, 5% 100%, 0 95%, 0 5%)',
+      clipPath: `polygon(5% 0, 95% 0, 100% 5%, 100% 95%, 95% 100%, 5% 100%, 0 95%, 0 5%)`,
       border: `2px solid ${colors.lightBlue}`,
       boxShadow: `0 0 20px rgba(28, 63, 170, 0.3), inset 0 0 15px rgba(28, 63, 170, 0.3)`,
       padding: '1.5rem',
@@ -369,15 +369,11 @@ const ManagePlayAlong = () => {
     if (!gameStarted) return;
 
     try {
-      const duration = Math.max(5, parseInt(timerDuration) || 15);
-
       await updateGameState({
         showOptions: true,
-        timerStartedAt: Date.now(),
-        timerDuration: duration,
         updatedAt: Date.now(),
       });
-      console.log('Options shown successfully with timer duration:', duration);
+      console.log('Options shown successfully');
     } catch (err) {
       console.error('Error showing options:', err);
       setError('Failed to show options. Please try again.');
