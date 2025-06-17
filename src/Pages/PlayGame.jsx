@@ -206,6 +206,8 @@ const PlayGame = () => {
   const [currentQuestionIndex, setCurrentQuestionIndex] = useState(null);
   const [selectedBank, setSelectedBank] = useState(null);
 
+  const { gameState: firebaseGameState, error: firebaseError, isInitialized, isConnected } = useFirebaseGameState(id);
+
   useEffect(() => {
     if (currentQuestion) {
       setSelectedOption(null);
