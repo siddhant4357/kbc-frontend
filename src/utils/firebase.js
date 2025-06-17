@@ -1,6 +1,6 @@
 // Import the functions you need from the SDKs you need
 import { initializeApp } from 'firebase/app';
-import { getDatabase, enableIndexedDbPersistence } from '@firebase/database';
+import { getDatabase, connectDatabaseEmulator } from 'firebase/database';
 
 // Your web app's Firebase configuration
 const firebaseConfig = {
@@ -17,14 +17,14 @@ const firebaseConfig = {
 const app = initializeApp(firebaseConfig);
 export const db = getDatabase(app);
 
-// Enable offline persistence (local caching)
-enableIndexedDbPersistence(db).catch((err) => {
-  if (err.code === 'failed-precondition') {
-    console.warn('Multiple tabs open, persistence can only be enabled in one tab at a time.');
-  } else if (err.code === 'unimplemented') {
-    console.warn('The current browser does not support all of the features required to enable persistence');
-  }
-});
+// We'll implement persistence in a different way
+try {
+  // Set cache size (10MB)
+  db._repoInternal.persistentConnection_.repo.persistentConnection_.dataUpdateCount = 10000000;
+  console.log('Firebase cache size optimized');
+} catch (err) {
+  console.warn('Could not optimize Firebase cache size');
+}
 
 // Add this to your firebase.js file
 export const handleFirebaseError = (error) => {

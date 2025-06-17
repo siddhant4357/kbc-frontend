@@ -11,6 +11,10 @@ export const useOptimizedGameState = (gameId) => {
   const [error, setError] = useState(null);
   const [isInitialized, setIsInitialized] = useState(false);
   const listeners = useRef([]);
+  
+  // Add cache mechanism
+  const questionCache = useRef({});
+  const stateCache = useRef({});
 
   useEffect(() => {
     if (!gameId) return;
@@ -49,7 +53,12 @@ export const useOptimizedGameState = (gameId) => {
     });
     
     const questionListener = onValue(questionRef, (snap) => {
-      setCurrentQuestion(snap.val());
+      const newQuestion = snap.val();
+      // Cache the question data
+      if (newQuestion && typeof newQuestion.questionIndex === 'number') {
+        questionCache.current[newQuestion.questionIndex] = newQuestion;
+      }
+      setCurrentQuestion(newQuestion);
     });
     
     const optionsListener = onValue(optionsRef, (snap) => {
@@ -105,5 +114,10 @@ export const useOptimizedGameState = (gameId) => {
     ...timerInfo
   };
   
-  return { gameState, currentQuestion, gameOptions, timerInfo, isConnected, error, isInitialized };
+  // Add a function to get from cache
+  const getCachedQuestion = (questionIndex) => {
+    return questionCache.current[questionIndex] || null;
+  };
+  
+  return { gameState, currentQuestion, gameOptions, timerInfo, isConnected, error, isInitialized, getCachedQuestion };
 };

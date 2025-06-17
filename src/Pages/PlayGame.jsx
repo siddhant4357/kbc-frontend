@@ -539,11 +539,8 @@ const PlayGame = () => {
   }, [id]);
 
   useEffect(() => {
-    const BATCH_INTERVAL = 3000;
-    
     // Start a periodic batch update
     batchTimeoutRef.current = setInterval(() => {
-      // CHANGE: Only perform update if there are pending updates
       if (pendingUpdatesRef.current.length > 0) {
         batchedFirebaseUpdate();
       }
