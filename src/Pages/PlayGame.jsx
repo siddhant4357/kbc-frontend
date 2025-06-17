@@ -183,7 +183,7 @@ const PlayGame = () => {
   const [error, setError] = useState('');
   const [currentQuestion, setCurrentQuestion] = useState(null);
 
- 
+
   
   const [showOptions, setShowOptions] = useState(false);
   const [showAnswer, setShowAnswer] = useState(false);
@@ -208,8 +208,7 @@ const PlayGame = () => {
   const [currentQuestionIndex, setCurrentQuestionIndex] = useState(null);
   const [selectedBank, setSelectedBank] = useState(null);
 
-
-   useEffect(() => {
+    useEffect(() => {
     if (currentQuestion) {
       setSelectedOption(null);
       setLockedAnswer(null);
@@ -219,7 +218,7 @@ const PlayGame = () => {
       // Reset timerStartedAt and timeLeft as needed
     }
   }, [currentQuestion?.questionIndex]);
-  
+
   const processGameState = useCallback(async (state) => {
     if (!state || isNavigatingRef.current || !isInitialized) return;
 
