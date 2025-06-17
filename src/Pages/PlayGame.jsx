@@ -195,7 +195,6 @@ const PlayGame = () => {
   const [timeLeft, setTimeLeft] = useState(DEFAULT_TIMER_DURATION);
   const [timerDuration, setTimerDuration] = useState(DEFAULT_TIMER_DURATION);
   const [timerStarted, setTimerStarted] = useState(false);
-  const [timerStartedAt, setTimerStartedAt] = useState(null);
   const [isTimerExpired, setIsTimerExpired] = useState(false);
   const [isWaiting, setIsWaiting] = useState(true);
   const { gameState: firebaseGameState, error: firebaseError, isInitialized, isConnected } = useFirebaseGameState(id);
@@ -247,7 +246,6 @@ const PlayGame = () => {
         setLockedAnswer(null);
         setIsTimerExpired(false);
         setTimerStarted(false);
-        setTimerStartedAt(null);
         
         // Always set timer to DEFAULT_TIMER_DURATION seconds for new questions
         setTimerDuration(DEFAULT_TIMER_DURATION);
@@ -262,11 +260,9 @@ const PlayGame = () => {
         setShowOptions(shouldShowOptions);
         if (shouldShowOptions) {
           // Start a timer when options are shown
-          const now = Date.now();
           setTimerDuration(DEFAULT_TIMER_DURATION);
           setTimeLeft(DEFAULT_TIMER_DURATION);
           setTimerStarted(true);
-          setTimerStartedAt(now);
           setIsTimerExpired(false);
         }
       }
@@ -734,6 +730,33 @@ const PlayGame = () => {
       </div>
     );
   }
+  // Replace your current timer useEffect with this implementation
+useEffect(() => {
+  let timerInterval = null;
+  
+  // Start the timer when options are shown and no answer is locked yet
+  if (timerStarted && !lockedAnswer && !showAnswer && timeLeft > 0) {
+    timerInterval = setInterval(() => {
+      setTimeLeft(prevTime => {
+        const newTime = prevTime - 1;
+        if (newTime <= 0) {
+          clearInterval(timerInterval);
+          setIsTimerExpired(true);
+          setTimerStarted(false);
+          return 0;
+        }
+        return newTime;
+      });
+    }, 1000);
+  }
+  
+  // Clear interval when component unmounts or dependencies change
+  return () => {
+    if (timerInterval) {
+      clearInterval(timerInterval);
+    }
+  };
+}, [timerStarted, lockedAnswer, showAnswer]); // Remove timeLeft from dependencies
 
   return (
     <div className="game-container overflow-hidden">
