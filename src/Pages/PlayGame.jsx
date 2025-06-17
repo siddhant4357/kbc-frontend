@@ -9,7 +9,7 @@ import kbcLogo from '../assets/kbc-logo.jpg';
 
 import { debounce, throttle } from 'lodash';
 
-const BATCH_INTERVAL = 3000;
+const BATCH_INTERVAL = 2000; // 2 seconds
 const MAX_RETRIES = 3;
 const RECONNECT_DELAY = 2000;
 
@@ -66,28 +66,26 @@ const ImageErrorBoundary = React.memo(({ children }) => {
   return children;
 });
 
-// Replace the existing QuestionImage component with this version
-const QuestionImage = React.forwardRef(({ imageUrl }, ref) => {
-  const [imgSrc, setImgSrc] = useState(
-    imageUrl ? formatImageUrl(imageUrl) : defaultQuestionImage
-  );
-  const [isLoading, setIsLoading] = useState(true);
+const QuestionImage = React.memo(({ imageUrl }) => {
+  const [imgSrc, setImgSrc] = useState(() => {
+    if (imageUrl?.startsWith('http') || imageUrl?.startsWith('data:')) {
+      return imageUrl;
+    }
+    if (imageUrl?.startsWith('/uploads/questions/')) {
+      return `${API_URL}${imageUrl}`;
+    }
+    return defaultQuestionImage;
+  });
   const [hasError, setHasError] = useState(false);
+  const [isLoading, setIsLoading] = useState(true);
   const retryCount = useRef(0);
 
-  useEffect(() => {
-    setIsLoading(true);
-    setHasError(false);
-    setImgSrc(imageUrl ? formatImageUrl(imageUrl) : defaultQuestionImage);
-  }, [imageUrl]);
-
   const handleError = (e) => {
-    if (retryCount.current < 2) {
+    console.error('Image load error for:', imgSrc);
+    if (retryCount.current < 3 && imgSrc !== defaultQuestionImage) {
       retryCount.current += 1;
-      const newSrc = `${imgSrc}?retry=${retryCount.current}&t=${Date.now()}`;
-      setImgSrc(newSrc);
       setTimeout(() => {
-        e.target.src = newSrc;
+        setImgSrc(`${imgSrc}?retry=${retryCount.current}`);
       }, 1000);
     } else {
       e.target.src = defaultQuestionImage;
@@ -95,6 +93,10 @@ const QuestionImage = React.forwardRef(({ imageUrl }, ref) => {
     }
     setIsLoading(false);
   };
+
+  useEffect(() => {
+    console.log('Image source:', imgSrc);
+  }, [imgSrc]);
 
   return (
     <div className="relative w-full h-full">
@@ -104,13 +106,12 @@ const QuestionImage = React.forwardRef(({ imageUrl }, ref) => {
         </div>
       )}
       <img
-        ref={ref}
         src={imgSrc}
         alt="Question"
         className={`w-full h-full object-contain rounded-lg shadow-glow transition-opacity duration-300 ${
           isLoading ? 'opacity-0' : 'opacity-100'
         }`}
-        style={{ maxHeight: '100%' }}
+        style={{ maxHeight: '100%' }} // Add this line
         onError={handleError}
         onLoad={() => {
           setIsLoading(false);
@@ -121,9 +122,6 @@ const QuestionImage = React.forwardRef(({ imageUrl }, ref) => {
     </div>
   );
 });
-
-// Add this line to prevent React warnings
-QuestionImage.displayName = 'QuestionImage';
 
 const ExitConfirmDialog = ({ isOpen, onClose, onConfirm, message, isLoading }) => {
   if (!isOpen) return null;
@@ -530,9 +528,7 @@ const PlayGame = () => {
   useEffect(() => {
     // Start a periodic batch update
     batchTimeoutRef.current = setInterval(() => {
-      if (pendingUpdatesRef.current.length > 0) {
-        batchedFirebaseUpdate();
-      }
+      batchedFirebaseUpdate();
     }, BATCH_INTERVAL);
 
     return () => {
@@ -723,32 +719,6 @@ const PlayGame = () => {
       setError('Failed to quit game. Please try again.');
     }
   };
-
-  // Replace broad listeners with targeted ones
-  const gameRef = ref(db, `games/${id}`);
-  const gameUnsubscribe = onValue(gameRef, (snapshot) => {
-    const data = snapshot.val();
-    if (data) {
-      setGameState(data);
-    }
-  });
-
-  // Add caching for question data
-const [questionCache, setQuestionCache] = useState({});
-
-useEffect(() => {
-  if (currentQuestion && currentQuestion.questionIndex) {
-    setQuestionCache(prev => ({
-      ...prev,
-      [currentQuestion.questionIndex]: currentQuestion
-    }));
-  }
-}, [currentQuestion]);
-
-// Use cache when available
-const getCurrentQuestion = (questionIndex) => {
-  return questionCache[questionIndex] || firebaseGameState?.currentQuestion;
-};
 
   if (!isInitialized) {
     return (
@@ -972,4 +942,3 @@ const getCurrentQuestion = (questionIndex) => {
 };
 
 export default PlayGame;
-

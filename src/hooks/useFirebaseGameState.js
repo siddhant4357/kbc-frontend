@@ -80,22 +80,6 @@ export const useFirebaseGameState = (gameId) => {
     }
   }, [gameId, gameState, isConnected]);
 
-  // In useFirebaseGameState.js
-  const listenToGameUpdates = (gameId) => {
-    // Listen only to critical game state changes
-    const gameStatusRef = ref(db, `games/${gameId}/isActive`);
-    const currentQuestionRef = ref(db, `games/${gameId}/currentQuestion`);
-    const optionsStatusRef = ref(db, `games/${gameId}/showOptions`);
-    const answerStatusRef = ref(db, `games/${gameId}/showAnswer`);
-    
-    // Set up individual listeners
-    const statusUnsubscribe = onValue(gameStatusRef, (snapshot) => {
-      setIsActive(snapshot.val());
-    });
-    
-    // More targeted listeners...
-  }
-
   return { 
     gameState, 
     error, 
