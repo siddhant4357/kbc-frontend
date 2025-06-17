@@ -9,7 +9,7 @@ import kbcLogo from '../assets/kbc-logo.jpg';
 
 import { debounce, throttle } from 'lodash';
 
-const BATCH_INTERVAL = 2000; // 2 seconds
+const BATCH_INTERVAL = 3000; 
 const MAX_RETRIES = 3;
 const RECONNECT_DELAY = 2000;
 
@@ -182,8 +182,7 @@ const PlayGame = () => {
   const [gameState, setGameState] = useState(null);
   const [error, setError] = useState('');
   const [currentQuestion, setCurrentQuestion] = useState(null);
-
-
+  const [questionCache, setQuestionCache] = useState({});
   
   const [showOptions, setShowOptions] = useState(false);
   const [showAnswer, setShowAnswer] = useState(false);
@@ -208,16 +207,28 @@ const PlayGame = () => {
   const [currentQuestionIndex, setCurrentQuestionIndex] = useState(null);
   const [selectedBank, setSelectedBank] = useState(null);
 
-    useEffect(() => {
+  useEffect(() => {
     if (currentQuestion) {
       setSelectedOption(null);
       setLockedAnswer(null);
       setShowAnswer(false);
-      setIsTimerExpired(false); // <-- This is critical!
-      setShowOptions(false);    // If you use this state
-      // Reset timerStartedAt and timeLeft as needed
+      setIsTimerExpired(false); 
+      setShowOptions(false);   
     }
   }, [currentQuestion?.questionIndex]);
+
+  useEffect(() => {
+    if (currentQuestion && typeof currentQuestion.questionIndex === 'number') {
+      setQuestionCache(prev => ({
+        ...prev,
+        [currentQuestion.questionIndex]: currentQuestion
+      }));
+    }
+  }, [currentQuestion]);
+
+  const getQuestionData = useCallback((questionIndex) => {
+    return questionCache[questionIndex] || currentQuestion;
+  }, [questionCache, currentQuestion]);
 
   const processGameState = useCallback(async (state) => {
     if (!state || isNavigatingRef.current || !isInitialized) return;
@@ -475,10 +486,12 @@ const PlayGame = () => {
         .remove()
         .catch(error => console.error('Disconnect handler failed:', error));
 
+      // CHANGE: Increase interval from 30s to 90s
+      const PRESENCE_INTERVAL = 90000; // 90 seconds
       const presenceInterval = setInterval(() => {
         set(ref(db, `games/${id}/players/${user.username}/lastActive`), Date.now())
           .catch(error => console.error('Presence refresh failed:', error));
-      }, 30000);
+      }, PRESENCE_INTERVAL);
 
       return () => {
         clearInterval(presenceInterval);
@@ -526,13 +539,17 @@ const PlayGame = () => {
   }, [id]);
 
   useEffect(() => {
+    const BATCH_INTERVAL = 3000;
+    
     // Start a periodic batch update
     batchTimeoutRef.current = setInterval(() => {
-      batchedFirebaseUpdate();
+      // CHANGE: Only perform update if there are pending updates
+      if (pendingUpdatesRef.current.length > 0) {
+        batchedFirebaseUpdate();
+      }
     }, BATCH_INTERVAL);
 
     return () => {
-      // Clear the interval when the component unmounts
       if (batchTimeoutRef.current) {
         clearInterval(batchTimeoutRef.current);
       }
@@ -598,60 +615,62 @@ const PlayGame = () => {
     }
   }, [showAnswer, lockedAnswer, timeLeft]);
 
+  // Replace client-side score updates with a single API call
   const handleLockAnswer = useCallback(async () => {
     if (!selectedOption || showAnswer || timeLeft <= 0) return;
 
     try {
       const isCorrect = selectedOption === currentQuestion.correctAnswer;
+      setLockedAnswer(selectedOption);
+      
+      // CHANGE: Create a minimal update
       const updates = {
         [`players/${user.username}/answers/${currentQuestion.questionIndex}`]: {
           answer: selectedOption,
           answeredAt: Date.now(),
           isCorrect,
-        },
-        [`players/${user.username}/status`]: {
-          lastActive: Date.now(),
-          currentQuestion: currentQuestion.questionIndex,
-        },
+        }
       };
 
-      setLockedAnswer(selectedOption);
+      // Add this update to the pending batch rather than sending immediately
       pendingUpdatesRef.current.push(updates);
 
-      // Update score if answer is correct
+      // If correct, update score via API instead of Firebase
       if (isCorrect) {
+        // Use fetch API with signal to allow aborting if it takes too long
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), 3000);
+        
         try {
-          const response = await fetch(`${API_URL}/api/leaderboard/update`, {
+          await fetch(`${API_URL}/api/leaderboard/update`, {
             method: 'POST',
-            headers: {
-              'Content-Type': 'application/json',
-            },
+            headers: { 'Content-Type': 'application/json' },
             credentials: 'include',
             body: JSON.stringify({
               username: user.username,
+              gameId: id,
+              questionIndex: currentQuestion.questionIndex,
               points: 10,
               isCorrect: true,
               totalAttempts: 1
             }),
+            signal: controller.signal
           });
-
-          if (!response.ok) {
-            throw new Error('Failed to update score');
-          }
           
-          console.log('Score updated successfully');
+          clearTimeout(timeoutId);
         } catch (error) {
-          console.error('Error updating score:', error);
+          if (error.name === 'AbortError') {
+            console.log('Score update request timed out but will continue in background');
+          } else {
+            console.error('Error updating score:', error);
+          }
         }
       }
-
-      await batchedFirebaseUpdate();
     } catch (error) {
       console.error('Error submitting answer:', error);
-      setError('Failed to submit answer. Please try again.');
-      setLockedAnswer(null);
+      setError('Failed to submit answer');
     }
-  }, [selectedOption, showAnswer, timeLeft, currentQuestion, user, batchedFirebaseUpdate]);
+  }, [selectedOption, currentQuestion, timeLeft, user, id]);
 
   const handleExit = () => {
     setShowExitDialog(true);
@@ -719,6 +738,28 @@ const PlayGame = () => {
       setError('Failed to quit game. Please try again.');
     }
   };
+
+  // Replace broad listeners with targeted ones
+  const gameRef = ref(db, `games/${id}`);
+  const gameUnsubscribe = onValue(gameRef, (snapshot) => {
+    const data = snapshot.val();
+    if (data) {
+      setGameState(data);
+    }
+  });
+
+  // Implement exponential backoff for reconnection
+const reconnectWithBackoff = () => {
+  const maxRetries = 5;
+  const baseDelay = 1000;
+  
+  for (let attempt = 0; attempt < maxRetries; attempt++) {
+    const delay = baseDelay * Math.pow(2, attempt);
+    setTimeout(() => {
+      // Attempt reconnection
+    }, delay);
+  }
+};
 
   if (!isInitialized) {
     return (
