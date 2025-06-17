@@ -342,16 +342,25 @@ const ManagePlayAlong = () => {
   const showNextQuestion = async () => {
     if (gameStarted && currentQuestionIndex < selectedBank.questions.length - 1) {
       const nextIndex = currentQuestionIndex + 1;
-      await updateGameState({
-        currentQuestion: {
-          ...selectedBank.questions[nextIndex],
-          questionIndex: nextIndex,
-        },
-        showOptions: false,
-        showAnswer: false,
-        timerStartedAt: null,
-      });
-      setCurrentQuestionIndex(nextIndex);
+      
+      try {
+        await updateGameState({
+          currentQuestion: {
+            ...selectedBank.questions[nextIndex],
+            questionIndex: nextIndex,
+          },
+          showOptions: false,
+          showAnswer: false,
+          timerStartedAt: null,
+          timerDuration: parseInt(timerDuration) || 15,
+          // Add a flag to indicate this is a new question to help clients reset their state
+          isNewQuestion: true, 
+        });
+        setCurrentQuestionIndex(nextIndex);
+      } catch (err) {
+        console.error('Error showing next question:', err);
+        setError('Failed to show next question. Please try again.');
+      }
     }
     
   };

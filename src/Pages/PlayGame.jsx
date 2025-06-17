@@ -227,7 +227,7 @@ const PlayGame = () => {
       setShowOptions(false);
       setShowAnswer(false);
       setSelectedOption(null);
-      setLockedAnswer(null); // Reset lockedAnswer when the game stops
+      setLockedAnswer(null);
       setError('Game has been stopped by the admin');
       localStorage.removeItem(`game_${id}_token`);
       const timeout = setTimeout(() => navigate('/dashboard'), 2000);
@@ -238,46 +238,6 @@ const PlayGame = () => {
       return;
     }
 
-    // Handle options state with timer
-    if ('showOptions' in state) {
-      const shouldShowOptions = Boolean(state.showOptions);
-      if (shouldShowOptions !== showOptions) {
-        setShowOptions(shouldShowOptions);
-        if (shouldShowOptions) {
-          // Ensure we're using the admin's selected timer duration
-          const adminTimerDuration = parseInt(state.timerDuration) || 30;
-          const timerStart = parseInt(state.timerStartedAt);
-          
-          // Ensure we have valid timestamps
-          if (!isNaN(timerStart)) {
-            setTimerStartedAt(timerStart);
-            setTimerDuration(adminTimerDuration);
-            
-            // Calculate initial time left
-            const now = Date.now();
-            const elapsedSeconds = Math.floor((now - timerStart) / 1000);
-            const remainingSeconds = Math.max(0, adminTimerDuration - elapsedSeconds);
-
-            // Fallback for mobile rendering delays
-            if (remainingSeconds <= 0) {
-              setTimeLeft(0);
-              setIsTimerExpired(true);
-            } else {
-              setTimeLeft(remainingSeconds);
-            }
-          }
-          setIsTimerExpired(false);
-        }
-      }
-    }
-
-    // Update timer duration if it changes
-    if (state.timerDuration && state.timerDuration !== timerDuration) {
-      const newDuration = parseInt(state.timerDuration);
-      setTimerDuration(newDuration);
-      setTimeLeft(newDuration);
-    }
-
     // Handle question changes
     if (state.currentQuestion) {
       const newQuestionIndex = parseInt(state.currentQuestion.questionIndex ?? 0);
@@ -286,34 +246,48 @@ const PlayGame = () => {
       if (newQuestionIndex !== currentQuestionIndex) {
         setCurrentQuestion(state.currentQuestion);
 
-        // Reset states when question changes
+        // Reset all states when question changes, regardless of what happened with previous question
         setShowOptions(false);
         setShowAnswer(false);
         setSelectedOption(null);
-        setLockedAnswer(null); // Ensure lockedAnswer is reset
-
-        // Reset timer based on admin's configuration
+        setLockedAnswer(null);
+        setIsTimerExpired(false);
+        setTimerStarted(false);
+        
+        // Reset timer for new question
         const adminTimerDuration = parseInt(state.timerDuration) || 30;
-        const timerStart = parseInt(state.timerStartedAt);
+        setTimerDuration(adminTimerDuration);
+        setTimeLeft(adminTimerDuration);
+      }
+    }
 
-        if (!isNaN(timerStart)) {
-          setTimerStartedAt(timerStart);
-          setTimerDuration(adminTimerDuration);
-
-          // Calculate initial time left
-          const now = Date.now();
-          const elapsedSeconds = Math.floor((now - timerStart) / 1000);
-          const remainingSeconds = Math.max(0, adminTimerDuration - elapsedSeconds);
-
-          setTimeLeft(remainingSeconds);
-          setIsTimerExpired(false);
-        } else {
-          console.error('Invalid timerStart value:', timerStart);
+    // Handle options state with timer
+    if ('showOptions' in state) {
+      const shouldShowOptions = Boolean(state.showOptions);
+      if (shouldShowOptions !== showOptions) {
+        setShowOptions(shouldShowOptions);
+        if (shouldShowOptions) {
+          const adminTimerDuration = parseInt(state.timerDuration) || 30;
+          const timerStart = parseInt(state.timerStartedAt);
+          
+          if (!isNaN(timerStart)) {
+            setTimerStartedAt(timerStart);
+            setTimerDuration(adminTimerDuration);
+            setTimerStarted(true);
+            
+            // Calculate initial time left
+            const now = Date.now();
+            const elapsedSeconds = Math.floor((now - timerStart) / 1000);
+            const remainingSeconds = Math.max(0, adminTimerDuration - elapsedSeconds);
+            
+            setTimeLeft(remainingSeconds);
+            setIsTimerExpired(false);
+          }
         }
       }
     }
 
-    // Handle answer reveal without resetting selection
+    // Handle answer reveal without affecting other states
     if (state.showAnswer && !showAnswer) {
       setShowAnswer(true);
     }
@@ -595,11 +569,12 @@ const PlayGame = () => {
   }
 };
 
-  const handleOptionSelect = useCallback((option) => {
-    if (!showAnswer && !lockedAnswer && timeLeft > 0) {
-      setSelectedOption(option);
-    }
-  }, [showAnswer, lockedAnswer, timeLeft]);
+ const handleOptionSelect = (option) => {
+  // Use showOptions instead of timeLeft > 0 to determine if selections are allowed
+  if (!showAnswer && !lockedAnswer && showOptions) {
+    setSelectedOption(option);
+  }
+};
 
   const handleLockAnswer = useCallback(async () => {
     if (!selectedOption || showAnswer || timeLeft <= 0) return;
@@ -692,7 +667,7 @@ const PlayGame = () => {
         return await operation();
       } catch (error) {
         if (i === maxRetries - 1) throw error;
-        await new Promise(resolve => setTimeout(resolve, Math.pow(2, i) * 1000));
+        await new Promise(resolve => setTimeout(resolve, Math.pow(2), 1000));
       }
     }
   };
@@ -720,6 +695,27 @@ const PlayGame = () => {
       console.error('Error during exit:', err);
       isNavigatingRef.current = false;
       setError('Failed to quit game. Please try again.');
+    }
+  };
+
+  const handleNextQuestion = async () => {
+    if (currentQuestionIndex < questionBank.questions.length - 1) {
+      await stopAllSounds();
+      setCurrentQuestionIndex(prev => prev + 1);
+      setShowOptions(true); // Changed from false to true
+      setSelectedOption(null);
+      setShowAnswer(false);
+      setTimerStarted(false);
+      setTimeLeft(timerDuration);
+      setLockedAnswer(null);
+      setTimeExpired(false);
+      setContinuePlaying(false);
+      setHiddenOptions([]);
+      setIsTimerStopped(false);
+    
+      setTimerStarted(true);
+    } else if (lockedAnswer === currentQuestion?.correctAnswer) {
+      // existing code...
     }
   };
 
