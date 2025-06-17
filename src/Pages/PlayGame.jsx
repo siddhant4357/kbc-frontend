@@ -2,14 +2,14 @@ import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react'
 import { useNavigate, useParams } from 'react-router-dom';
 import { API_URL } from '../utils/config';
 import defaultQuestionImage from '../assets/default_img.jpg';
-
+import { useFirebaseGameState } from '../hooks/useFirebaseGameState';
 import { ref, set, onDisconnect, serverTimestamp, onValue, update } from 'firebase/database';
 import { db } from '../utils/firebase';
 import kbcLogo from '../assets/kbc-logo.jpg';
 
 import { debounce, throttle } from 'lodash';
 
-const BATCH_INTERVAL = 3000; 
+const BATCH_INTERVAL = 3000;
 const MAX_RETRIES = 3;
 const RECONNECT_DELAY = 2000;
 
@@ -182,7 +182,8 @@ const PlayGame = () => {
   const [gameState, setGameState] = useState(null);
   const [error, setError] = useState('');
   const [currentQuestion, setCurrentQuestion] = useState(null);
-  const [questionCache, setQuestionCache] = useState({});
+
+
   
   const [showOptions, setShowOptions] = useState(false);
   const [showAnswer, setShowAnswer] = useState(false);
@@ -195,6 +196,7 @@ const PlayGame = () => {
   const [timerDuration, setTimerDuration] = useState(30);
   const [isTimerExpired, setIsTimerExpired] = useState(false);
   const [isWaiting, setIsWaiting] = useState(true);
+  const { gameState: firebaseGameState, error: firebaseError, isInitialized, isConnected } = useFirebaseGameState(id);
   const timeoutsRef = useRef([]);
   const isNavigatingRef = useRef(false);
   const [connectionAttempts, setConnectionAttempts] = useState(0);
@@ -206,30 +208,16 @@ const PlayGame = () => {
   const [currentQuestionIndex, setCurrentQuestionIndex] = useState(null);
   const [selectedBank, setSelectedBank] = useState(null);
 
-  const { gameState: firebaseGameState, error: firebaseError, isInitialized, isConnected } = useFirebaseGameState(id);
-
-  useEffect(() => {
+    useEffect(() => {
     if (currentQuestion) {
       setSelectedOption(null);
       setLockedAnswer(null);
       setShowAnswer(false);
-      setIsTimerExpired(false); 
-      setShowOptions(false);   
+      setIsTimerExpired(false); // <-- This is critical!
+      setShowOptions(false);    // If you use this state
+      // Reset timerStartedAt and timeLeft as needed
     }
   }, [currentQuestion?.questionIndex]);
-
-  useEffect(() => {
-    if (currentQuestion && typeof currentQuestion.questionIndex === 'number') {
-      setQuestionCache(prev => ({
-        ...prev,
-        [currentQuestion.questionIndex]: currentQuestion
-      }));
-    }
-  }, [currentQuestion]);
-
-  const getQuestionData = useCallback((questionIndex) => {
-    return questionCache[questionIndex] || currentQuestion;
-  }, [questionCache, currentQuestion]);
 
   const processGameState = useCallback(async (state) => {
     if (!state || isNavigatingRef.current || !isInitialized) return;
@@ -487,12 +475,10 @@ const PlayGame = () => {
         .remove()
         .catch(error => console.error('Disconnect handler failed:', error));
 
-      // CHANGE: Increase interval from 30s to 90s
-      const PRESENCE_INTERVAL = 90000; // 90 seconds
       const presenceInterval = setInterval(() => {
         set(ref(db, `games/${id}/players/${user.username}/lastActive`), Date.now())
           .catch(error => console.error('Presence refresh failed:', error));
-      }, PRESENCE_INTERVAL);
+      }, 30000);
 
       return () => {
         clearInterval(presenceInterval);
@@ -548,6 +534,7 @@ const PlayGame = () => {
     }, BATCH_INTERVAL);
 
     return () => {
+      // Clear the interval when the component unmounts
       if (batchTimeoutRef.current) {
         clearInterval(batchTimeoutRef.current);
       }
@@ -613,62 +600,60 @@ const PlayGame = () => {
     }
   }, [showAnswer, lockedAnswer, timeLeft]);
 
-  // Replace client-side score updates with a single API call
   const handleLockAnswer = useCallback(async () => {
     if (!selectedOption || showAnswer || timeLeft <= 0) return;
 
     try {
       const isCorrect = selectedOption === currentQuestion.correctAnswer;
-      setLockedAnswer(selectedOption);
-      
-      // CHANGE: Create a minimal update
       const updates = {
         [`players/${user.username}/answers/${currentQuestion.questionIndex}`]: {
           answer: selectedOption,
           answeredAt: Date.now(),
           isCorrect,
-        }
+        },
+        [`players/${user.username}/status`]: {
+          lastActive: Date.now(),
+          currentQuestion: currentQuestion.questionIndex,
+        },
       };
 
-      // Add this update to the pending batch rather than sending immediately
+      setLockedAnswer(selectedOption);
       pendingUpdatesRef.current.push(updates);
 
-      // If correct, update score via API instead of Firebase
+      // Update score if answer is correct
       if (isCorrect) {
-        // Use fetch API with signal to allow aborting if it takes too long
-        const controller = new AbortController();
-        const timeoutId = setTimeout(() => controller.abort(), 3000);
-        
         try {
-          await fetch(`${API_URL}/api/leaderboard/update`, {
+          const response = await fetch(`${API_URL}/api/leaderboard/update`, {
             method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
+            headers: {
+              'Content-Type': 'application/json',
+            },
             credentials: 'include',
             body: JSON.stringify({
               username: user.username,
-              gameId: id,
-              questionIndex: currentQuestion.questionIndex,
               points: 10,
               isCorrect: true,
               totalAttempts: 1
             }),
-            signal: controller.signal
           });
-          
-          clearTimeout(timeoutId);
-        } catch (error) {
-          if (error.name === 'AbortError') {
-            console.log('Score update request timed out but will continue in background');
-          } else {
-            console.error('Error updating score:', error);
+
+          if (!response.ok) {
+            throw new Error('Failed to update score');
           }
+          
+          console.log('Score updated successfully');
+        } catch (error) {
+          console.error('Error updating score:', error);
         }
       }
+
+      await batchedFirebaseUpdate();
     } catch (error) {
       console.error('Error submitting answer:', error);
-      setError('Failed to submit answer');
+      setError('Failed to submit answer. Please try again.');
+      setLockedAnswer(null);
     }
-  }, [selectedOption, currentQuestion, timeLeft, user, id]);
+  }, [selectedOption, showAnswer, timeLeft, currentQuestion, user, batchedFirebaseUpdate]);
 
   const handleExit = () => {
     setShowExitDialog(true);
@@ -746,17 +731,21 @@ const PlayGame = () => {
     }
   });
 
-  // Implement exponential backoff for reconnection
-const reconnectWithBackoff = () => {
-  const maxRetries = 5;
-  const baseDelay = 1000;
-  
-  for (let attempt = 0; attempt < maxRetries; attempt++) {
-    const delay = baseDelay * Math.pow(2, attempt);
-    setTimeout(() => {
-      // Attempt reconnection
-    }, delay);
+  // Add caching for question data
+const [questionCache, setQuestionCache] = useState({});
+
+useEffect(() => {
+  if (currentQuestion && currentQuestion.questionIndex) {
+    setQuestionCache(prev => ({
+      ...prev,
+      [currentQuestion.questionIndex]: currentQuestion
+    }));
   }
+}, [currentQuestion]);
+
+// Use cache when available
+const getCurrentQuestion = (questionIndex) => {
+  return questionCache[questionIndex] || firebaseGameState?.currentQuestion;
 };
 
   if (!isInitialized) {
@@ -981,3 +970,4 @@ const reconnectWithBackoff = () => {
 };
 
 export default PlayGame;
+
