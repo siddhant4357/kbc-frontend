@@ -545,14 +545,18 @@ const PlayGame = () => {
     });
   }, [timerStartedAt, timerDuration, timeLeft, isTimerExpired, currentQuestion]);
 
-  useEffect(() => {
-    if (currentQuestionIndex !== null) {
-      const adminTimerDuration = parseInt(selectedBank?.timerDuration) || 30;
-      setTimeLeft(adminTimerDuration);
-      setTimerStarted(false);
-      setIsTimerExpired(false);
-    }
-  }, [currentQuestionIndex]);
+ useEffect(() => {
+  if (currentQuestionIndex !== null) {
+    const adminTimerDuration = parseInt(selectedBank?.timerDuration) || 30;
+    setTimeLeft(adminTimerDuration); // Reset timer for the new question
+    setTimerStarted(false); // Ensure timer is not started immediately
+    setShowOptions(false); // Hide options initially
+    setLockedAnswer(null); // Reset locked answer
+    setSelectedOption(null); // Reset selected option
+    setShowAnswer(false); // Reset answer visibility
+    setIsTimerExpired(false); // Reset timer expiration state
+  }
+}, [currentQuestionIndex, selectedBank?.timerDuration]);
 
   useEffect(() => {
     let timer;
@@ -571,22 +575,25 @@ const PlayGame = () => {
     return () => clearInterval(timer);
   }, [timerStarted, timeLeft]);
 
-  const handleTimerEnd = () => {
-    setIsTimerExpired(true);
-    setTimerStarted(false);
-    setTimeLeft(0); // Set to 0 for the current question
+ const handleTimerEnd = () => {
+  setIsTimerExpired(true);
+  setTimerStarted(false);
+  setTimeLeft(0); // Set to 0 for the current question
 
-    // Automatically reset the timer for the next question
-    if (currentQuestionIndex < selectedBank.questions.length - 1) {
-      const adminTimerDuration = parseInt(selectedBank?.timerDuration) || 30;
-      setTimeout(() => {
-        setCurrentQuestionIndex(currentQuestionIndex + 1);
-        setTimeLeft(adminTimerDuration);
-        setTimerStarted(false);
-        setIsTimerExpired(false);
-      }, 1000); // Add a small delay to ensure smooth transition
-    }
-  };
+  // Automatically reset the timer for the next question
+  if (currentQuestionIndex < selectedBank.questions.length - 1) {
+    const adminTimerDuration = parseInt(selectedBank?.timerDuration) || 30;
+    setTimeout(() => {
+      setCurrentQuestionIndex(currentQuestionIndex + 1);
+      setTimeLeft(adminTimerDuration);
+      setTimerStarted(false);
+      setShowOptions(false); // Ensure options are hidden initially
+      setLockedAnswer(null); // Reset locked answer
+      setSelectedOption(null); // Reset selected option
+      setShowAnswer(false); // Reset answer visibility
+    }, 1000); // Add a small delay to ensure smooth transition
+  }
+};
 
   const handleOptionSelect = useCallback((option) => {
     if (!showAnswer && !lockedAnswer && timeLeft > 0) {
