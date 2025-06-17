@@ -66,26 +66,28 @@ const ImageErrorBoundary = React.memo(({ children }) => {
   return children;
 });
 
-const QuestionImage = React.memo(({ imageUrl }) => {
-  const [imgSrc, setImgSrc] = useState(() => {
-    if (imageUrl?.startsWith('http') || imageUrl?.startsWith('data:')) {
-      return imageUrl;
-    }
-    if (imageUrl?.startsWith('/uploads/questions/')) {
-      return `${API_URL}${imageUrl}`;
-    }
-    return defaultQuestionImage;
-  });
-  const [hasError, setHasError] = useState(false);
+// Replace the existing QuestionImage component with this version
+const QuestionImage = React.forwardRef(({ imageUrl }, ref) => {
+  const [imgSrc, setImgSrc] = useState(
+    imageUrl ? formatImageUrl(imageUrl) : defaultQuestionImage
+  );
   const [isLoading, setIsLoading] = useState(true);
+  const [hasError, setHasError] = useState(false);
   const retryCount = useRef(0);
 
+  useEffect(() => {
+    setIsLoading(true);
+    setHasError(false);
+    setImgSrc(imageUrl ? formatImageUrl(imageUrl) : defaultQuestionImage);
+  }, [imageUrl]);
+
   const handleError = (e) => {
-    console.error('Image load error for:', imgSrc);
-    if (retryCount.current < 3 && imgSrc !== defaultQuestionImage) {
+    if (retryCount.current < 2) {
       retryCount.current += 1;
+      const newSrc = `${imgSrc}?retry=${retryCount.current}&t=${Date.now()}`;
+      setImgSrc(newSrc);
       setTimeout(() => {
-        setImgSrc(`${imgSrc}?retry=${retryCount.current}`);
+        e.target.src = newSrc;
       }, 1000);
     } else {
       e.target.src = defaultQuestionImage;
@@ -93,10 +95,6 @@ const QuestionImage = React.memo(({ imageUrl }) => {
     }
     setIsLoading(false);
   };
-
-  useEffect(() => {
-    console.log('Image source:', imgSrc);
-  }, [imgSrc]);
 
   return (
     <div className="relative w-full h-full">
@@ -106,12 +104,13 @@ const QuestionImage = React.memo(({ imageUrl }) => {
         </div>
       )}
       <img
+        ref={ref}
         src={imgSrc}
         alt="Question"
         className={`w-full h-full object-contain rounded-lg shadow-glow transition-opacity duration-300 ${
           isLoading ? 'opacity-0' : 'opacity-100'
         }`}
-        style={{ maxHeight: '100%' }} // Add this line
+        style={{ maxHeight: '100%' }}
         onError={handleError}
         onLoad={() => {
           setIsLoading(false);
@@ -122,6 +121,9 @@ const QuestionImage = React.memo(({ imageUrl }) => {
     </div>
   );
 });
+
+// Add this line to prevent React warnings
+QuestionImage.displayName = 'QuestionImage';
 
 const ExitConfirmDialog = ({ isOpen, onClose, onConfirm, message, isLoading }) => {
   if (!isOpen) return null;
