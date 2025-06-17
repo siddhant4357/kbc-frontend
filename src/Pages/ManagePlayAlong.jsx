@@ -553,7 +553,7 @@ const ManagePlayAlong = () => {
 
                     <div style={useGridStyle}>
                       <div style={styles.timerCard}>
-                        <label style={styles.timerLabel}>Timer Duration (seconds)</label>
+                        {/* <label style={styles.timerLabel}>Timer Duration (seconds)</label> */}
                         <div style={styles.timerInputContainer}>
                           {/* <input
                             type="number"
