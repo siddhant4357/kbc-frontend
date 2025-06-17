@@ -10,6 +10,8 @@ import wrongAnswerSound from '../assets/kbc_wrong_ans.wav';
 import timerEndSound from '../assets/kbc_timer_finish.mp4';
 import defaultQuestionImage from '../assets/default_img.jpg';
 import { loadAudio, playWithFallback, stopAllSounds } from '../utils/audioUtils';
+import { createSocketConnection, handleSocketEvent } from '../utils/socketUtils';
+
 
 // Update prize levels (from lowest to highest)
 const PRIZE_LEVELS = [
@@ -107,28 +109,29 @@ const PlayGame = () => {
 
   useEffect(() => {
     // Timer effect
-    if (timerStartedAt && showOptions && !showAnswer && !lockedAnswer) {
-      const interval = setInterval(() => {
-        const now = new Date();
-        const startTime = new Date(timerStartedAt);
+    if (timerStartedAt && showOptions && !showAnswer && !lockedAnswer && !isTimerExpired) {
+      const timerInterval = setInterval(() => {
+        const now = Date.now();
+        const startTime = parseInt(timerStartedAt);
         const elapsedSeconds = Math.floor((now - startTime) / 1000);
-        const remainingSeconds = timerDuration - elapsedSeconds;
+        const remainingSeconds = Math.max(0, timerDuration - elapsedSeconds);
         
-        setTimeLeft(Math.max(0, remainingSeconds));
+        setTimeLeft(remainingSeconds);
         
         if (remainingSeconds <= 0) {
+          clearInterval(timerInterval);
           setIsTimerExpired(true);
-          // Only clear selectedOption if it wasn't locked
-          if (!lockedAnswer) {
-            setSelectedOption(null);
+          if (timerAudio) {
+            timerAudio.pause();
+            timerAudio.currentTime = 0;
           }
-          clearInterval(interval);
+          // Emit event to server that time expired (if needed)
         }
       }, 1000);
       
-      return () => clearInterval(interval);
+      return () => clearInterval(timerInterval);
     }
-  }, [timerStartedAt, timerDuration, showOptions, showAnswer, lockedAnswer]);
+  }, [timerStartedAt, showOptions, showAnswer, lockedAnswer, timerDuration, isTimerExpired]);
 
   useEffect(() => {
     const newSocket = io(SOCKET_URL);
@@ -172,8 +175,8 @@ const PlayGame = () => {
       setSelectedOption(null);
       setLockedAnswer(null);
       setGameStopped(false);
-      setIsTimerExpired(false); // Add this line to reset timer expired state
-      setTimeLeft(timerDuration); // Reset the time left to full duration
+      setIsTimerExpired(false); // Reset timer expired flag
+      setTimeLeft(timerDuration); // Reset the timer display
       
       // Update prize index based on question index
       const questionIndex = parseInt(data.questionIndex ?? 0);
@@ -188,9 +191,9 @@ const PlayGame = () => {
       setShowOptions(true);
       setTimerStartedAt(data.timerStartedAt);
       setTimerDuration(data.timerDuration);
-      setIsTimerExpired(false); // Add this line to ensure timer is not expired
+      setIsTimerExpired(false); // Reset timer expired flag
       
-      // Calculate and set the initial time remaining
+      // Reset and calculate the current timer
       const now = Date.now();
       const timerStart = parseInt(data.timerStartedAt);
       if (!isNaN(timerStart)) {
@@ -198,7 +201,7 @@ const PlayGame = () => {
         const remainingSeconds = Math.max(0, data.timerDuration - elapsedSeconds);
         setTimeLeft(remainingSeconds);
       } else {
-        setTimeLeft(data.timerDuration); // Fallback to full duration if no start time
+        setTimeLeft(data.timerDuration);
       }
     });
 
