@@ -179,25 +179,18 @@ const PlayGame = () => {
   const navigate = useNavigate();
   const user = JSON.parse(localStorage.getItem('user'));
 
+  // Existing state variables
   const [gameState, setGameState] = useState(null);
   const [error, setError] = useState('');
   const [currentQuestion, setCurrentQuestion] = useState(null);
-
-  useEffect(() => {
-    if (currentQuestion) {
-      // Reset answer states every time the question changes
-      setSelectedOption(null);
-      setLockedAnswer(null); // Ensure lockedAnswer is reset
-      setShowAnswer(false);
-    }
-  }, [currentQuestion?.questionIndex]);
-  
   const [showOptions, setShowOptions] = useState(false);
   const [showAnswer, setShowAnswer] = useState(false);
   const [selectedOption, setSelectedOption] = useState(null);
   const [lockedAnswer, setLockedAnswer] = useState(null);
   const [gameStopped, setGameStopped] = useState(false);
   const [gameToken, setGameToken] = useState(() => localStorage.getItem(`game_${id}_token`));
+  
+  // Timer related state variables
   const [timeLeft, setTimeLeft] = useState(30); // Default to 30 seconds
   const [timerDuration, setTimerDuration] = useState(30);
   const [timerStarted, setTimerStarted] = useState(false);
@@ -274,7 +267,7 @@ const PlayGame = () => {
       }
     }
 
-    // Handle answer reveal
+    // Handle answer reveal without affecting other states
     if (state.showAnswer && !showAnswer) {
       setShowAnswer(true);
     }
@@ -556,15 +549,15 @@ const PlayGame = () => {
   }
 };
 
- const handleOptionSelect = useCallback((option) => {
-  // Allow selecting an option if:
-  // 1. Answer not shown yet
-  // 2. No answer locked yet
-  // 3. Timer still running
-  if (!showAnswer && !lockedAnswer && timeLeft > 0) {
-    setSelectedOption(option);
-  }
-}, [showAnswer, lockedAnswer, timeLeft]);
+  const handleOptionSelect = useCallback((option) => {
+    // Allow selecting an option if:
+    // 1. Answer not shown yet
+    // 2. No answer locked yet
+    // 3. Timer still running
+    if (!showAnswer && !lockedAnswer && timeLeft > 0) {
+      setSelectedOption(option);
+    }
+  }, [showAnswer, lockedAnswer, timeLeft]);
 
   const handleLockAnswer = useCallback(async () => {
     if (!selectedOption || showAnswer || timeLeft <= 0) return;

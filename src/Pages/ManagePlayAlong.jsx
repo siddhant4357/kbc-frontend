@@ -571,7 +571,7 @@ const ManagePlayAlong = () => {
                               e.currentTarget.style.background = 'rgba(0, 11, 62, 0.6)';
                             }}
                           /> */}
-                          <span style={styles.timerUnit}>sec</span>
+                          {/* <span style={styles.timerUnit}>sec</span> */}
                         </div>
                       </div>
                       <button
