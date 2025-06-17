@@ -932,27 +932,3 @@ const PlayGame = () => {
 };
 
 export default PlayGame;
-// Add this useEffect to handle the local timer
-useEffect(() => {
-  let timer;
-  
-  // Start the timer when options are shown and no answer is locked yet
-  if (showOptions && !lockedAnswer && !showAnswer && timeLeft > 0) {
-    timer = setInterval(() => {
-      setTimeLeft(prev => {
-        if (prev <= 1) {
-          clearInterval(timer);
-          // Timer expired
-          setIsTimerExpired(true);
-          setTimerStarted(false);
-          return 0;
-        }
-        return prev - 1;
-      });
-    }, 1000);
-  }
-  
-  return () => {
-    if (timer) clearInterval(timer);
-  };
-}, [showOptions, lockedAnswer, showAnswer, timeLeft]);
